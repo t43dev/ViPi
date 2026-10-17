@@ -1,0 +1,277 @@
+import AppKit
+import Carbon.HIToolbox
+import ViPiCore
+
+enum InputMode: String, CaseIterable {
+    case vietnamese, chinese, english
+
+    var next: InputMode {
+        let all = InputMode.allCases
+        return all[(all.firstIndex(of: self)! + 1) % all.count]
+    }
+
+    var title: String {
+        switch self {
+        case .vietnamese: return "Vietnamese (Telex)"
+        case .chinese: return "Chinese (Pinyin)"
+        case .english: return "English"
+        }
+    }
+
+    var badge: String {
+        switch self {
+        case .vietnamese: return "VI"
+        case .chinese: return "拼"
+        case .english: return "EN"
+        }
+    }
+}
+
+/// Bắt phím toàn hệ thống bằng CGEventTap và chuyển cho bộ gõ Telex / Pinyin.
+final class InputController {
+    var mode: InputMode = .vietnamese {
+        didSet { cancelComposition() }
+    }
+    var onCycleMode: (() -> Void)?
+    var fullWidthPunctuation = true
+
+    let telex = TelexEngine()
+    var pinyin: PinyinEngine?          // nil khi từ điển còn đang nạp
+    private let panel = CandidatePanel()
+    private var page = 0
+    private var highlight = 0
+    private let pageSize = 9
+
+    private var tap: CFMachPort?
+    private var proxy: CGEventTapProxy?
+    private var chordArmed = false
+
+    var isRunning: Bool { tap != nil }
+
+    // MARK: - Event tap
+
+    func start() -> Bool {
+        if tap != nil { return true }
+        let types: [CGEventType] = [.keyDown, .flagsChanged, .leftMouseDown, .rightMouseDown, .otherMouseDown]
+        let mask = types.reduce(CGEventMask(0)) { $0 | (CGEventMask(1) << $1.rawValue) }
+        let callback: CGEventTapCallBack = { proxy, type, event, refcon in
+            let me = Unmanaged<InputController>.fromOpaque(refcon!).takeUnretainedValue()
+            return me.handle(proxy: proxy, type: type, event: event)
+        }
+        guard let tap = CGEvent.tapCreate(
+            tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap,
+            eventsOfInterest: mask, callback: callback,
+            userInfo: Unmanaged.passUnretained(self).toOpaque()
+        ) else { return false }
+        self.tap = tap
+        let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+        CGEvent.tapEnable(tap: tap, enable: true)
+        return true
+    }
+
+    private func handle(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+        let pass = Unmanaged.passUnretained(event)
+        switch type {
+        case .tapDisabledByTimeout, .tapDisabledByUserInput:
+            if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
+            return pass
+        case .leftMouseDown, .rightMouseDown, .otherMouseDown:
+            chordArmed = false
+            cancelComposition()
+            return pass
+        case .flagsChanged:
+            handleChord(event.flags)
+            return pass
+        case .keyDown:
+            if event.getIntegerValueField(.eventSourceUserData) == KeySender.marker { return pass }
+            chordArmed = false
+            self.proxy = proxy
+            return handleKey(event) ? nil : pass
+        default:
+            return pass
+        }
+    }
+
+    /// Ctrl+Shift: nhấn cả hai rồi nhả hết mà không gõ phím nào khác → đổi bộ gõ.
+    private func handleChord(_ flags: CGEventFlags) {
+        let f = flags.intersection([.maskControl, .maskShift, .maskCommand, .maskAlternate])
+        if f == [.maskControl, .maskShift] {
+            chordArmed = true
+        } else if f.isEmpty {
+            if chordArmed {
+                chordArmed = false
+                DispatchQueue.main.async { self.onCycleMode?() }
+            }
+        } else if !f.isSubset(of: [.maskControl, .maskShift]) {
+            chordArmed = false
+        }
+    }
+
+    // MARK: - Keys
+
+    private func handleKey(_ event: CGEvent) -> Bool {
+        if !event.flags.intersection([.maskCommand, .maskControl, .maskAlternate]).isEmpty {
+            cancelComposition()   // phím tắt: không đụng vào
+            return false
+        }
+        let keyCode = Int(event.getIntegerValueField(.keyboardEventKeycode))
+        let typed = Self.typedString(event)
+        switch mode {
+        case .english: return false
+        case .vietnamese: return handleVietnamese(keyCode, typed)
+        case .chinese: return handleChinese(keyCode, typed)
+        }
+    }
+
+    private func handleVietnamese(_ keyCode: Int, _ typed: String) -> Bool {
+        if keyCode == kVK_Delete {
+            telex.backspace()
+            return false
+        }
+        guard typed.count == 1, let ch = typed.first, ch.isASCII, ch.isLetter else {
+            telex.reset()
+            return false
+        }
+        let edit = telex.type(ch)
+        if edit.backspaces == 0, edit.insert == typed { return false }   // để phím gốc đi qua
+        KeySender.send(edit, proxy: proxy)
+        return true
+    }
+
+    private func handleChinese(_ keyCode: Int, _ typed: String) -> Bool {
+        guard let py = pinyin else { return false }
+        let ch = typed.count == 1 ? typed.first : nil
+
+        if py.isComposing {
+            switch keyCode {
+            case kVK_Delete: py.backspace(); refreshPanel(); return true
+            case kVK_Escape: cancelComposition(); return true
+            case kVK_Return, kVK_ANSI_KeypadEnter: commit(py.commitRaw()); return true
+            case kVK_Space: choose(page * pageSize + highlight); return true
+            case kVK_LeftArrow: moveHighlight(-1); return true
+            case kVK_RightArrow, kVK_Tab: moveHighlight(1); return true
+            case kVK_UpArrow, kVK_PageUp: turnPage(-1); return true
+            case kVK_DownArrow, kVK_PageDown: turnPage(1); return true
+            default: break
+            }
+            if let ch {
+                if ("a"..."z").contains(ch) || ch == "'" { py.type(ch); page = 0; highlight = 0; refreshPanel(); return true }
+                if let d = ch.wholeNumberValue, (1...9).contains(d) { choose(page * pageSize + d - 1); return true }
+                if ch == "-" || ch == "[" { turnPage(-1); return true }
+                if ch == "=" || ch == "]" { turnPage(1); return true }
+            }
+            // phím khác (dấu câu, chữ hoa...): chọn ứng viên đầu cho hết rồi xử lý tiếp như bình thường
+            commitBest()
+        }
+
+        guard let ch else { return false }
+        if ("a"..."z").contains(ch) {
+            py.type(ch)
+            page = 0; highlight = 0
+            refreshPanel()
+            DispatchQueue.main.async { self.panel.anchor(to: CaretLocator.caretRect()) }
+            return true
+        }
+        if fullWidthPunctuation, let p = Self.punctuation[ch] {
+            KeySender.insert(p, proxy: proxy)
+            return true
+        }
+        return false
+    }
+
+    private func choose(_ index: Int) {
+        guard let py = pinyin, py.candidates.indices.contains(index) else { return }
+        if let text = py.select(index) { commit(text) } else { page = 0; highlight = 0; refreshPanel() }
+    }
+
+    private func commitBest() {
+        guard let py = pinyin else { return }
+        while py.isComposing {
+            if py.candidates.isEmpty { commit(py.commitRaw()); return }
+            if let text = py.select(0) { commit(text); return }
+        }
+    }
+
+    private func commit(_ text: String) {
+        panel.hide()
+        if !text.isEmpty { KeySender.insert(text, proxy: proxy) }
+    }
+
+    private func moveHighlight(_ delta: Int) {
+        guard let py = pinyin else { return }
+        let count = min(pageSize, py.candidates.count - page * pageSize)
+        let h = highlight + delta
+        if h < 0 { if page > 0 { page -= 1; highlight = pageSize - 1 } }
+        else if h >= count { turnPage(1); return }
+        else { highlight = h }
+        refreshPanel()
+    }
+
+    private func turnPage(_ delta: Int) {
+        guard let py = pinyin else { return }
+        let pages = max(1, (py.candidates.count + pageSize - 1) / pageSize)
+        let p = page + delta
+        if p >= 0, p < pages { page = p; highlight = 0 }
+        refreshPanel()
+    }
+
+    private func refreshPanel() {
+        guard let py = pinyin, py.isComposing else { panel.hide(); return }
+        let start = page * pageSize
+        let items = Array(py.candidates.dropFirst(start).prefix(pageSize)).map(\.text)
+        panel.update(preedit: py.preedit, items: items, highlight: highlight,
+                     hasPrev: page > 0, hasNext: start + pageSize < py.candidates.count)
+    }
+
+    func cancelComposition() {
+        telex.reset()
+        pinyin?.reset()
+        page = 0
+        highlight = 0
+        panel.hide()
+    }
+
+    // MARK: - Helpers
+
+    static func typedString(_ event: CGEvent) -> String {
+        var length = 0
+        var buffer = [UniChar](repeating: 0, count: 8)
+        event.keyboardGetUnicodeString(maxStringLength: 8, actualStringLength: &length, unicodeString: &buffer)
+        return String(utf16CodeUnits: buffer, count: length)
+    }
+
+    static let punctuation: [Character: String] = [
+        ",": "，", ".": "。", "?": "？", "!": "！", ";": "；", ":": "：",
+        "(": "（", ")": "）", "[": "【", "]": "】", "<": "《", ">": "》",
+        "\\": "、", "~": "～", "^": "……", "$": "￥",
+    ]
+}
+
+/// Gửi phím giả: backspace + chuỗi Unicode, đánh dấu để tap của mình bỏ qua.
+enum KeySender {
+    static let marker: Int64 = 0x5669_5069   // "ViPi"
+    private static let source = CGEventSource(stateID: .privateState)
+
+    static func send(_ edit: TextEdit, proxy: CGEventTapProxy?) {
+        for _ in 0..<edit.backspaces { post(key: CGKeyCode(kVK_Delete), text: nil, proxy: proxy) }
+        insert(edit.insert, proxy: proxy)
+    }
+
+    static func insert(_ text: String, proxy: CGEventTapProxy?) {
+        for ch in text { post(key: 0, text: String(ch), proxy: proxy) }
+    }
+
+    private static func post(key: CGKeyCode, text: String?, proxy: CGEventTapProxy?) {
+        for down in [true, false] {
+            guard let e = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: down) else { continue }
+            e.flags = []
+            if let text {
+                let units = Array(text.utf16)
+                e.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
+            }
+            e.setIntegerValueField(.eventSourceUserData, value: marker)
+            if let proxy { e.tapPostEvent(proxy) } else { e.post(tap: .cgSessionEventTap) }
+        }
+    }
+}
