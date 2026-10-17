@@ -230,7 +230,7 @@ public final class TelexEngine {
 
     // MARK: - Ngược: chuỗi tiếng Việt → phím Telex (dùng khi backspace)
 
-    static func telexKeys(for word: String) -> [Character] {
+    public static func telexKeys(for word: String) -> [Character] {
         var keys: [Character] = []
         var tone: Tone = .none
         for ch in word {
