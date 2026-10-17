@@ -19,7 +19,8 @@ I type Vietnamese and Chinese every day, and macOS had no sensible way to do bot
 - **Control+Shift** jumps back to the previous input; press it twice quickly to move on to the next one (most-recently-used order, like ⌘Space).
 - **Secure Input Monitor** shows which app holds macOS Secure Input, the usual reason every input tool suddenly stops working, with history, PID, path and Show/Quit buttons. The menu-bar icon turns into a lock while it is held.
 - **Launch at Login**, on by default.
-- **Private**: ViPi has no network code. Keystrokes are processed on your Mac and never leave it.
+- **Automatic updates** from GitHub Releases: ViPi checks every few hours, verifies that the download is signed by the ViPi developer, installs it and relaunches once you stop typing. Turn it off or check by hand in **About ViPi**.
+- **Private**: keystrokes are processed on your Mac and never leave it. The only network access is the update check to GitHub.
 
 ## Install
 

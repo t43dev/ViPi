@@ -7,6 +7,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let controller = InputController()
     private let secureInput = SecureInputMonitor()
     private lazy var secureWindow = SecureInputWindowController(monitor: secureInput)
+    private let updater = Updater()
+    private lazy var aboutWindow = AboutWindowController(updater: updater)
     private let hud = ModeHUD()
     private var permissionTimer: Timer?
     private let defaults = UserDefaults.standard
@@ -67,6 +69,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         loadDictionary()
         setUpLoginItemOnFirstLaunch()
+        updater.start()
         startTapOrAskPermission()
 
         NSWorkspace.shared.notificationCenter.addObserver(
@@ -145,6 +148,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !controller.isRunning {
             menu.addItem(item("⚠️ Grant Accessibility Permission…", #selector(openAccessibility)))
         }
+        switch updater.state {
+        case .available(let v): menu.addItem(item("⬆️ Update to ViPi \(v)…", #selector(showAbout)))
+        case .ready(let v): menu.addItem(item("⬆️ Relaunch to Finish Updating to \(v)", #selector(relaunchForUpdate)))
+        default: break
+        }
         if secureInput.isEnabled {
             let who = secureInput.holder.map { "\($0.name) (PID \($0.pid))" } ?? "unknown app"
             menu.addItem(item("🔒 Secure Input held by \(who)", #selector(showSecureInput)))
@@ -174,6 +182,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let login = item("Launch at Login", #selector(toggleLaunchAtLogin))
         login.state = launchAtLogin ? .on : .off
         menu.addItem(login)
+        menu.addItem(item("Check for Updates…", #selector(checkForUpdates)))
         menu.addItem(item("About ViPi", #selector(showAbout)))
         menu.addItem(.separator())
         menu.addItem(item("Quit ViPi", #selector(quit), key: "q"))
@@ -210,16 +219,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         startTapOrAskPermission()
     }
 
-    @objc private func showAbout() {
-        NSApp.activate(ignoringOtherApps: true)
-        let credits = NSAttributedString(
-            string: "Vietnamese (Telex) + Chinese (Pinyin) in one input tool.\n"
-                + "Control+Shift switches to the previous input; press twice for the next one.\n\n"
-                + "Telex rules follow UniKey. Pinyin dictionary: rime-ice (GPL-3.0).\n"
-                + "github.com/kulinh/ViPi",
-            attributes: [.font: NSFont.systemFont(ofSize: 11)])
-        NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
+    @objc private func showAbout() { aboutWindow.show() }
+
+    @objc private func checkForUpdates() {
+        aboutWindow.show()
+        updater.check(userInitiated: true)
     }
+
+    @objc private func relaunchForUpdate() { updater.relaunch() }
 
     @objc private func quit() { NSApp.terminate(nil) }
 }

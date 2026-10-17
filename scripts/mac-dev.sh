@@ -10,6 +10,7 @@ cd "$(dirname "$0")/.."
 git archive --format=tar HEAD | $SSH 'rm -rf ~/vipi-dev && mkdir -p ~/vipi-dev && tar -x -C ~/vipi-dev'
 # bản đang sửa dở (chưa commit) cũng được đẩy lên
 git diff HEAD --binary | $SSH 'cd ~/vipi-dev && git apply --allow-empty 2>/dev/null || patch -p1 >/dev/null' || true
+git ls-files --others --exclude-standard -z | xargs -0r tar -c | $SSH 'tar -x -C ~/vipi-dev'
 $SSH 'bash -s' <<'REMOTE'
 set -euo pipefail
 cd ~/vipi-dev

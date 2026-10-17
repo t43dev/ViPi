@@ -46,7 +46,7 @@ if [ -n "${SIGN_IDENTITY:-}" ]; then
     NOTARY=(--apple-id "$APPLE_ID" --password "$APPLE_APP_PASSWORD" --team-id "$APPLE_TEAM_ID")
   fi
   if [ -n "${NOTARY+x}" ]; then
-    xcrun notarytool submit "$DMG" "${NOTARY[@]}" --wait --timeout 30m | tee build/notary.log
+    xcrun notarytool submit "$DMG" "${NOTARY[@]}" --wait --timeout "${NOTARY_TIMEOUT:-30m}" | tee build/notary.log
     grep -q "status: Accepted" build/notary.log || {
       ID=$(awk '/^  id:/{print $2; exit}' build/notary.log)
       [ -n "$ID" ] && xcrun notarytool log "$ID" "${NOTARY[@]}"

@@ -19,7 +19,8 @@ Mình gõ tiếng Việt và tiếng Trung hằng ngày, nhưng trên macOS khô
 - **Control+Shift**: bấm một lần để quay về bộ gõ vừa dùng, bấm nhanh hai lần để sang bộ tiếp theo (theo thứ tự dùng gần nhất, giống ⌘Space).
 - **Theo dõi Secure Input**: cho biết app nào đang giữ Secure Input của macOS, lý do thường gặp khiến mọi bộ gõ bỗng dưng không gõ được. Có lịch sử, PID, đường dẫn, nút Show/Quit. Biểu tượng trên thanh menu chuyển thành ổ khoá khi Secure Input đang bật.
 - **Khởi động cùng máy**, bật sẵn.
-- **Riêng tư**: ViPi không có mã kết nối mạng. Phím gõ được xử lý ngay trên máy, không gửi đi đâu.
+- **Tự cập nhật** từ GitHub Releases: vài giờ ViPi kiểm tra một lần, xác minh bản tải về đúng chữ ký của tác giả ViPi, tự cài, rồi khởi động lại khi bạn ngừng gõ. Có thể tắt hoặc kiểm tra thủ công trong **About ViPi**.
+- **Riêng tư**: phím gõ được xử lý ngay trên máy, không gửi đi đâu. Kết nối mạng duy nhất là kiểm tra bản cập nhật trên GitHub.
 
 ## Cài đặt
 

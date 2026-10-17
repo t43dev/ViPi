@@ -46,7 +46,7 @@ cd $W
 TS_IP=$(dig +short A timestamp.apple.com | grep -E '^[0-9.]+$' | head -1)
 export TIMESTAMP_URL=${TS_IP:+http://$TS_IP/ts01}
 VERSION=$VERSION BUILD=$BUILD SIGN_IDENTITY="$IDENTITY" \
-  NOTARY_KEY=$S/notary.p8 NOTARY_KEY_ID=$NOTARY_KEY_ID NOTARY_ISSUER=$NOTARY_ISSUER \
+  NOTARY_KEY=$S/notary.p8 NOTARY_KEY_ID=$NOTARY_KEY_ID NOTARY_ISSUER=$NOTARY_ISSUER NOTARY_TIMEOUT=4h \
   scripts/build-app.sh 2>&1 | grep -vE "^\[[0-9]+/[0-9]+\]"
 REMOTE
 
