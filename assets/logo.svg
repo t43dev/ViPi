@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E8392F"/>
+      <stop offset="1" stop-color="#A3101A"/>
+    </linearGradient>
+    <radialGradient id="sheen" cx="0.5" cy="0" r="0.9">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gold" gradientUnits="userSpaceOnUse" x1="0" y1="300" x2="0" y2="730">
+      <stop offset="0" stop-color="#FFE68A"/>
+      <stop offset="0.55" stop-color="#FFD54A"/>
+      <stop offset="1" stop-color="#F6B820"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14"/>
+      <feOffset dy="12" result="b"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.35"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="gshadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="6"/>
+      <feOffset dy="8" result="b"/>
+      <feFlood flood-color="#5A0008" flood-opacity="0.45"/>
+      <feComposite in2="b" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <rect x="100" y="100" width="824" height="824" rx="185" ry="185" fill="url(#bg)"/>
+  </g>
+  <rect x="100" y="100" width="824" height="824" rx="185" ry="185" fill="url(#sheen)"/>
+  <g filter="url(#gshadow)" fill="url(#gold)"><g transform="translate(512 522) scale(0.84) translate(-459.0 -522.0)">
+    <path fill-rule="evenodd" d="M100.0,300.0 L236.0,300.0 L470.0,580.8 L470.0,300.0 L670.0,300.0 A148.0,148.0 0 0 1 670.0,596.0 L586.0,596.0 L586.0,744.0 L470.0,744.0 Z M586.0,400.0 L586.0,496.0 L670.0,496.0 A48.0,48.0 0 0 0 670.0,400.0 Z"/>
+    <path d="M381.5,272.0 L395.4,314.8 L440.5,314.8 L404.0,341.3 L417.9,384.2 L381.5,357.7 L345.1,384.2 L359.0,341.3 L322.5,314.8 L367.6,314.8 Z"/>
+  </g></g>
+</svg>

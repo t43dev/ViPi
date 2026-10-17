@@ -1,0 +1,34 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift --version
+      - name: Test engines
+        run: swift test
+      - name: Build ViPi.app
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then VERSION="${GITHUB_REF_NAME#v}"; else VERSION="0.0.0"; fi
+          VERSION="$VERSION" BUILD="$GITHUB_RUN_NUMBER" scripts/build-app.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ViPi
+          path: build/ViPi-*.zip
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/ViPi-*.zip
+          generate_release_notes: true
