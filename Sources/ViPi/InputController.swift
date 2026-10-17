@@ -31,6 +31,7 @@ final class InputController {
     var fullWidthPunctuation = true
     var shortcut = SwitchShortcut.default { didSet { chordArmed = false } }
     var macros: MacroTable?            // nil: tắt gõ tắt
+    private var atWordStart = true      // từ đang gõ đứng sau dấu cách/đầu dòng (không dính sau số, @, ...)
     var isRecordingShortcut = false     // đang ghi phím tắt trong Settings: để mọi phím đi qua
 
     let telex = TelexEngine()
@@ -153,8 +154,13 @@ final class InputController {
         guard typed.count == 1, let ch = typed.first, ch.isASCII, ch.isLetter else {
             // Space/Enter/Tab/dấu câu/số kết thúc từ: gõ tắt ("vn" → "Việt Nam"), hoặc chữ không phải
             // tiếng Việt thì gõ lại như đã gõ ("ủe" → "user"), rồi mới cho phím kết thúc từ đi qua
-            if typed.count == 1, let ascii = typed.first?.asciiValue, (0x20...0x7E).contains(ascii) || ascii == 0x0D || ascii == 0x09,
-               let edit = macros.flatMap(telex.expandMacro) ?? telex.finishWord() {
+            let ascii = typed.count == 1 ? typed.first?.asciiValue : nil
+            let isSpace = ascii == 0x20 || ascii == 0x0D || ascii == 0x09
+            // gõ tắt chỉ khi từ đứng riêng và kết thúc bằng Space/Enter/Tab: "call2vn@" giữ nguyên
+            let macro = isSpace && atWordStart ? macros.flatMap(telex.expandMacro) : nil
+            atWordStart = isSpace
+            if let ascii, (0x20...0x7E).contains(ascii) || isSpace,
+               let edit = macro ?? telex.finishWord() {
                 // gõ nhanh thì phím chữ cuối có thể còn đang giữ: mượn mã của chính phím Space (app chưa thấy nó)
                 KeySender.send(edit, keyCode: ascii == 0x20 ? CGKeyCode(kVK_Space) : self.keyCode, proxy: proxy)
                 KeySender.repost(event, proxy: proxy)
@@ -258,6 +264,7 @@ final class InputController {
     }
 
     func cancelComposition() {
+        atWordStart = true
         telex.reset()
         pinyin?.reset()
         page = 0

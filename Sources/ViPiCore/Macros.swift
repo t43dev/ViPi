@@ -1,4 +1,4 @@
-/// Gõ tắt: gõ xong từ khoá rồi Space/dấu câu thì từ khoá được thay bằng cụm đầy đủ ("vn" → "Việt Nam").
+/// Gõ tắt: gõ xong từ khoá (đứng riêng) rồi Space/Enter/Tab thì từ khoá được thay bằng cụm đầy đủ ("vn" → "Việt Nam").
 /// Không phân biệt hoa/thường; gõ từ khoá viết hoa chữ đầu / viết hoa toàn bộ thì cụm thay cũng vậy.
 public struct MacroTable {
     private var exact: [String: String] = [:]

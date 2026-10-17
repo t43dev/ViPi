@@ -123,7 +123,7 @@ struct MacrosView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Toggle("Expand text shortcuts in Vietnamese mode", isOn: $prefs.macrosEnabled)
-            Text("Type a shortcut, then Space or punctuation, to replace it with the full text. Letter case follows what you type: vn → Việt Nam, VN → VIỆT NAM.")
+            Text("Type a shortcut as its own word, then Space, Return or Tab, to replace it with the full text (call2vn@ stays as typed). Letter case follows what you type: vn → Việt Nam, VN → VIỆT NAM.")
                 .font(.caption).foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Table(prefs.macros, selection: $selection) {
