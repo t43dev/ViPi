@@ -53,14 +53,29 @@ final class SelfTest: NSObject, NSApplicationDelegate {
         // Chỉ lấy từ mà engine dựng đúng (bỏ từ mượn kiểu "abc"); kết quả mong đợi = engine
         let words = ((try? String(contentsOfFile: wordsPath, encoding: .utf8)) ?? "")
             .split(separator: "\n").map(String.init)
+        // giống ViPi đang chạy: có danh sách âm tiết thì chữ không phải tiếng Việt được trả lại khi gõ Space
+        let lexicon = Bundle.main.url(forResource: "vietnamese-syllables", withExtension: "txt")
+            .flatMap { try? String(contentsOf: $0, encoding: .utf8) }.map(VietnameseLexicon.init(text:))
+        let prefs = Preferences()
+        let macros = prefs.macrosEnabled ? prefs.macroTable : nil
+        func typed(_ keys: [Character]) -> String {
+            let e = TelexEngine()
+            e.lexicon = lexicon
+            for k in keys { _ = e.type(k) }
+            let shown = e.output
+            if let edit = macros.flatMap(e.expandMacro) ?? e.finishWord() {
+                return String(shown.dropLast(edit.backspaces)) + edit.insert
+            }
+            return shown
+        }
         var cases: [(keys: [Character], want: String)] = []
         for w in words {
+            // dòng "phím<TAB>mong đợi": gõ đúng các phím đó (vd thử gõ tắt "vn\tViệt Nam")
+            let parts = w.split(separator: "\t", omittingEmptySubsequences: false)
+            if parts.count == 2 { cases.append((Array(parts[0]), String(parts[1]))); continue }
+            guard typed(TelexEngine.telexKeys(for: w)) == w else { continue }
             let keys = variant ? Self.marksAtEnd(w) : TelexEngine.telexKeys(for: w)
-            let e = TelexEngine()
-            for k in keys { _ = e.type(k) }
-            let canonical = TelexEngine()
-            for k in TelexEngine.telexKeys(for: w) { _ = canonical.type(k) }
-            if canonical.output == w { cases.append((keys, e.output)) }
+            cases.append((keys, typed(keys)))
         }
 
         var fails = 0
@@ -70,10 +85,10 @@ final class SelfTest: NSObject, NSApplicationDelegate {
             onMain { textView.string = ""; window.makeFirstResponder(textView) }
             if !onMain({ NSApp.isActive }) { onMain { NSApp.activate(ignoringOtherApps: true) }; usleep(300_000) }
             var keys: [Character] = []
-            for c in chunk { keys += c.keys; keys.append(" ") }
+            for c in chunk { keys += c.keys; keys.append("\n") }   // Enter kết thúc từ (cụm gõ tắt có thể chứa dấu cách)
             type(keys)
             usleep(400_000)
-            let got = onMain { textView.string }.split(separator: " ", omittingEmptySubsequences: false).map(String.init)
+            let got = onMain { textView.string }.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
             for (i, c) in chunk.enumerated() {
                 let g = i < got.count ? got[i] : "<missing>"
                 if g != c.want {
@@ -104,25 +119,28 @@ final class SelfTest: NSObject, NSApplicationDelegate {
             let wait = ev.t - Date().timeIntervalSince(t0)
             if wait > 0 { usleep(useconds_t(wait * 1_000_000)) }
             guard let e = CGEvent(keyboardEventSource: source, virtualKey: ev.code, keyDown: ev.down) else { continue }
-            if ev.shift { e.flags = .maskShift }
+            e.flags = ev.shift ? .maskShift : []
             e.post(tap: .cghidEventTap)
         }
     }
 
-    /// Nhấn-nhả Control+Shift `times` lần ở mức HID.
-    static func pressChord(times: Int, gapMs: Double) {
+    /// Nhấn-nhả Control+Shift (hoặc Control+Space) `times` lần ở mức HID.
+    static func pressChord(times: Int, gapMs: Double, withSpace: Bool = false) {
         let source = CGEventSource(stateID: .hidSystemState)
-        let steps: [(CGKeyCode, CGEventFlags)] = [
-            (CGKeyCode(kVK_Control), .maskControl), (CGKeyCode(kVK_Shift), [.maskControl, .maskShift]),
-            (CGKeyCode(kVK_Shift), .maskControl), (CGKeyCode(kVK_Control), []),
+        let second: (CGKeyCode, CGEventFlags) = withSpace ? (CGKeyCode(kVK_Space), .maskControl) : (CGKeyCode(kVK_Shift), [.maskControl, .maskShift])
+        let steps: [(code: CGKeyCode, flags: CGEventFlags, type: CGEventType)] = [
+            (CGKeyCode(kVK_Control), .maskControl, .flagsChanged),
+            (second.0, second.1, withSpace ? .keyDown : .flagsChanged),
+            (second.0, .maskControl, withSpace ? .keyUp : .flagsChanged),
+            (CGKeyCode(kVK_Control), [], .flagsChanged),
         ]
         for n in 0..<times {
             if n > 0 { usleep(useconds_t(gapMs * 1000)) }
-            for (code, flags) in steps {
+            for step in steps {
                 guard let e = CGEvent(source: source) else { continue }
-                e.type = .flagsChanged
-                e.setIntegerValueField(.keyboardEventKeycode, value: Int64(code))
-                e.flags = flags
+                e.type = step.type
+                e.setIntegerValueField(.keyboardEventKeycode, value: Int64(step.code))
+                e.flags = step.flags
                 e.post(tap: .cghidEventTap)
                 usleep(30_000)
             }
@@ -150,6 +168,6 @@ final class SelfTest: NSObject, NSApplicationDelegate {
     static let keyCodes: [Character: CGKeyCode] = [
         "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6, "x": 7, "c": 8, "v": 9, "b": 11, "q": 12,
         "w": 13, "e": 14, "r": 15, "y": 16, "t": 17, "o": 31, "u": 32, "i": 34, "p": 35, "l": 37, "j": 38,
-        "k": 40, "n": 45, "m": 46, " ": 49,
+        "k": 40, "n": 45, "m": 46, " ": 49, "\n": 36,
     ]
 }

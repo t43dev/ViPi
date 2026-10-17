@@ -117,4 +117,86 @@ final class TelexRoundTripTests: XCTestCase {
             XCTAssertEqual(TelexEngine.render(TelexEngine.telexKeys(for: w), modern: false), w, w)
         }
     }
+
+    func testRestoreNonVietnameseWords() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../Resources/vietnamese-syllables.txt")
+        let lexicon = VietnameseLexicon(text: try String(contentsOf: url, encoding: .utf8))
+        /// Gõ cả từ rồi kết thúc từ (Space): kết quả cuối cùng trên màn hình.
+        func finished(_ keys: String, modern: Bool = false) -> String {
+            let e = TelexEngine()
+            e.modernToneStyle = modern
+            e.lexicon = lexicon
+            var text: [Character] = []
+            for k in keys {
+                let edit = e.type(k)
+                text.removeLast(edit.backspaces)
+                text.append(contentsOf: edit.insert)
+            }
+            if let edit = e.finishWord() {
+                text.removeLast(edit.backspaces)
+                text.append(contentsOf: edit.insert)
+            }
+            XCTAssertTrue(e.isEmpty)
+            return String(text)
+        }
+        // chữ tiếng Anh bị biến thành chữ không có thật → trả lại như đã gõ
+        for w in ["user", "User", "USER", "sure", "cure", "pure", "more", "data", "use",
+                  "issue", "offer", "sorry", "error", "mirror", "array", "coffee", "success"] {
+            XCTAssertEqual(finished(w), w)
+        }
+        // âm tiết tiếng Việt có thật → giữ nguyên (cả kiểu dấu cũ/mới, chữ hoa)
+        for (keys, want) in [("nguwowif", "người"), ("hoaf", "hòa"), ("Vieejt", "Việt"), ("tree", "trê"),
+                             ("reset", "rết"), ("uwf", "ừ"), ("aj", "ạ"), ("quys", "quý"), ("gif", "gì")] {
+            XCTAssertEqual(finished(keys), want)
+        }
+        XCTAssertEqual(finished("hoaf", modern: true), "hoà")
+        // ASCII (kể cả bỏ dấu bằng phím đôi) và chữ không nguyên âm: giữ nguyên
+        for (keys, want) in [("ass", "as"), ("case", "case"), ("dd", "đ"), ("Dd", "Đ")] {
+            XCTAssertEqual(finished(keys), want)
+        }
+        // không có danh sách → không khôi phục
+        let e = TelexEngine()
+        for k in "user" { _ = e.type(k) }
+        XCTAssertNil(e.finishWord())
+    }
+
+    func testSpellCheckOff() {
+        func typed(_ keys: String) -> String {
+            let e = TelexEngine()
+            e.spellCheck = false
+            for k in keys { _ = e.type(k) }
+            return e.output
+        }
+        XCTAssertEqual(typed("nguwowif"), "người")
+        XCTAssertNotEqual(typed("windows"), "windows")   // tắt kiểm tra: phím dấu luôn được áp dụng
+        let on = TelexEngine()
+        for k in "windows" { _ = on.type(k) }
+        XCTAssertEqual(on.output, "windows")
+    }
+
+    func testMacros() {
+        let m = MacroTable([("vn", "Việt Nam"), ("đc", "được"), ("ko", "không"), ("", "x")])
+        func finished(_ keys: String) -> String {
+            let e = TelexEngine()
+            var text: [Character] = []
+            for k in keys {
+                let edit = e.type(k)
+                text.removeLast(edit.backspaces)
+                text.append(contentsOf: edit.insert)
+            }
+            if let edit = e.expandMacro(m) {
+                text.removeLast(edit.backspaces)
+                text.append(contentsOf: edit.insert)
+                XCTAssertTrue(e.isEmpty)
+            }
+            return String(text)
+        }
+        XCTAssertEqual(finished("vn"), "Việt Nam")
+        XCTAssertEqual(finished("VN"), "VIỆT NAM")
+        XCTAssertEqual(finished("Ko"), "Không")
+        XCTAssertEqual(finished("ddc"), "được")
+        XCTAssertEqual(finished("vns"), "vns")
+        XCTAssertEqual(finished("nguwowif"), "người")
+    }
 }

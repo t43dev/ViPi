@@ -17,17 +17,39 @@ if let i = args.firstIndex(of: "--verify-update"), i + 1 < args.count {
     done.wait()
 } else if let i = args.firstIndex(of: "--render-about"), i + 1 < args.count {
     // chụp cửa sổ About ra PNG (kiểm tra giao diện không cần màn hình)
-    let view = NSHostingView(rootView: AboutView(updater: Updater()))
+    let view = NSHostingView(rootView: AboutView(updater: Updater(), prefs: Preferences()))
     view.frame = NSRect(origin: .zero, size: view.fittingSize)
     view.appearance = NSAppearance(named: args.contains("--dark") ? .darkAqua : .aqua)
     view.layoutSubtreeIfNeeded()
     let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
     view.cacheDisplay(in: view.bounds, to: rep)
     try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: args[i + 1]))
+} else if let i = args.firstIndex(of: "--snapshot-settings"), i + 1 < args.count {
+    // mở từng tab Settings thành cửa sổ thật rồi tự chụp: <prefix>-0.png …
+    app.setActivationPolicy(.regular)
+    let windows = (0..<4).map { tab -> NSWindow in
+        let w = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(
+            prefs: Preferences(), updater: Updater(), onRecording: { _ in }, showSecureInput: {}, initialTab: tab)))
+        w.styleMask = [.titled, .closable]
+        w.title = "ViPi Settings"
+        w.setFrameOrigin(NSPoint(x: 80 + tab * 40, y: 120 + tab * 40))
+        w.orderFrontRegardless()
+        return w
+    }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+        for (tab, w) in windows.enumerated() {
+            guard let v = w.contentView?.superview, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) else { continue }
+            v.cacheDisplay(in: v.bounds, to: rep)
+            try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: "\(args[i + 1])-\(tab).png"))
+        }
+        exit(0)
+    }
+    app.run()
 } else if let i = args.firstIndex(of: "--chord") {
     // kiểm thử Ctrl+Shift: --chord <số lần> [khoảng cách ms]
     let rest = Array(args[(i + 1)...])
-    SelfTest.pressChord(times: Int(rest.first ?? "") ?? 1, gapMs: rest.count > 1 ? Double(rest[1])! : 250)
+    SelfTest.pressChord(times: Int(rest.first ?? "") ?? 1, gapMs: rest.count > 1 ? Double(rest[1])! : 250,
+                        withSpace: rest.contains("space"))
 } else if let i = args.firstIndex(of: "--selftest") {
     let delegate = SelfTest(args: Array(args[(i + 1)...]))
     app.delegate = delegate

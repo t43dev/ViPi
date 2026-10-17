@@ -14,10 +14,12 @@ Mình gõ tiếng Việt và tiếng Trung hằng ngày, nhưng trên macOS khô
 
 ## Tính năng
 
-- **Tiếng Việt (Telex)** theo quy tắc UniKey: `aa→â aw→ă ee→ê oo→ô ow→ơ uw/w→ư dd→đ`, dấu thanh `s f r x j`, `z` xoá dấu, gõ một phím hai lần để bỏ dấu vừa gõ (`ass→as`). Có thể gõ dấu ở bất kỳ đâu trong từ (`tosan→toán`), có kiểm tra chính tả nên từ tiếng Anh giữ nguyên (`class`, `text`), chọn được kiểu đặt dấu cũ hoặc mới (`hòa` / `hoà`). Đã thử trên máy Mac thật: gõ đủ 8.329 âm tiết hợp lệ với tốc độ 8–12 ms mỗi phím, không mất phím nào.
+- **Tiếng Việt (Telex)** theo quy tắc UniKey: `aa→â aw→ă ee→ê oo→ô ow→ơ uw/w→ư dd→đ`, dấu thanh `s f r x j`, `z` xoá dấu, gõ một phím hai lần để bỏ dấu vừa gõ (`ass→as`). Có thể gõ dấu ở bất kỳ đâu trong từ (`tosan→toán`), tự trả lại từ tiếng Anh: gõ xong một từ mà chữ tạo ra không phải âm tiết tiếng Việt có thật thì ViPi gõ lại đúng các phím đã bấm (`user`, `data`, `issue`, `class` giữ nguyên tiếng Anh; từ trùng với âm tiết tiếng Việt như `of→ò` thì dùng `Control+Shift` hoặc gõ đôi phím dấu), chọn được kiểu đặt dấu cũ hoặc mới (`hòa` / `hoà`). Đã thử trên máy Mac thật: gõ đủ 8.329 âm tiết hợp lệ với tốc độ 8–12 ms mỗi phím, không mất phím nào.
 - **Tiếng Trung (Pinyin)**, ô gợi ý hiện ngay cạnh con trỏ: gõ pinyin đầy đủ, dùng `'` để tách âm (`xi'an`), âm cuối gõ dở vẫn ra chữ (`nih→你好`), gõ tắt bằng phụ âm đầu (`nh→你好`), gợi ý nguyên câu (`woshizhongguoren→我是中国人`), chọn từng phần, dấu câu toàn khổ (full-width).
-- **Control+Shift**: bấm một lần để quay về bộ gõ vừa dùng, bấm nhanh hai lần để sang bộ tiếp theo (theo thứ tự dùng gần nhất, giống ⌘Space).
+- **Control+Shift**: bấm một lần để quay về bộ gõ vừa dùng, bấm nhanh hai lần để sang bộ tiếp theo (theo thứ tự dùng gần nhất, giống ⌘Space). Đổi được phím trong **Settings**, ví dụ Option+Shift hay Control+Space.
 - **Theo dõi Secure Input**: cho biết app nào đang giữ Secure Input của macOS, lý do thường gặp khiến mọi bộ gõ bỗng dưng không gõ được. Có lịch sử, PID, đường dẫn, nút Show/Quit. Biểu tượng trên thanh menu chuyển thành ổ khoá khi Secure Input đang bật.
+- **Gõ tắt**: `vn` + Space → `Việt Nam`, `ko` → `không`; chữ hoa theo cách gõ (`VN` → `VIỆT NAM`). Sửa danh sách ở **Settings → Text Shortcuts**.
+- **Cửa sổ Settings** (menu → Settings…, ⌘,): phím đổi bộ gõ, bật/tắt kiểm tra chính tả, tự trả lại từ tiếng Anh, kiểu đặt dấu, gõ tắt, dấu câu toàn khổ, khởi động cùng máy, tự cập nhật.
 - **Khởi động cùng máy**, bật sẵn.
 - **Tự cập nhật** từ GitHub Releases: vài giờ ViPi kiểm tra một lần, xác minh bản tải về đúng chữ ký của tác giả ViPi, tự cài, rồi khởi động lại khi bạn ngừng gõ. Có thể tắt hoặc kiểm tra thủ công trong **About ViPi**.
 - **Riêng tư**: phím gõ được xử lý ngay trên máy, không gửi đi đâu. Kết nối mạng duy nhất là kiểm tra bản cập nhật trên GitHub.
@@ -44,4 +46,4 @@ Xem mục [Build](README.md#build) trong bản tiếng Anh.
 
 ## Giấy phép
 
-GPL-3.0. Quy tắc Telex và bảng nguyên âm theo [UniKey](https://www.unikey.org) (GPL); từ điển Pinyin lấy từ [rime-ice](https://github.com/iDvel/rime-ice) (GPL-3.0). Ý nghĩa logo (màu đỏ vàng, chữ V–P liền nét, ngôi sao) xem ở [assets/logo-meaning.md](assets/logo-meaning.md).
+GPL-3.0. Quy tắc Telex và bảng nguyên âm theo [UniKey](https://www.unikey.org) (GPL); từ điển Pinyin lấy từ [rime-ice](https://github.com/iDvel/rime-ice) (GPL-3.0); danh sách âm tiết tiếng Việt lấy từ [bộ từ của Hồ Ngọc Đức](https://github.com/duyet/vietnamese-wordlist) (GPL). Ý nghĩa logo (màu đỏ vàng, chữ V–P liền nét, ngôi sao) xem ở [assets/logo-meaning.md](assets/logo-meaning.md).

@@ -14,10 +14,12 @@
 
 ## 功能
 
-- **越南语（Telex）**，规则与 UniKey 一致：`aa→â aw→ă ee→ê oo→ô ow→ơ uw/w→ư dd→đ`，声调 `s f r x j`，`z` 清除声调，同一键连按两次撤销（`ass→as`）。声调可以放在词中任意位置（`tosan→toán`），带拼写检查，英文单词保持原样（`class`、`text`），可选传统或新式声调位置（`hòa` / `hoà`）。已在真实 Mac 上端到端测试：以每键 8–12 毫秒的速度输入全部 8,329 个有效音节，没有丢失任何按键。
+- **越南语（Telex）**，规则与 UniKey 一致：`aa→â aw→ă ee→ê oo→ô ow→ơ uw/w→ư dd→đ`，声调 `s f r x j`，`z` 清除声调，同一键连按两次撤销（`ass→as`）。声调可以放在词中任意位置（`tosan→toán`），自动还原英文：一个词输入结束时，如果结果不是真实存在的越南语音节，ViPi 会按原样重新输入你按下的键（`user`、`data`、`issue`、`class` 保持英文；与越南语音节相同的词，如 `of→ò`，请用 `Control+Shift` 或双击声调键撤销），可选传统或新式声调位置（`hòa` / `hoà`）。已在真实 Mac 上端到端测试：以每键 8–12 毫秒的速度输入全部 8,329 个有效音节，没有丢失任何按键。
 - **中文（拼音）**，候选窗跟随光标：全拼，`'` 分隔音节（`xi'an`），最后一个音节未输完也能出字（`nih→你好`），首字母简拼（`nh→你好`），整句联想（`woshizhongguoren→我是中国人`），分段选词，全角标点。
-- **Control+Shift**：按一次回到上一个输入法，快速按两次切换到下一个（按最近使用顺序，与 ⌘Space 相同）。
+- **Control+Shift**：按一次回到上一个输入法，快速按两次切换到下一个（按最近使用顺序，与 ⌘Space 相同）。快捷键可在 **Settings** 中修改，例如 Option+Shift 或 Control+Space。
 - **安全输入监视器**：显示哪个应用占用了 macOS 的安全输入（Secure Input）。这是所有输入法突然无法输入的常见原因。可查看历史、PID、路径，并可一键显示或退出该应用；安全输入开启时，菜单栏图标会变成锁。
+- **快捷短语**：`vn` + 空格 → `Việt Nam`，`ko` → `không`；大小写跟随输入（`VN` → `VIỆT NAM`）。可在 **Settings → Text Shortcuts** 中编辑。
+- **设置窗口**（菜单 → Settings…，⌘,）：切换快捷键、拼写检查开关、英文还原、声调位置、快捷短语、全角标点、开机启动、自动更新。
 - **开机自动启动**，默认开启。
 - **自动更新**：每隔几小时从 GitHub Releases 检查新版本，确认下载文件带有 ViPi 开发者的签名后自动安装，并在你停止打字后重新启动。可在 **About ViPi** 中关闭或手动检查。
 - **隐私**：按键只在本机处理，不会发送到任何地方。唯一的联网操作是到 GitHub 检查更新。
@@ -44,4 +46,4 @@
 
 ## 许可证
 
-GPL-3.0。Telex 规则和元音表参照 [UniKey](https://www.unikey.org)（GPL）；拼音词库来自 [rime-ice（雾凇拼音）](https://github.com/iDvel/rime-ice)（GPL-3.0）。Logo 的红金配色、V–P 连笔和星星的含义见 [assets/logo-meaning.md](assets/logo-meaning.md)。
+GPL-3.0。Telex 规则和元音表参照 [UniKey](https://www.unikey.org)（GPL）；拼音词库来自 [rime-ice（雾凇拼音）](https://github.com/iDvel/rime-ice)（GPL-3.0）；越南语音节表取自 [Ho Ngoc Duc 的词表](https://github.com/duyet/vietnamese-wordlist)（GPL）。Logo 的红金配色、V–P 连笔和星星的含义见 [assets/logo-meaning.md](assets/logo-meaning.md)。

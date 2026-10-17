@@ -56,6 +56,12 @@ public final class TelexEngine {
     /// true: đặt dấu kiểu mới (hoà, khoẻ, thuý); false: kiểu cũ (hòa, khỏe, thúy) — mặc định như Unikey.
     public var modernToneStyle = false
 
+    /// false: bỏ kiểm tra chính tả — mọi phím dấu đều được áp dụng, không trả lại chữ tiếng Anh.
+    public var spellCheck = true
+
+    /// Có danh sách âm tiết thì khi kết thúc từ, chữ không phải tiếng Việt được trả lại như đã gõ.
+    public var lexicon: VietnameseLexicon?
+
     public private(set) var keys: [Character] = []   // phím thô của từ hiện tại (giữ hoa/thường)
     public private(set) var output = ""               // chuỗi đang hiển thị cho từ hiện tại
 
@@ -71,7 +77,24 @@ public final class TelexEngine {
     /// Xử lý một chữ cái a-z/A-Z. Ký tự khác: caller phải reset() vì là ranh giới từ.
     public func type(_ key: Character) -> TextEdit {
         keys.append(key)
-        return update(to: Self.render(keys, modern: modernToneStyle))
+        return update(to: Self.render(keys, modern: modernToneStyle, spellCheck: spellCheck))
+    }
+
+    /// Kết thúc từ (Space, dấu câu, Enter…) rồi reset. Trả về sửa đổi để gõ lại đúng các phím đã gõ khi
+    /// chữ trên màn hình không phải tiếng Việt: có dấu mà không phải âm tiết có thật ("ủe" → "user"),
+    /// hoặc phím đôi bỏ dấu nằm giữa từ ("isue" → "issue"). Giữ nguyên: bỏ dấu ở cuối từ ("ass" → "as")
+    /// và chữ không có nguyên âm ("100đ").
+    public func finishWord() -> TextEdit? {
+        defer { reset() }
+        let raw = String(keys)
+        guard spellCheck, let lexicon, output != raw else { return nil }
+        if output.unicodeScalars.allSatisfy(\.isASCII) {
+            guard !raw.hasPrefix(output) else { return nil }
+        } else {
+            let hasVowel = output.contains { Vietnamese.decompose($0).map { "aăâeêioôơuưy".contains($0.0) } ?? false }
+            guard hasVowel, !lexicon.contains(output) else { return nil }
+        }
+        return TextEdit(backspaces: output.count, insert: raw)
     }
 
     /// Backspace đã được gửi cho ứng dụng (không chặn): xoá ký tự cuối và dựng lại phím thô.
@@ -80,7 +103,7 @@ public final class TelexEngine {
         output.removeLast()
         keys = Self.telexKeys(for: output)
         // Chuỗi dựng lại phải hiển thị y hệt; nếu không (hiếm) thì coi như nhập lại từ đầu.
-        if Self.render(keys, modern: modernToneStyle) != output { keys = Array(output) }
+        if Self.render(keys, modern: modernToneStyle, spellCheck: spellCheck) != output { keys = Array(output) }
     }
 
     private func update(to newOutput: String) -> TextEdit {
@@ -94,17 +117,21 @@ public final class TelexEngine {
     // MARK: - Render
 
     /// Dựng chuỗi hiển thị từ chuỗi phím thô.
-    static func render(_ keys: [Character], modern: Bool) -> String {
-        var s = State()
+    static func render(_ keys: [Character], modern: Bool, spellCheck: Bool = true) -> String {
+        var s = State(spellCheck: spellCheck)
         for k in keys { s.apply(k) }
         if s.literal { return s.text(modern: modern) }
-        return s.isValid ? s.text(modern: modern) : String(keys)
+        return s.acceptable ? s.text(modern: modern) : String(keys)
     }
 
     struct State {
+        var spellCheck = true
         var chars: [VChar] = []
         var tone: Tone = .none
         var literal = false   // sau khi gõ huỷ (aaa, ss, ww...) thì các phím sau là chữ thường
+
+        /// Tắt kiểm tra chính tả thì chữ nào cũng được biến đổi.
+        var acceptable: Bool { !spellCheck || isValid }
 
         mutating func append(_ k: Character) {
             chars.append(VChar(base: Character(k.lowercased()), upper: k.isUppercase))
@@ -113,10 +140,10 @@ public final class TelexEngine {
         mutating func apply(_ key: Character) {
             let k = Character(key.lowercased())
             // từ đã sai chính tả (đang hiện phím thô) thì không biến đổi nữa
-            if literal || !k.isASCII || !k.isLetter || !isValid { append(key); return }
+            if literal || !k.isASCII || !k.isLetter || !acceptable { append(key); return }
             // chỉ nhận biến đổi nếu kết quả còn hợp lệ (vd "ngoeo": o thứ hai là chữ, không phải ô)
             var t = self
-            if t.transform(key, k), t.literal || t.isValid { self = t } else { append(key) }
+            if t.transform(key, k), t.literal || t.acceptable { self = t } else { append(key) }
         }
 
         /// false: phím không phải phím biến đổi.
@@ -259,6 +286,20 @@ public final class TelexEngine {
         }
         return keys
     }
+}
+
+/// Các âm tiết tiếng Việt có thật (mỗi dòng một âm tiết). So khớp không phân biệt hoa/thường
+/// và vị trí dấu thanh ("hòa" = "hoà").
+public struct VietnameseLexicon {
+    private let entries: Set<String>
+
+    public init(text: String) {
+        entries = Set(text.split(whereSeparator: \.isNewline).map { Self.key(String($0)) })
+    }
+
+    public func contains(_ syllable: String) -> Bool { entries.contains(Self.key(syllable)) }
+
+    private static func key(_ s: String) -> String { String(TelexEngine.telexKeys(for: s.lowercased())) }
 }
 
 /// Tách âm tiết: phụ âm đầu / cụm nguyên âm / phụ âm cuối.

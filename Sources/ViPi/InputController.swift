@@ -29,6 +29,9 @@ final class InputController {
     }
     var onCycleMode: (() -> Void)?
     var fullWidthPunctuation = true
+    var shortcut = SwitchShortcut.default { didSet { chordArmed = false } }
+    var macros: MacroTable?            // nil: tắt gõ tắt
+    var isRecordingShortcut = false     // đang ghi phím tắt trong Settings: để mọi phím đi qua
 
     let telex = TelexEngine()
     var pinyin: PinyinEngine?          // nil khi từ điển còn đang nạp
@@ -77,29 +80,39 @@ final class InputController {
             cancelComposition()
             return pass
         case .flagsChanged:
-            handleChord(event.flags)
+            if !isRecordingShortcut { handleChord(event.flags) }
             return pass
         case .keyDown:
-            if event.getIntegerValueField(.eventSourceUserData) == KeySender.marker { return pass }
+            if event.getIntegerValueField(.eventSourceUserData) == KeySender.marker || isRecordingShortcut { return pass }
             chordArmed = false
             self.proxy = proxy
+            // phím đổi bộ gõ dạng phím bổ trợ + phím (vd Control+Space): nuốt, kể cả khi giữ lặp
+            if let code = shortcut.keyCode, code == event.getIntegerValueField(.keyboardEventKeycode),
+               event.flags.intersection(SwitchShortcut.relevant) == shortcut.flags {
+                if event.getIntegerValueField(.keyboardEventAutorepeat) == 0 {
+                    DispatchQueue.main.async { self.onCycleMode?() }
+                }
+                return nil
+            }
             return handleKey(event) ? nil : pass
         default:
             return pass
         }
     }
 
-    /// Ctrl+Shift: nhấn cả hai rồi nhả hết mà không gõ phím nào khác → đổi bộ gõ.
+    /// Phím đổi bộ gõ chỉ gồm phím bổ trợ (mặc định Ctrl+Shift): nhấn đủ rồi nhả hết mà không gõ
+    /// phím nào khác → đổi bộ gõ.
     private func handleChord(_ flags: CGEventFlags) {
-        let f = flags.intersection([.maskControl, .maskShift, .maskCommand, .maskAlternate])
-        if f == [.maskControl, .maskShift] {
+        guard shortcut.keyCode == nil else { return }
+        let f = flags.intersection(SwitchShortcut.relevant)
+        if f == shortcut.flags {
             chordArmed = true
         } else if f.isEmpty {
             if chordArmed {
                 chordArmed = false
                 DispatchQueue.main.async { self.onCycleMode?() }
             }
-        } else if !f.isSubset(of: [.maskControl, .maskShift]) {
+        } else if !f.isSubset(of: shortcut.flags) {
             chordArmed = false
         }
     }
@@ -118,17 +131,26 @@ final class InputController {
         self.keyCode = printable ? CGKeyCode(keyCode) : 0
         switch mode {
         case .english: return false
-        case .vietnamese: return handleVietnamese(keyCode, typed)
+        case .vietnamese: return handleVietnamese(keyCode, typed, event)
         case .chinese: return handleChinese(keyCode, typed)
         }
     }
 
-    private func handleVietnamese(_ keyCode: Int, _ typed: String) -> Bool {
+    private func handleVietnamese(_ keyCode: Int, _ typed: String, _ event: CGEvent) -> Bool {
         if keyCode == kVK_Delete {
             telex.backspace()
             return false
         }
         guard typed.count == 1, let ch = typed.first, ch.isASCII, ch.isLetter else {
+            // Space/Enter/Tab/dấu câu/số kết thúc từ: gõ tắt ("vn" → "Việt Nam"), hoặc chữ không phải
+            // tiếng Việt thì gõ lại như đã gõ ("ủe" → "user"), rồi mới cho phím kết thúc từ đi qua
+            if typed.count == 1, let ascii = typed.first?.asciiValue, (0x20...0x7E).contains(ascii) || ascii == 0x0D || ascii == 0x09,
+               let edit = macros.flatMap(telex.expandMacro) ?? telex.finishWord() {
+                // gõ nhanh thì phím chữ cuối có thể còn đang giữ: mượn mã của chính phím Space (app chưa thấy nó)
+                KeySender.send(edit, keyCode: ascii == 0x20 ? CGKeyCode(kVK_Space) : self.keyCode, proxy: proxy)
+                KeySender.repost(event, proxy: proxy)
+                return true
+            }
             telex.reset()
             return false
         }
@@ -260,6 +282,13 @@ enum KeySender {
     static func send(_ edit: TextEdit, keyCode: CGKeyCode, proxy: CGEventTapProxy?) {
         for _ in 0..<edit.backspaces { post(key: CGKeyCode(kVK_Delete), text: nil, proxy: proxy) }
         insert(edit.insert, keyCode: keyCode, proxy: proxy)
+    }
+
+    /// Gửi lại nguyên phím gốc (sau phần chữ vừa gửi), đánh dấu để tap của mình bỏ qua.
+    static func repost(_ event: CGEvent, proxy: CGEventTapProxy?) {
+        guard let e = event.copy() else { return }
+        e.setIntegerValueField(.eventSourceUserData, value: marker)
+        if let proxy { e.tapPostEvent(proxy) } else { e.post(tap: .cgSessionEventTap) }
     }
 
     static func insert(_ text: String, keyCode: CGKeyCode, proxy: CGEventTapProxy?) {

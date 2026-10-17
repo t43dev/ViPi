@@ -14,10 +14,12 @@ I type Vietnamese and Chinese every day, and macOS had no sensible way to do bot
 
 ## Features
 
-- **Vietnamese (Telex)** with UniKey-style rules: `aa→â aw→ă ee→ê oo→ô ow→ơ uw/w→ư dd→đ`, tones `s f r x j`, `z` clears the tone, typing a key twice undoes it (`ass→as`), tones can come anywhere in the word (`tosan→toán`), spell check keeps English words as typed (`class`, `text`), classic or modern tone placement (`hòa` / `hoà`). Tested end to end on a real Mac with all 8,329 valid syllables typed at 8–12 ms per key without a single lost key.
+- **Vietnamese (Telex)** with UniKey-style rules: `aa→â aw→ă ee→ê oo→ô ow→ơ uw/w→ư dd→đ`, tones `s f r x j`, `z` clears the tone, typing a key twice undoes it (`ass→as`), tones can come anywhere in the word (`tosan→toán`), English words come back as typed: when a word ends and the result is not a real Vietnamese syllable, ViPi retypes your keys (`user`, `data`, `issue`, `class` stay English; words that are also Vietnamese, such as `of→ò`, need `Control+Shift` or the double-key undo), classic or modern tone placement (`hòa` / `hoà`). Tested end to end on a real Mac with all 8,329 valid syllables typed at 8–12 ms per key without a single lost key.
 - **Chinese (Pinyin)** with a candidate window at the cursor: full pinyin, `'` separator (`xi'an`), unfinished last syllable (`nih→你好`), initials-only abbreviations (`nh→你好`), whole-sentence suggestions (`woshizhongguoren→我是中国人`), partial selection, full-width punctuation.
-- **Control+Shift** jumps back to the previous input; press it twice quickly to move on to the next one (most-recently-used order, like ⌘Space).
+- **Control+Shift** jumps back to the previous input; press it twice quickly to move on to the next one (most-recently-used order, like ⌘Space). The shortcut can be changed in **Settings**, e.g. to Option+Shift or Control+Space.
 - **Secure Input Monitor** shows which app holds macOS Secure Input, the usual reason every input tool suddenly stops working, with history, PID, path and Show/Quit buttons. The menu-bar icon turns into a lock while it is held.
+- **Text shortcuts** (macros): `vn` + Space → `Việt Nam`, `ko` → `không`; letter case follows what you type (`VN` → `VIỆT NAM`). Edit the list in **Settings → Text Shortcuts**.
+- **Settings window** (menu → Settings…, ⌘,): switch shortcut, spell check on/off, restoring English words, tone placement, text shortcuts, full-width punctuation, launch at login, automatic updates.
 - **Launch at Login**, on by default.
 - **Automatic updates** from GitHub Releases: ViPi checks every few hours, verifies that the download is signed by the ViPi developer, installs it and relaunches once you stop typing. Turn it off or check by hand in **About ViPi**.
 - **Private**: keystrokes are processed on your Mac and never leave it. The only network access is the update check to GitHub.
@@ -57,4 +59,4 @@ The Pinyin dictionary `Resources/pinyin.tsv` is generated from [rime-ice](https:
 
 ## License
 
-GPL-3.0. Telex rules and vowel tables follow [UniKey](https://www.unikey.org) (GPL); the Pinyin dictionary comes from [rime-ice](https://github.com/iDvel/rime-ice) (GPL-3.0). The logo's red and gold, V–P ligature and star are explained in [assets/logo-meaning.md](assets/logo-meaning.md).
+GPL-3.0. Telex rules and vowel tables follow [UniKey](https://www.unikey.org) (GPL); the Pinyin dictionary comes from [rime-ice](https://github.com/iDvel/rime-ice) (GPL-3.0); the Vietnamese syllable list is derived from [Ho Ngoc Duc's word list](https://github.com/duyet/vietnamese-wordlist) (GPL). The logo's red and gold, V–P ligature and star are explained in [assets/logo-meaning.md](assets/logo-meaning.md).

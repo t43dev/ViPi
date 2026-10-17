@@ -4,12 +4,16 @@ import SwiftUI
 final class AboutWindowController {
     private var window: NSWindow?
     private let updater: Updater
+    private let prefs: Preferences
 
-    init(updater: Updater) { self.updater = updater }
+    init(updater: Updater, prefs: Preferences) {
+        self.updater = updater
+        self.prefs = prefs
+    }
 
     func show() {
         if window == nil {
-            let w = NSWindow(contentViewController: NSHostingController(rootView: AboutView(updater: updater)))
+            let w = NSWindow(contentViewController: NSHostingController(rootView: AboutView(updater: updater, prefs: prefs)))
             w.title = "About ViPi"
             w.styleMask = [.titled, .closable]
             w.isReleasedWhenClosed = false
@@ -23,6 +27,7 @@ final class AboutWindowController {
 
 struct AboutView: View {
     @ObservedObject var updater: Updater
+    @ObservedObject var prefs: Preferences
 
     var body: some View {
         VStack(spacing: 14) {
@@ -46,8 +51,8 @@ struct AboutView: View {
 
             GroupBox {
                 VStack(alignment: .leading, spacing: 6) {
-                    shortcut("Control+Shift", "previous input")
-                    shortcut("Control+Shift ×2", "next input")
+                    shortcut(prefs.shortcut.label, "previous input")
+                    shortcut("\(prefs.shortcut.label) ×2", "next input")
                     shortcut("Telex", "aa â · aw ă · ee ê · oo ô · ow ơ · uw ư · dd đ · s f r x j tones · z clears")
                     shortcut("Pinyin", "1–9 pick · Space highlighted · −/= page · Enter raw · Esc cancel")
                 }

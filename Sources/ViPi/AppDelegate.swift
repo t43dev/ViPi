@@ -1,5 +1,4 @@
 import AppKit
-import ServiceManagement
 import ViPiCore
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
@@ -8,9 +7,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let secureInput = SecureInputMonitor()
     private lazy var secureWindow = SecureInputWindowController(monitor: secureInput)
     private let updater = Updater()
-    private lazy var aboutWindow = AboutWindowController(updater: updater)
+    private let prefs = Preferences()
+    private lazy var aboutWindow = AboutWindowController(updater: updater, prefs: prefs)
+    private lazy var settingsWindow = SettingsWindowController(
+        prefs: prefs, updater: updater,
+        onRecording: { [weak self] in self?.controller.isRecordingShortcut = $0 },
+        showSecureInput: { [weak self] in self?.secureWindow.show() })
     private let hud = ModeHUD()
     private var permissionTimer: Timer?
+    private var lexicon: VietnameseLexicon?
     private let defaults = UserDefaults.standard
 
     private var mode: InputMode {
@@ -52,16 +57,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        defaults.register(defaults: ["modernToneStyle": false, "fullWidthPunctuation": true])
-
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu
 
         controller.mode = mode
-        controller.telex.modernToneStyle = defaults.bool(forKey: "modernToneStyle")
-        controller.fullWidthPunctuation = defaults.bool(forKey: "fullWidthPunctuation")
+        if let url = Bundle.main.url(forResource: "vietnamese-syllables", withExtension: "txt"),
+           let text = try? String(contentsOf: url, encoding: .utf8) {
+            lexicon = VietnameseLexicon(text: text)
+        }
+        prefs.onChange = { [weak self] in self?.applyPreferences() }
+        applyPreferences()
         controller.onCycleMode = { [weak self] in self?.switchMode() }
 
         secureInput.onChange = { [weak self] in self?.updateIcon() }
@@ -115,17 +122,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // chỉ tự đăng ký khi đã nằm trong /Applications, tránh gắn vào đường dẫn ~/Downloads
         guard !defaults.bool(forKey: "loginItemConfigured"), Bundle.main.bundlePath.hasPrefix("/Applications") else { return }
         defaults.set(true, forKey: "loginItemConfigured")
-        setLaunchAtLogin(true)
-    }
-
-    private var launchAtLogin: Bool { SMAppService.mainApp.status == .enabled }
-
-    private func setLaunchAtLogin(_ on: Bool) {
-        do {
-            if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
-        } catch {
-            NSLog("ViPi: launch at login \(on): \(error)")
-        }
+        prefs.launchAtLogin = true
     }
 
     // MARK: - Status item
@@ -134,7 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard let button = statusItem?.button else { return }
         let blocked = secureInput.isEnabled
         button.image = StatusIcon.image(mode: mode, blocked: blocked, inactive: !controller.isRunning)
-        var tip = "ViPi — \(mode.title)\nControl+Shift: previous · twice: next"
+        var tip = "ViPi — \(mode.title)\n\(prefs.shortcut.label): previous · twice: next"
         if blocked { tip += "\nSecure Input held by \(secureInput.holder?.name ?? "unknown") — typing blocked" }
         if !controller.isRunning { tip += "\nWaiting for Accessibility permission" }
         button.toolTip = tip
@@ -165,23 +162,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             i.state = m == mode ? .on : .off
             menu.addItem(i)
         }
-        let hint = NSMenuItem(title: "Control+Shift: previous · press twice: next", action: nil, keyEquivalent: "")
+        let hint = NSMenuItem(title: "\(prefs.shortcut.label): previous · twice: next", action: nil, keyEquivalent: "")
         hint.isEnabled = false
         menu.addItem(hint)
         menu.addItem(.separator())
 
-        let tone = item("Modern Tone Placement (hoà, thuý)", #selector(toggleToneStyle))
-        tone.state = controller.telex.modernToneStyle ? .on : .off
-        menu.addItem(tone)
-        let punct = item("Full-width Chinese Punctuation", #selector(togglePunctuation))
-        punct.state = controller.fullWidthPunctuation ? .on : .off
-        menu.addItem(punct)
-        menu.addItem(.separator())
-
+        menu.addItem(item("Settings…", #selector(showSettings), key: ","))
         menu.addItem(item("Secure Input Monitor…", #selector(showSecureInput)))
-        let login = item("Launch at Login", #selector(toggleLaunchAtLogin))
-        login.state = launchAtLogin ? .on : .off
-        menu.addItem(login)
         menu.addItem(item("Check for Updates…", #selector(checkForUpdates)))
         menu.addItem(item("About ViPi", #selector(showAbout)))
         menu.addItem(.separator())
@@ -200,17 +187,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let raw = sender.representedObject as? String, let m = InputMode(rawValue: raw) { setMode(m) }
     }
 
-    @objc private func toggleToneStyle() {
-        controller.telex.modernToneStyle.toggle()
-        defaults.set(controller.telex.modernToneStyle, forKey: "modernToneStyle")
-    }
+    @objc private func showSettings() { settingsWindow.show() }
 
-    @objc private func togglePunctuation() {
-        controller.fullWidthPunctuation.toggle()
-        defaults.set(controller.fullWidthPunctuation, forKey: "fullWidthPunctuation")
+    private func applyPreferences() {
+        controller.telex.modernToneStyle = prefs.modernToneStyle
+        controller.telex.spellCheck = prefs.spellCheck
+        controller.telex.lexicon = prefs.spellCheck && prefs.restoreNonVietnamese ? lexicon : nil
+        controller.macros = prefs.macrosEnabled ? prefs.macroTable : nil
+        controller.fullWidthPunctuation = prefs.fullWidthPunctuation
+        controller.shortcut = prefs.shortcut
+        updateIcon()
     }
-
-    @objc private func toggleLaunchAtLogin() { setLaunchAtLogin(!launchAtLogin) }
 
     @objc private func showSecureInput() { secureWindow.show() }
 
