@@ -45,6 +45,7 @@ final class InputController {
     private var tap: CFMachPort?
     private var proxy: CGEventTapProxy?
     private var chordArmed = false
+    private var keyCode: CGKeyCode = 0   // phím đang xử lý; phím giả mang lại mã này
 
     var isRunning: Bool { tap != nil }
 
@@ -117,6 +118,9 @@ final class InputController {
         }
         let keyCode = Int(event.getIntegerValueField(.keyboardEventKeycode))
         let typed = Self.typedString(event)
+        // Enter/Space/phím điều khiển: không mượn mã của chúng (app có thể hiểu là Enter thật)
+        let printable = typed.count == 1 && typed.unicodeScalars.allSatisfy { (0x21...0x7E).contains($0.value) }
+        self.keyCode = printable ? CGKeyCode(keyCode) : 0
         switch mode {
         case .english: return false
         case .vietnamese: return handleVietnamese(keyCode, typed)
@@ -135,7 +139,7 @@ final class InputController {
         }
         let edit = telex.type(ch)
         if edit.backspaces == 0, edit.insert == typed { return false }   // để phím gốc đi qua
-        KeySender.send(edit, proxy: proxy)
+        KeySender.send(edit, keyCode: self.keyCode, proxy: proxy)
         return true
     }
 
@@ -177,7 +181,7 @@ final class InputController {
             return true
         }
         if fullWidthPunctuation, let p = Self.punctuation[ch] {
-            KeySender.insert(p, proxy: proxy)
+            KeySender.insert(p, keyCode: self.keyCode, proxy: proxy)
             return true
         }
         return false
@@ -198,7 +202,7 @@ final class InputController {
 
     private func commit(_ text: String) {
         panel.hide()
-        if !text.isEmpty { KeySender.insert(text, proxy: proxy) }
+        if !text.isEmpty { KeySender.insert(text, keyCode: keyCode, proxy: proxy) }
     }
 
     private func moveHighlight(_ delta: Int) {
@@ -252,17 +256,19 @@ final class InputController {
 }
 
 /// Gửi phím giả: backspace + chuỗi Unicode, đánh dấu để tap của mình bỏ qua.
+/// Chữ được gửi kèm mã của chính phím vừa bị chặn (ứng dụng chưa thấy phím đó). Không dùng mã 0:
+/// đó là phím A thật — gõ nhanh khi A còn đang giữ thì ứng dụng bỏ mất chữ thay thế ("sawcs" → "ắc").
 enum KeySender {
     static let marker: Int64 = 0x5669_5069   // "ViPi"
     private static let source = CGEventSource(stateID: .privateState)
 
-    static func send(_ edit: TextEdit, proxy: CGEventTapProxy?) {
+    static func send(_ edit: TextEdit, keyCode: CGKeyCode, proxy: CGEventTapProxy?) {
         for _ in 0..<edit.backspaces { post(key: CGKeyCode(kVK_Delete), text: nil, proxy: proxy) }
-        insert(edit.insert, proxy: proxy)
+        insert(edit.insert, keyCode: keyCode, proxy: proxy)
     }
 
-    static func insert(_ text: String, proxy: CGEventTapProxy?) {
-        for ch in text { post(key: 0, text: String(ch), proxy: proxy) }
+    static func insert(_ text: String, keyCode: CGKeyCode, proxy: CGEventTapProxy?) {
+        for ch in text { post(key: keyCode, text: String(ch), proxy: proxy) }
     }
 
     private static func post(key: CGKeyCode, text: String?, proxy: CGEventTapProxy?) {

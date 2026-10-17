@@ -17,7 +17,7 @@
    `xattr -dr com.apple.quarantine /Applications/ViPi.app`
 3. Open ViPi and allow it in **System Settings → Privacy & Security → Accessibility**. ViPi starts working within 2 seconds of the grant.
 
-Every new build has a new ad-hoc signature, so after updating you must remove ViPi from the Accessibility list and add it again.
+Ad-hoc builds get a new signature every time, so after updating you must remove ViPi from the Accessibility list and add it again. Builds signed with a Developer ID (CI does this when the `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD`, `APPLE_ID`, `APPLE_APP_PASSWORD`, `APPLE_TEAM_ID` secrets are set) are notarized: no quarantine step, and the Accessibility grant survives updates.
 
 ## Keys
 

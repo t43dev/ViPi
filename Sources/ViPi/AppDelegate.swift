@@ -202,38 +202,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 // MARK: - Icon
 
 enum StatusIcon {
-    static let red = NSColor(red: 0.82, green: 0.13, blue: 0.13, alpha: 1)
-    static let gold = NSColor(red: 1.0, green: 0.84, blue: 0.29, alpha: 1)
-
-    /// Huy hiệu nhỏ theo màu logo: đỏ/vàng cho VI và 拼, viền đơn sắc (template) cho EN.
+    /// Một kiểu cho mọi chế độ: ô bo góc đặc, chữ đục rỗng (VI / 拼 / EN), ảnh template nên tự theo
+    /// màu thanh menu sáng/tối. Ổ khoá khi Secure Input bật, "!" khi chưa có quyền Accessibility.
     static func image(mode: InputMode, blocked: Bool, inactive: Bool) -> NSImage {
         let size = NSSize(width: 24, height: 16)
-        let template = mode == .english || blocked || inactive
+        let mark: NSImage = blocked
+            ? symbol("lock.fill")
+            : text(inactive ? "!" : mode.badge, chinese: mode == .chinese && !inactive, in: size)
         let img = NSImage(size: size, flipped: false) { rect in
-            let box = NSBezierPath(roundedRect: rect.insetBy(dx: 0.75, dy: 0.75), xRadius: 4, yRadius: 4)
-            if template {
-                NSColor.black.setStroke()
-                box.lineWidth = 1.3
-                box.stroke()
-            } else {
-                red.setFill()
-                box.fill()
-            }
-            if blocked, let lock = NSImage(systemSymbolName: "lock.fill", accessibilityDescription: "Secure Input") {
-                let r = NSRect(x: rect.midX - 5, y: rect.midY - 5.5, width: 10, height: 11)
-                lock.draw(in: r)
-                return true
-            }
-            let label = inactive ? "!" : mode.badge
-            let font = mode == .chinese ? NSFont.systemFont(ofSize: 12, weight: .bold) : NSFont.systemFont(ofSize: 10.5, weight: .heavy)
-            let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: template ? NSColor.black : gold]
-            let s = NSAttributedString(string: label, attributes: attrs)
-            let ts = s.size()
-            s.draw(at: NSPoint(x: rect.midX - ts.width / 2, y: rect.midY - ts.height / 2))
+            NSColor.black.setFill()
+            NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 4, yRadius: 4).fill()
+            let r = NSRect(x: rect.midX - mark.size.width / 2, y: rect.midY - mark.size.height / 2,
+                           width: mark.size.width, height: mark.size.height)
+            mark.draw(in: r, from: .zero, operation: .destinationOut, fraction: 1)
             return true
         }
-        img.isTemplate = template
+        img.isTemplate = true
         return img
+    }
+
+    private static func text(_ label: String, chinese: Bool, in size: NSSize) -> NSImage {
+        let font = chinese ? NSFont.systemFont(ofSize: 12, weight: .bold) : NSFont.systemFont(ofSize: 10.5, weight: .heavy)
+        let s = NSAttributedString(string: label, attributes: [.font: font, .foregroundColor: NSColor.black])
+        let ts = s.size()
+        return NSImage(size: ts, flipped: false) { _ in s.draw(at: .zero); return true }
+    }
+
+    private static func symbol(_ name: String) -> NSImage {
+        let config = NSImage.SymbolConfiguration(pointSize: 10, weight: .bold)
+        return NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(config) ?? NSImage()
     }
 }
 
