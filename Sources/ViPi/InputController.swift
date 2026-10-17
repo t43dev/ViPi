@@ -51,7 +51,8 @@ final class InputController {
 
     func start() -> Bool {
         if tap != nil { return true }
-        let types: [CGEventType] = [.keyDown, .flagsChanged, .leftMouseDown, .rightMouseDown, .otherMouseDown]
+        var types: [CGEventType] = [.keyDown, .flagsChanged, .leftMouseDown, .rightMouseDown, .otherMouseDown]
+        if DebugLog.enabled { types.append(.keyUp) }
         let mask = types.reduce(CGEventMask(0)) { $0 | (CGEventMask(1) << $1.rawValue) }
         let callback: CGEventTapCallBack = { proxy, type, event, refcon in
             let me = Unmanaged<InputController>.fromOpaque(refcon!).takeUnretainedValue()
@@ -70,6 +71,14 @@ final class InputController {
     }
 
     private func handle(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+        let result = route(proxy: proxy, type: type, event: event)
+        if DebugLog.enabled, type == .keyDown || type == .keyUp || type == .flagsChanged {
+            DebugLog.event(type, event, swallowed: result == nil, telex: telex)
+        }
+        return result
+    }
+
+    private func route(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         let pass = Unmanaged.passUnretained(event)
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
@@ -272,6 +281,30 @@ final class InputController {
     ]
 }
 
+/// Nhật ký chẩn đoán (chỉ khi `defaults write io.github.kulinh.vipi debugLog -bool true`):
+/// ghi từng phím và từng sửa đổi vào ~/Library/Logs/ViPi-debug.log. Tắt mặc định — nó ghi lại phím gõ.
+enum DebugLog {
+    static let enabled = UserDefaults.standard.bool(forKey: "debugLog")
+    private static let url = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/ViPi-debug.log")
+    private static let start = Date()
+
+    static func line(_ s: String) {
+        guard enabled else { return }
+        let t = String(format: "%8.3f ", Date().timeIntervalSince(start))
+        let data = Data((t + s + "\n").utf8)
+        if let h = try? FileHandle(forWritingTo: url) { h.seekToEndOfFile(); h.write(data); try? h.close() }
+        else { try? data.write(to: url) }
+    }
+
+    static func event(_ type: CGEventType, _ e: CGEvent, swallowed: Bool, telex: TelexEngine) {
+        let kind = type == .keyDown ? "DOWN" : type == .keyUp ? "UP  " : "FLAG"
+        let own = e.getIntegerValueField(.eventSourceUserData) == KeySender.marker ? " own" : ""
+        let rep = e.getIntegerValueField(.keyboardEventAutorepeat) == 1 ? " repeat" : ""
+        let app = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "?"
+        line("\(kind) code=\(e.getIntegerValueField(.keyboardEventKeycode)) char=\"\(InputController.typedString(e))\" flags=\(String(e.flags.rawValue, radix: 16))\(own)\(rep) src=\(e.getIntegerValueField(.eventSourceUnixProcessID)) \(swallowed ? "SWALLOWED" : "pass") keys=\"\(String(telex.keys))\" out=\"\(telex.output)\" app=\(app)")
+    }
+}
+
 /// Gửi phím giả: backspace + chuỗi Unicode, đánh dấu để tap của mình bỏ qua.
 /// Chữ được gửi kèm mã của chính phím vừa bị chặn (ứng dụng chưa thấy phím đó). Không dùng mã 0:
 /// đó là phím A thật — gõ nhanh khi A còn đang giữ thì ứng dụng bỏ mất chữ thay thế ("sawcs" → "ắc").
@@ -280,6 +313,7 @@ enum KeySender {
     private static let source = CGEventSource(stateID: .privateState)
 
     static func send(_ edit: TextEdit, keyCode: CGKeyCode, proxy: CGEventTapProxy?) {
+        DebugLog.line("  SEND bs=\(edit.backspaces) insert=\"\(edit.insert)\" keyCode=\(keyCode)")
         for _ in 0..<edit.backspaces { post(key: CGKeyCode(kVK_Delete), text: nil, proxy: proxy) }
         insert(edit.insert, keyCode: keyCode, proxy: proxy)
     }

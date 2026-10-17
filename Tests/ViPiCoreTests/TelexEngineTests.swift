@@ -141,8 +141,7 @@ final class TelexRoundTripTests: XCTestCase {
             return String(text)
         }
         // chữ tiếng Anh bị biến thành chữ không có thật → trả lại như đã gõ
-        for w in ["user", "User", "USER", "sure", "cure", "pure", "more", "data", "use",
-                  "issue", "offer", "sorry", "error", "mirror", "array", "coffee", "success"] {
+        for w in ["user", "User", "USER", "sure", "cure", "pure", "more", "data", "use"] {
             XCTAssertEqual(finished(w), w)
         }
         // âm tiết tiếng Việt có thật → giữ nguyên (cả kiểu dấu cũ/mới, chữ hoa)
@@ -152,7 +151,9 @@ final class TelexRoundTripTests: XCTestCase {
         }
         XCTAssertEqual(finished("hoaf", modern: true), "hoà")
         // ASCII (kể cả bỏ dấu bằng phím đôi) và chữ không nguyên âm: giữ nguyên
-        for (keys, want) in [("ass", "as"), ("case", "case"), ("dd", "đ"), ("Dd", "Đ")] {
+        // phím đôi bỏ dấu (thói quen Telex khi gõ tiếng Anh) phải được tôn trọng, kể cả giữa từ
+        for (keys, want) in [("ass", "as"), ("case", "case"), ("dd", "đ"), ("Dd", "Đ"),
+                             ("tessting", "testing"), ("exxternal", "external"), ("isssue", "issue")] {
             XCTAssertEqual(finished(keys), want)
         }
         // không có danh sách → không khôi phục

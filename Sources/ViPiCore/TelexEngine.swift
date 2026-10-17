@@ -80,20 +80,15 @@ public final class TelexEngine {
         return update(to: Self.render(keys, modern: modernToneStyle, spellCheck: spellCheck))
     }
 
-    /// Kết thúc từ (Space, dấu câu, Enter…) rồi reset. Trả về sửa đổi để gõ lại đúng các phím đã gõ khi
-    /// chữ trên màn hình không phải tiếng Việt: có dấu mà không phải âm tiết có thật ("ủe" → "user"),
-    /// hoặc phím đôi bỏ dấu nằm giữa từ ("isue" → "issue"). Giữ nguyên: bỏ dấu ở cuối từ ("ass" → "as")
-    /// và chữ không có nguyên âm ("100đ").
+    /// Kết thúc từ (Space, dấu câu, Enter…) rồi reset. Chữ có dấu mà không phải âm tiết tiếng Việt có thật
+    /// thì trả về sửa đổi để gõ lại đúng các phím đã gõ ("ủe" → "user"). Giữ nguyên chữ ASCII — kể cả khi
+    /// người gõ dùng phím đôi để bỏ dấu ("tessting" → "testing") — và chữ không có nguyên âm ("100đ").
     public func finishWord() -> TextEdit? {
         defer { reset() }
         let raw = String(keys)
-        guard spellCheck, let lexicon, output != raw else { return nil }
-        if output.unicodeScalars.allSatisfy(\.isASCII) {
-            guard !raw.hasPrefix(output) else { return nil }
-        } else {
-            let hasVowel = output.contains { Vietnamese.decompose($0).map { "aăâeêioôơuưy".contains($0.0) } ?? false }
-            guard hasVowel, !lexicon.contains(output) else { return nil }
-        }
+        guard spellCheck, let lexicon, output != raw, output.unicodeScalars.contains(where: { !$0.isASCII }) else { return nil }
+        let hasVowel = output.contains { Vietnamese.decompose($0).map { "aăâeêioôơuưy".contains($0.0) } ?? false }
+        guard hasVowel, !lexicon.contains(output) else { return nil }
         return TextEdit(backspaces: output.count, insert: raw)
     }
 

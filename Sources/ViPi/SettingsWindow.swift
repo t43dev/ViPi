@@ -92,7 +92,7 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
                 Toggle("Restore non-Vietnamese words", isOn: $prefs.restoreNonVietnamese)
                     .disabled(!prefs.spellCheck)
-                Text("When a word ends and the result is not a real Vietnamese syllable, retype the keys you pressed: user, data, issue.")
+                Text("When a word ends and the result is not a real Vietnamese syllable, retype the keys you pressed: user, data, more.")
                     .font(.caption).foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
