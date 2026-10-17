@@ -42,6 +42,9 @@ security list-keychains -d user -s "$KC" $OLD_KCS
 IDENTITY=$(security find-identity -v -p codesigning "$KC" | awk -F'"' '/Developer ID Application/{print $2; exit}')
 [ -n "$IDENTITY" ] || { echo "no Developer ID Application identity in p12"; exit 1; }
 cd $W
+# mạng nhà: IPv6 tới timestamp.apple.com treo với request POST → gọi thẳng địa chỉ IPv4
+TS_IP=$(dig +short A timestamp.apple.com | grep -E '^[0-9.]+$' | head -1)
+export TIMESTAMP_URL=${TS_IP:+http://$TS_IP/ts01}
 VERSION=$VERSION BUILD=$BUILD SIGN_IDENTITY="$IDENTITY" \
   NOTARY_KEY=$S/notary.p8 NOTARY_KEY_ID=$NOTARY_KEY_ID NOTARY_ISSUER=$NOTARY_ISSUER \
   scripts/build-app.sh 2>&1 | grep -vE "^\[[0-9]+/[0-9]+\]"

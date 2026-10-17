@@ -21,8 +21,14 @@ sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD/" Resources/Info.plist >
 # Ký: có SIGN_IDENTITY (Developer ID Application) thì ký hardened runtime, đóng DMG, notarize + staple;
 # không thì ad-hoc + zip (ad-hoc: macOS gắn quyền Accessibility vào chữ ký nên mỗi bản build mới phải cấp lại).
 # Notarize bằng App Store Connect API key (NOTARY_KEY/NOTARY_KEY_ID/NOTARY_ISSUER) hoặc Apple ID (APPLE_ID/...).
-# máy chủ timestamp của Apple thỉnh thoảng không trả lời → thử lại
-sign() { for i in 1 2 3 4 5; do codesign --force --timestamp --sign "$SIGN_IDENTITY" "$@" && return; sleep $((i * 3)); done; return 1; }
+# máy chủ timestamp của Apple thỉnh thoảng không trả lời → thử lại; TIMESTAMP_URL để chọn máy chủ khác
+sign() {
+  for i in 1 2 3; do
+    codesign --force --timestamp${TIMESTAMP_URL:+=$TIMESTAMP_URL} --sign "$SIGN_IDENTITY" "$@" && return
+    sleep $((i * 3))
+  done
+  return 1
+}
 if [ -n "${SIGN_IDENTITY:-}" ]; then
   sign --options runtime "$APP"
   codesign --verify --strict --verbose=2 "$APP"
