@@ -109,6 +109,26 @@ final class SelfTest: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Nhấn-nhả Control+Shift `times` lần ở mức HID.
+    static func pressChord(times: Int, gapMs: Double) {
+        let source = CGEventSource(stateID: .hidSystemState)
+        let steps: [(CGKeyCode, CGEventFlags)] = [
+            (CGKeyCode(kVK_Control), .maskControl), (CGKeyCode(kVK_Shift), [.maskControl, .maskShift]),
+            (CGKeyCode(kVK_Shift), .maskControl), (CGKeyCode(kVK_Control), []),
+        ]
+        for n in 0..<times {
+            if n > 0 { usleep(useconds_t(gapMs * 1000)) }
+            for (code, flags) in steps {
+                guard let e = CGEvent(source: source) else { continue }
+                e.type = .flagsChanged
+                e.setIntegerValueField(.keyboardEventKeycode, value: Int64(code))
+                e.flags = flags
+                e.post(tap: .cghidEventTap)
+                usleep(30_000)
+            }
+        }
+    }
+
     /// Biến thể: gõ chữ không dấu trước, dấu mũ/móc/đ và thanh ở cuối ("người" → "nguoiwf").
     static func marksAtEnd(_ w: String) -> [Character] {
         var base = "", marks = "", tone = ""

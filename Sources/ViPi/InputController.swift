@@ -5,11 +5,6 @@ import ViPiCore
 enum InputMode: String, CaseIterable {
     case vietnamese, chinese, english
 
-    var next: InputMode {
-        let all = InputMode.allCases
-        return all[(all.firstIndex(of: self)! + 1) % all.count]
-    }
-
     var title: String {
         switch self {
         case .vietnamese: return "Vietnamese (Telex)"

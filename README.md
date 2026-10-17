@@ -6,7 +6,7 @@
 
 - **Telex** typing with UniKey-style rules: `aa→â aw→ă ee→ê oo→ô ow→ơ uw/w→ư dd→đ`, tones `s f r x j`, `z` clears the tone, typing a key twice undoes it (`ass→as`), free tone order (`tosan→toán`), spell check (invalid words such as `class`, `text` stay as typed), classic or modern tone placement (`hòa`/`hoà`).
 - **Pinyin** with a candidate window: full pinyin, `'` separator (`xi'an`), unfinished last syllable (`nih→你好`), initials-only abbreviations (`nh→你好`), whole-sentence suggestion (`woshizhongguoren→我是中国人`), partial selection, full-width punctuation.
-- **Control+Shift** cycles Vietnamese → Chinese → English (press both, release without another key).
+- **Control+Shift** jumps back to the previous input (press both, release without another key); press it twice quickly to move on to the next one (most-recently-used order, like ⌘Space).
 - **Secure Input Monitor**: shows which app holds macOS Secure Input (the reason input tools suddenly stop typing), with history, PID, path and Show/Quit buttons. The menu-bar icon turns into a lock while it is held.
 - **Launch at Login** (on by default, toggle in the menu).
 
@@ -25,7 +25,7 @@ Ad-hoc builds get a new signature every time, so after updating you must remove 
 |---|---|
 | Vietnamese | Telex as above; any non-letter ends the word |
 | Chinese | `a-z` pinyin (`v` = ü) · `1-9` pick · `Space` pick highlighted · `←/→` move · `-`/`=` or `↑/↓` page · `Enter` type raw pinyin · `Esc` cancel · `Backspace` edit/undo pick |
-| Any | `Control+Shift` switch mode |
+| Any | `Control+Shift` previous mode · twice quickly: next mode |
 
 ## Build
 

@@ -20,6 +20,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    /// Bộ gõ dùng gần nhất trước, [0] là bộ đang dùng.
+    private var recent: [InputMode] {
+        get {
+            let saved = (defaults.stringArray(forKey: "recentModes") ?? []).compactMap(InputMode.init(rawValue:))
+            return ([mode] + saved + InputMode.allCases).reduce(into: []) { if !$0.contains($1) { $0.append($1) } }
+        }
+        set { defaults.set(newValue.map(\.rawValue), forKey: "recentModes") }
+    }
+    /// Chuỗi Ctrl+Shift liên tiếp: thứ tự lúc bắt đầu, số lần bấm, thời điểm bấm cuối.
+    private var switchRun: (order: [InputMode], step: Int, at: Date)?
+
+    private func setMode(_ m: InputMode) {
+        recent = [m] + recent.filter { $0 != m }
+        mode = m
+    }
+
+    /// Bấm 1 lần: về bộ gõ trước đó. Bấm liên tiếp (< 0.8 s): đi tiếp các bộ còn lại theo thứ tự dùng gần nhất.
+    private func switchMode() {
+        let now = Date()
+        var run = switchRun.flatMap { now.timeIntervalSince($0.at) < 0.8 ? $0 : nil } ?? (order: recent, step: 0, at: now)
+        run.step += 1
+        run.at = now
+        switchRun = run
+        let target = run.order[run.step % run.order.count]
+        recent = [target] + run.order.filter { $0 != target }
+        mode = target
+        hud.show(target)
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         defaults.register(defaults: ["modernToneStyle": false, "fullWidthPunctuation": true])
 
@@ -31,11 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         controller.mode = mode
         controller.telex.modernToneStyle = defaults.bool(forKey: "modernToneStyle")
         controller.fullWidthPunctuation = defaults.bool(forKey: "fullWidthPunctuation")
-        controller.onCycleMode = { [weak self] in
-            guard let self else { return }
-            self.mode = self.mode.next
-            self.hud.show(self.mode)
-        }
+        controller.onCycleMode = { [weak self] in self?.switchMode() }
 
         secureInput.onChange = { [weak self] in self?.updateIcon() }
         secureInput.start()
@@ -106,7 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard let button = statusItem?.button else { return }
         let blocked = secureInput.isEnabled
         button.image = StatusIcon.image(mode: mode, blocked: blocked, inactive: !controller.isRunning)
-        var tip = "ViPi — \(mode.title)\nSwitch: Control+Shift"
+        var tip = "ViPi — \(mode.title)\nControl+Shift: previous · twice: next"
         if blocked { tip += "\nSecure Input held by \(secureInput.holder?.name ?? "unknown") — typing blocked" }
         if !controller.isRunning { tip += "\nWaiting for Accessibility permission" }
         button.toolTip = tip
@@ -132,7 +157,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             i.state = m == mode ? .on : .off
             menu.addItem(i)
         }
-        let hint = NSMenuItem(title: "Switch: Control+Shift", action: nil, keyEquivalent: "")
+        let hint = NSMenuItem(title: "Control+Shift: previous · press twice: next", action: nil, keyEquivalent: "")
         hint.isEnabled = false
         menu.addItem(hint)
         menu.addItem(.separator())
@@ -163,7 +188,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: - Actions
 
     @objc private func selectMode(_ sender: NSMenuItem) {
-        if let raw = sender.representedObject as? String, let m = InputMode(rawValue: raw) { mode = m }
+        if let raw = sender.representedObject as? String, let m = InputMode(rawValue: raw) { setMode(m) }
     }
 
     @objc private func toggleToneStyle() {
@@ -189,7 +214,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSApp.activate(ignoringOtherApps: true)
         let credits = NSAttributedString(
             string: "Vietnamese (Telex) + Chinese (Pinyin) in one input tool.\n"
-                + "Switch with Control+Shift.\n\n"
+                + "Control+Shift switches to the previous input; press twice for the next one.\n\n"
                 + "Telex rules follow UniKey. Pinyin dictionary: rime-ice (GPL-3.0).\n"
                 + "github.com/kulinh/ViPi",
             attributes: [.font: NSFont.systemFont(ofSize: 11)])
