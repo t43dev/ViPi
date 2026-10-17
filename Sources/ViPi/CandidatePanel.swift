@@ -95,7 +95,7 @@ enum CaretLocator {
         AXUIElementSetMessagingTimeout(system, 0.15)
         var focusedRef: CFTypeRef?
         guard AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &focusedRef) == .success,
-              let focusedRef else { return nil }
+              let focusedRef, CFGetTypeID(focusedRef) == AXUIElementGetTypeID() else { return nil }
         let element = focusedRef as! AXUIElement
 
         var rangeRef: CFTypeRef?
@@ -104,9 +104,9 @@ enum CaretLocator {
             var boundsRef: CFTypeRef?
             if AXUIElementCopyParameterizedAttributeValue(element, kAXBoundsForRangeParameterizedAttribute as CFString,
                                                           rangeRef, &boundsRef) == .success,
-               let boundsRef {
+               let bounds = axValue(boundsRef) {
                 var rect = CGRect.zero
-                if AXValueGetValue(boundsRef as! AXValue, .cgRect, &rect), rect.height > 0 {
+                if AXValueGetValue(bounds, .cgRect, &rect), rect.height > 0 {
                     return flip(rect)
                 }
             }
@@ -115,12 +115,18 @@ enum CaretLocator {
         var posRef: CFTypeRef?, sizeRef: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &posRef) == .success,
               AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeRef) == .success,
-              let posRef, let sizeRef else { return nil }
+              let posValue = axValue(posRef), let sizeValue = axValue(sizeRef) else { return nil }
         var pos = CGPoint.zero, size = CGSize.zero
-        AXValueGetValue(posRef as! AXValue, .cgPoint, &pos)
-        AXValueGetValue(sizeRef as! AXValue, .cgSize, &size)
+        AXValueGetValue(posValue, .cgPoint, &pos)
+        AXValueGetValue(sizeValue, .cgSize, &size)
         guard size.height > 0, size.height < 200 else { return nil }   // vùng soạn thảo lớn: caret không rõ
         return flip(CGRect(origin: pos, size: size))
+    }
+
+    /// Ép kiểu an toàn: app lạ có thể trả về kiểu khác, không được crash vì đang giữ bàn phím.
+    private static func axValue(_ ref: CFTypeRef?) -> AXValue? {
+        guard let ref, CFGetTypeID(ref) == AXValueGetTypeID() else { return nil }
+        return (ref as! AXValue)
     }
 
     /// AX dùng gốc trên-trái của màn hình chính; Cocoa dùng gốc dưới-trái.

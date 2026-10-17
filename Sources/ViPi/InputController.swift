@@ -148,7 +148,10 @@ final class InputController {
             case kVK_Delete: py.backspace(); refreshPanel(); return true
             case kVK_Escape: cancelComposition(); return true
             case kVK_Return, kVK_ANSI_KeypadEnter: commit(py.commitRaw()); return true
-            case kVK_Space: choose(page * pageSize + highlight); return true
+            case kVK_Space:
+                let i = page * pageSize + highlight
+                if py.candidates.indices.contains(i) { choose(i) } else { commitBest() }
+                return true
             case kVK_LeftArrow: moveHighlight(-1); return true
             case kVK_RightArrow, kVK_Tab: moveHighlight(1); return true
             case kVK_UpArrow, kVK_PageUp: turnPage(-1); return true

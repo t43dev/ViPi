@@ -84,7 +84,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func setUpLoginItemOnFirstLaunch() {
-        guard !defaults.bool(forKey: "loginItemConfigured") else { return }
+        // chỉ tự đăng ký khi đã nằm trong /Applications, tránh gắn vào đường dẫn ~/Downloads
+        guard !defaults.bool(forKey: "loginItemConfigured"), Bundle.main.bundlePath.hasPrefix("/Applications") else { return }
         defaults.set(true, forKey: "loginItemConfigured")
         setLaunchAtLogin(true)
     }
