@@ -12,12 +12,10 @@
 
 ## Install
 
-1. Download `ViPi-x.y.z.zip` from [Releases](../../releases) (or the `ViPi` artifact of the latest CI run), unzip, move `ViPi.app` to `/Applications`.
-2. The build is ad-hoc signed, so clear the download quarantine once:
-   `xattr -dr com.apple.quarantine /Applications/ViPi.app`
-3. Open ViPi and allow it in **System Settings → Privacy & Security → Accessibility**. ViPi starts working within 2 seconds of the grant.
+1. Download `ViPi-x.y.z.dmg` from [Releases](../../releases), open it and drag **ViPi** onto **Applications**.
+2. Open ViPi from Applications and allow it in **System Settings → Privacy & Security → Accessibility**. ViPi starts working within 2 seconds of the grant and adds itself to Login Items.
 
-Ad-hoc builds get a new signature every time, so after updating you must remove ViPi from the Accessibility list and add it again. Builds signed with a Developer ID (CI does this when the `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD`, `APPLE_ID`, `APPLE_APP_PASSWORD`, `APPLE_TEAM_ID` secrets are set) are notarized: no quarantine step, and the Accessibility grant survives updates.
+Releases are signed with a Developer ID and notarized by Apple, so macOS opens them without warnings and the Accessibility grant survives updates. Requires macOS 13 or later (Apple silicon or Intel).
 
 ## Keys
 
@@ -33,10 +31,12 @@ macOS 13+, Xcode command line tools:
 
 ```sh
 swift test                      # engines (also runs on Linux)
-VERSION=0.1.0 scripts/build-app.sh   # → build/ViPi.app + build/ViPi-0.1.0.zip
+VERSION=0.1.0 scripts/build-app.sh   # → build/ViPi.app + build/ViPi-0.1.0.zip (ad-hoc signed)
 ```
 
-CI (`.github/workflows/build.yml`) tests, builds a universal app and uploads it; pushing a `v*` tag publishes a release.
+With `SIGN_IDENTITY="Developer ID Application: …"` the script signs with the hardened runtime and makes `build/ViPi-x.y.z.dmg`; with `NOTARY_KEY`/`NOTARY_KEY_ID`/`NOTARY_ISSUER` (App Store Connect API key) it also notarizes and staples the DMG. `scripts/mac-release.sh <version>` does all of this on a build Mac and attaches the DMG to the GitHub release `v<version>`.
+
+CI (`.github/workflows/build.yml`) runs the tests and uploads an unsigned build as an artifact.
 
 The Pinyin dictionary `Resources/pinyin.tsv` is generated from [rime-ice](https://github.com/iDvel/rime-ice) by `scripts/build_pinyin_dict.py`.
 

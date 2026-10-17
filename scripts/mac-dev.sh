@@ -23,7 +23,7 @@ cp Resources/pinyin.tsv $APP/Contents/Resources/
 iconutil -c icns Resources/AppIcon.iconset -o $APP/Contents/Resources/AppIcon.icns
 KC=$HOME/Library/Keychains/vipi-dev.keychain-db
 security unlock-keychain -p "$KC_PW" $KC
-codesign --force --keychain $KC --sign "ViPi Dev Signing" $APP
+codesign --force --options runtime --keychain $KC --sign "ViPi Dev Signing" $APP
 codesign -dr - $APP 2>&1 | tail -1
 pkill -x ViPi || true
 sleep 0.5
