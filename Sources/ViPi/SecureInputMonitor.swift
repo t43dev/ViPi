@@ -75,26 +75,33 @@ final class SecureInputMonitor: ObservableObject {
 final class SecureInputWindowController {
     private var window: NSWindow?
     private let monitor: SecureInputMonitor
+    private let prefs: Preferences
 
-    init(monitor: SecureInputMonitor) { self.monitor = monitor }
+    init(monitor: SecureInputMonitor, prefs: Preferences) {
+        self.monitor = monitor
+        self.prefs = prefs
+    }
 
     func show() {
         if window == nil {
-            let w = NSWindow(contentViewController: NSHostingController(rootView: SecureInputView(monitor: monitor)))
-            w.title = "Secure Input Monitor"
+            let w = NSWindow(contentViewController: NSHostingController(rootView: SecureInputView(monitor: monitor, prefs: prefs)))
             w.setContentSize(NSSize(width: 640, height: 420))
             w.isReleasedWhenClosed = false
             w.center()
             window = w
         }
+        relocalize()
         monitor.poll()
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
     }
+
+    func relocalize() { window?.title = tr("Secure Input Monitor") }
 }
 
 struct SecureInputView: View {
     @ObservedObject var monitor: SecureInputMonitor
+    @ObservedObject var prefs: Preferences   // vẽ lại khi đổi ngôn ngữ
 
     private static let time: DateFormatter = {
         let f = DateFormatter()
@@ -105,22 +112,20 @@ struct SecureInputView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             status
-            Text("While any app holds Secure Input, macOS hides keystrokes from every input tool, so ViPi cannot type. "
-                 + "Usual holders: a focused password field, Terminal/iTerm “Secure Keyboard Entry”, password managers, "
-                 + "or loginwindow after the screen was locked. Quitting or switching away from the holder releases it.")
+            Text(tr("While any app holds Secure Input, macOS hides keystrokes from every input tool, so ViPi cannot type. Usual holders: a focused password field, Terminal/iTerm “Secure Keyboard Entry”, password managers, or loginwindow after the screen was locked. Quitting or switching away from the holder releases it."))
                 .font(.callout)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("History").font(.headline)
+            Text(tr("History")).font(.headline)
             Table(monitor.history) {
-                TableColumn("Time") { e in Text(Self.time.string(from: e.date)).monospacedDigit() }
+                TableColumn(tr("Time")) { e in Text(Self.time.string(from: e.date)).monospacedDigit() }
                     .width(110)
-                TableColumn("Event") { e in Text(e.started ? "Enabled" : "Released").foregroundColor(e.started ? .red : .green) }
+                TableColumn(tr("Event")) { e in Text(e.started ? tr("Enabled") : tr("Released")).foregroundColor(e.started ? .red : .green) }
                     .width(70)
-                TableColumn("App") { e in Text(e.holder?.name ?? "unknown") }
+                TableColumn(tr("App")) { e in Text(e.holder?.name ?? tr("unknown")) }
                 TableColumn("PID") { e in Text(e.holder.map { String($0.pid) } ?? "–").monospacedDigit() }
                     .width(60)
-                TableColumn("Path") { e in Text(e.holder?.path ?? "").lineLimit(1).truncationMode(.middle).help(e.holder?.path ?? "") }
+                TableColumn(tr("Path")) { e in Text(e.holder?.path ?? "").lineLimit(1).truncationMode(.middle).help(e.holder?.path ?? "") }
             }
         }
         .padding(16)
@@ -134,29 +139,29 @@ struct SecureInputView: View {
                 .foregroundColor(monitor.isEnabled ? .red : .green)
             VStack(alignment: .leading, spacing: 2) {
                 if monitor.isEnabled {
-                    Text("Secure Input is ON — typing is blocked").font(.title3.bold())
+                    Text(tr("Secure Input is ON — typing is blocked")).font(.title3.bold())
                     if let h = monitor.holder {
-                        Text("Held by \(h.name) (PID \(h.pid))\(h.bundleID.map { " · \($0)" } ?? "")")
+                        Text(tr("Held by %@ (PID %@)", h.name, String(h.pid)) + (h.bundleID.map { " · \($0)" } ?? ""))
                     } else {
-                        Text("Holder unknown")
+                        Text(tr("Holder unknown"))
                     }
                     if let since = monitor.since {
-                        Text("Since \(Self.time.string(from: since))").font(.caption).foregroundColor(.secondary)
+                        Text(tr("Since %@", Self.time.string(from: since))).font(.caption).foregroundColor(.secondary)
                     }
                 } else {
-                    Text("Secure Input is off — ViPi can type").font(.title3.bold())
+                    Text(tr("Secure Input is off — ViPi can type")).font(.title3.bold())
                 }
             }
             Spacer()
             if monitor.isEnabled, let h = monitor.holder {
                 VStack(alignment: .trailing, spacing: 6) {
                     HStack {
-                        Button("Show App") { NSRunningApplication(processIdentifier: h.pid)?.activate(options: []) }
-                        Button("Reveal in Finder") {
+                        Button(tr("Show App")) { NSRunningApplication(processIdentifier: h.pid)?.activate(options: []) }
+                        Button(tr("Reveal in Finder")) {
                             if let p = h.path { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: p)]) }
                         }.disabled(h.path == nil)
                     }
-                    Button("Quit \(h.name)") { NSRunningApplication(processIdentifier: h.pid)?.terminate() }
+                    Button(tr("Quit %@", h.name)) { NSRunningApplication(processIdentifier: h.pid)?.terminate() }
                         .disabled(NSRunningApplication(processIdentifier: h.pid) == nil)
                 }
             }

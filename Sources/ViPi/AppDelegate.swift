@@ -5,7 +5,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private let controller = InputController()
     private let secureInput = SecureInputMonitor()
-    private lazy var secureWindow = SecureInputWindowController(monitor: secureInput)
+    private lazy var secureWindow = SecureInputWindowController(monitor: secureInput, prefs: prefs)
     private let updater = Updater()
     private let prefs = Preferences()
     private lazy var aboutWindow = AboutWindowController(updater: updater, prefs: prefs)
@@ -131,9 +131,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard let button = statusItem?.button else { return }
         let blocked = secureInput.isEnabled
         button.image = StatusIcon.image(mode: mode, blocked: blocked, inactive: !controller.isRunning)
-        var tip = "ViPi — \(mode.title)\n\(prefs.shortcut.label): previous · twice: next"
-        if blocked { tip += "\nSecure Input held by \(secureInput.holder?.name ?? "unknown") — typing blocked" }
-        if !controller.isRunning { tip += "\nWaiting for Accessibility permission" }
+        var tip = "ViPi — \(mode.title)\n" + tr("%@: previous · twice: next", prefs.shortcut.label)
+        if blocked { tip += "\n" + tr("Secure Input held by %@ — typing blocked", secureInput.holder?.name ?? tr("unknown")) }
+        if !controller.isRunning { tip += "\n" + tr("Waiting for Accessibility permission") }
         button.toolTip = tip
     }
 
@@ -143,16 +143,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(withTitle: "ViPi \(version)", action: nil, keyEquivalent: "")
 
         if !controller.isRunning {
-            menu.addItem(item("⚠️ Grant Accessibility Permission…", #selector(openAccessibility)))
+            menu.addItem(item(tr("⚠️ Grant Accessibility Permission…"), #selector(openAccessibility)))
         }
         switch updater.state {
-        case .available(let v): menu.addItem(item("⬆️ Update to ViPi \(v)…", #selector(showAbout)))
-        case .ready(let v): menu.addItem(item("⬆️ Relaunch to Finish Updating to \(v)", #selector(relaunchForUpdate)))
+        case .available(let v): menu.addItem(item(tr("⬆️ Update to ViPi %@…", v), #selector(showAbout)))
+        case .ready(let v): menu.addItem(item(tr("⬆️ Relaunch to Finish Updating to %@", v), #selector(relaunchForUpdate)))
         default: break
         }
         if secureInput.isEnabled {
-            let who = secureInput.holder.map { "\($0.name) (PID \($0.pid))" } ?? "unknown app"
-            menu.addItem(item("🔒 Secure Input held by \(who)", #selector(showSecureInput)))
+            let who = secureInput.holder.map { "\($0.name) (PID \($0.pid))" } ?? tr("unknown app")
+            menu.addItem(item(tr("🔒 Secure Input held by %@", who), #selector(showSecureInput)))
         }
         menu.addItem(.separator())
 
@@ -162,17 +162,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             i.state = m == mode ? .on : .off
             menu.addItem(i)
         }
-        let hint = NSMenuItem(title: "\(prefs.shortcut.label): previous · twice: next", action: nil, keyEquivalent: "")
+        let hint = NSMenuItem(title: tr("%@: previous · twice: next", prefs.shortcut.label), action: nil, keyEquivalent: "")
         hint.isEnabled = false
         menu.addItem(hint)
         menu.addItem(.separator())
 
-        menu.addItem(item("Settings…", #selector(showSettings), key: ","))
-        menu.addItem(item("Secure Input Monitor…", #selector(showSecureInput)))
-        menu.addItem(item("Check for Updates…", #selector(checkForUpdates)))
-        menu.addItem(item("About ViPi", #selector(showAbout)))
+        menu.addItem(item(tr("Settings…"), #selector(showSettings), key: ","))
+        menu.addItem(item(tr("Secure Input Monitor…"), #selector(showSecureInput)))
+        menu.addItem(item(tr("Check for Updates…"), #selector(checkForUpdates)))
+        menu.addItem(item(tr("About ViPi"), #selector(showAbout)))
         menu.addItem(.separator())
-        menu.addItem(item("Quit ViPi", #selector(quit), key: "q"))
+        menu.addItem(item(tr("Quit ViPi"), #selector(quit), key: "q"))
     }
 
     private func item(_ title: String, _ action: Selector, key: String = "") -> NSMenuItem {
@@ -196,6 +196,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         controller.macros = prefs.macrosEnabled ? prefs.macroTable : nil
         controller.fullWidthPunctuation = prefs.fullWidthPunctuation
         controller.shortcut = prefs.shortcut
+        settingsWindow.relocalize()
+        aboutWindow.relocalize()
+        secureWindow.relocalize()
         updateIcon()
     }
 

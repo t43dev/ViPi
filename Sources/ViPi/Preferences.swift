@@ -49,6 +49,13 @@ final class Preferences: ObservableObject {
     @Published var macrosEnabled: Bool { didSet { save(macrosEnabled, "macrosEnabled") } }
     @Published var macros: [Macro] { didSet { saveJSON(macros, "macros") } }
     @Published var fullWidthPunctuation: Bool { didSet { save(fullWidthPunctuation, "fullWidthPunctuation") } }
+    @Published var language: UILanguage {
+        didSet {
+            UILanguage.current = language
+            defaults.set(language.rawValue, forKey: "uiLanguage")
+            onChange?()
+        }
+    }
 
     init() {
         defaults.register(defaults: [
@@ -64,6 +71,8 @@ final class Preferences: ObservableObject {
             Macro(key: "vn", text: "Việt Nam"), Macro(key: "ko", text: "không"), Macro(key: "đc", text: "được"),
         ]
         fullWidthPunctuation = defaults.bool(forKey: "fullWidthPunctuation")
+        language = defaults.string(forKey: "uiLanguage").flatMap(UILanguage.init(rawValue:)) ?? .system
+        UILanguage.current = language
     }
 
     var macroTable: MacroTable { MacroTable(macros.map { ($0.key.trimmingCharacters(in: .whitespaces), $0.text) }) }

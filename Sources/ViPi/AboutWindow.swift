@@ -14,15 +14,17 @@ final class AboutWindowController {
     func show() {
         if window == nil {
             let w = NSWindow(contentViewController: NSHostingController(rootView: AboutView(updater: updater, prefs: prefs)))
-            w.title = "About ViPi"
             w.styleMask = [.titled, .closable]
             w.isReleasedWhenClosed = false
             w.center()
             window = w
         }
+        relocalize()
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
     }
+
+    func relocalize() { window?.title = tr("About ViPi") }
 }
 
 struct AboutView: View {
@@ -36,25 +38,25 @@ struct AboutView: View {
                 .frame(width: 96, height: 96)
             VStack(spacing: 4) {
                 Text("ViPi").font(.system(size: 26, weight: .bold))
-                Text("Version \(Updater.currentVersion) (\(Updater.currentBuild))")
+                Text(tr("Version %@ (%@)", Updater.currentVersion, Updater.currentBuild))
                     .font(.callout).foregroundColor(.secondary).textSelection(.enabled)
             }
-            Text("Vietnamese Telex + Chinese Pinyin in one input tool.\nMade because macOS had no sensible way to type both.")
+            Text(tr("Vietnamese Telex + Chinese Pinyin in one input tool.\nMade because macOS had no sensible way to type both."))
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 16) {
                 Link(destination: Updater.pageURL) { Label("GitHub", systemImage: "chevron.left.forwardslash.chevron.right") }
-                Link(destination: Updater.releasesURL) { Label("Releases", systemImage: "shippingbox") }
-                Link(destination: Updater.issuesURL) { Label("Report an Issue", systemImage: "exclamationmark.bubble") }
+                Link(destination: Updater.releasesURL) { Label(tr("Releases"), systemImage: "shippingbox") }
+                Link(destination: Updater.issuesURL) { Label(tr("Report an Issue"), systemImage: "exclamationmark.bubble") }
             }
 
             GroupBox {
                 VStack(alignment: .leading, spacing: 6) {
-                    shortcut(prefs.shortcut.label, "previous input")
-                    shortcut("\(prefs.shortcut.label) ×2", "next input")
-                    shortcut("Telex", "aa â · aw ă · ee ê · oo ô · ow ơ · uw ư · dd đ · s f r x j tones · z clears")
-                    shortcut("Pinyin", "1–9 pick · Space highlighted · −/= page · Enter raw · Esc cancel")
+                    shortcut(prefs.shortcut.label, tr("previous input"))
+                    shortcut("\(prefs.shortcut.label) ×2", tr("next input"))
+                    shortcut("Telex", tr("aa â · aw ă · ee ê · oo ô · ow ơ · uw ư · dd đ · s f r x j tones · z clears"))
+                    shortcut("Pinyin", tr("1–9 pick · Space highlighted · −/= page · Enter raw · Esc cancel"))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(4)
@@ -67,25 +69,26 @@ struct AboutView: View {
                         Spacer()
                         updateButton
                     }
-                    Toggle("Automatically install updates", isOn: $updater.autoInstall)
+                    Toggle(tr("Automatically install updates"), isOn: $updater.autoInstall)
                         .disabled(!updater.isReleaseBuild)
                     if !updater.isReleaseBuild {
-                        Text("Development build: automatic updates are off.")
+                        Text(tr("Development build: automatic updates are off."))
                             .font(.caption).foregroundColor(.secondary)
                     }
+                    LanguagePicker(prefs: prefs).fixedSize()
                 }
                 .padding(4)
             }
 
             VStack(spacing: 3) {
                 HStack(spacing: 4) {
-                    Text("Telex rules:").foregroundColor(.secondary)
+                    Text(tr("Telex rules:")).foregroundColor(.secondary)
                     Link("UniKey", destination: URL(string: "https://www.unikey.org")!)
-                    Text("· Pinyin dictionary:").foregroundColor(.secondary)
+                    Text(tr("· Pinyin dictionary:")).foregroundColor(.secondary)
                     Link("rime-ice", destination: URL(string: "https://github.com/iDvel/rime-ice")!)
                 }
                 HStack(spacing: 4) {
-                    Text("© 2026 ViPi contributors · Free software under the").foregroundColor(.secondary)
+                    Text(tr("© 2026 ViPi contributors · Free software under the")).foregroundColor(.secondary)
                     Link("GPL-3.0", destination: URL(string: "https://github.com/\(Updater.repo)/blob/main/LICENSE")!)
                 }
             }
@@ -104,22 +107,22 @@ struct AboutView: View {
 
     @ViewBuilder private var updateStatus: some View {
         switch updater.state {
-        case .idle: Text("Updates come from GitHub Releases.").foregroundColor(.secondary)
-        case .checking: HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Checking for updates…") }
-        case .upToDate: Label("ViPi is up to date.", systemImage: "checkmark.circle.fill").foregroundColor(.green)
-        case .available(let v): Label("ViPi \(v) is available.", systemImage: "arrow.down.circle.fill").foregroundColor(.accentColor)
-        case .installing(let v): HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Installing ViPi \(v)…") }
-        case .ready(let v): Label("ViPi \(v) is installed.", systemImage: "checkmark.seal.fill").foregroundColor(.green)
+        case .idle: Text(tr("Updates come from GitHub Releases.")).foregroundColor(.secondary)
+        case .checking: HStack(spacing: 6) { ProgressView().controlSize(.small); Text(tr("Checking for updates…")) }
+        case .upToDate: Label(tr("ViPi is up to date."), systemImage: "checkmark.circle.fill").foregroundColor(.green)
+        case .available(let v): Label(tr("ViPi %@ is available.", v), systemImage: "arrow.down.circle.fill").foregroundColor(.accentColor)
+        case .installing(let v): HStack(spacing: 6) { ProgressView().controlSize(.small); Text(tr("Installing ViPi %@…", v)) }
+        case .ready(let v): Label(tr("ViPi %@ is installed.", v), systemImage: "checkmark.seal.fill").foregroundColor(.green)
         case .failed(let message): Label(message, systemImage: "exclamationmark.triangle.fill").foregroundColor(.orange)
         }
     }
 
     @ViewBuilder private var updateButton: some View {
         switch updater.state {
-        case .available: Button("Install and Relaunch") { updater.install(relaunchWhenDone: true) }.buttonStyle(.borderedProminent)
-        case .ready: Button("Relaunch Now") { updater.relaunch() }.buttonStyle(.borderedProminent)
+        case .available: Button(tr("Install and Relaunch")) { updater.install(relaunchWhenDone: true) }.buttonStyle(.borderedProminent)
+        case .ready: Button(tr("Relaunch Now")) { updater.relaunch() }.buttonStyle(.borderedProminent)
         case .checking, .installing: EmptyView()
-        default: Button("Check for Updates") { updater.check(userInitiated: true) }
+        default: Button(tr("Check for Updates")) { updater.check(userInitiated: true) }
         }
     }
 }

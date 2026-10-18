@@ -19,15 +19,17 @@ final class SettingsWindowController {
         if window == nil {
             let view = SettingsView(prefs: prefs, updater: updater, onRecording: onRecording, showSecureInput: showSecureInput)
             let w = NSWindow(contentViewController: NSHostingController(rootView: view))
-            w.title = "ViPi Settings"
             w.styleMask = [.titled, .closable]
             w.isReleasedWhenClosed = false
             w.center()
             window = w
         }
+        relocalize()
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
     }
+
+    func relocalize() { window?.title = tr("ViPi Settings") }
 }
 
 struct SettingsView: View {
@@ -48,34 +50,33 @@ struct SettingsView: View {
 
     var body: some View {
         TabView(selection: $tab) {
-            general.tabItem { Label("General", systemImage: "gearshape") }.tag(0)
-            vietnamese.tabItem { Label("Vietnamese", systemImage: "character.book.closed") }.tag(1)
-            MacrosView(prefs: prefs).tabItem { Label("Text Shortcuts", systemImage: "text.badge.plus") }.tag(2)
-            chinese.tabItem { Label("Chinese", systemImage: "character") }.tag(3)
+            general.tabItem { Label(tr("General"), systemImage: "gearshape") }.tag(0)
+            vietnamese.tabItem { Label(tr("Vietnamese"), systemImage: "character.book.closed") }.tag(1)
+            chinese.tabItem { Label(tr("Chinese"), systemImage: "character") }.tag(2)
         }
         .padding(20)
-        .frame(width: 560, height: 430)
+        .frame(width: 560, height: 620)
     }
 
     private var general: some View {
         Form {
             Section {
-                LabeledContent("Switch input") {
+                LanguagePicker(prefs: prefs)
+            }
+            Section {
+                LabeledContent(tr("Switch input")) {
                     ShortcutRecorder(shortcut: $prefs.shortcut, onRecording: onRecording)
                 }
-                Text("Press once to go back to the previous input, twice quickly for the next one. "
-                     + "Use two or more modifier keys (pressed together, then released), or modifiers plus a key such as Control+Space.")
-                    .font(.caption).foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Button("Reset to Control+Shift") { prefs.shortcut = .default }
+                caption(tr("Press once to go back to the previous input, twice quickly for the next one. Use two or more modifier keys (pressed together, then released), or modifiers plus a key such as Control+Space."))
+                Button(tr("Reset to Control+Shift")) { prefs.shortcut = .default }
                     .disabled(prefs.shortcut == .default)
             }
             Section {
-                Toggle("Launch at login", isOn: $prefs.launchAtLogin)
-                Toggle("Automatically install updates", isOn: $updater.autoInstall)
+                Toggle(tr("Launch at login"), isOn: $prefs.launchAtLogin)
+                Toggle(tr("Automatically install updates"), isOn: $updater.autoInstall)
                     .disabled(!updater.isReleaseBuild)
-                LabeledContent("Secure Input") {
-                    Button("Open Monitor…", action: showSecureInput)
+                LabeledContent(tr("Secure Input")) {
+                    Button(tr("Open Monitor…"), action: showSecureInput)
                 }
             }
         }
@@ -85,22 +86,20 @@ struct SettingsView: View {
     private var vietnamese: some View {
         Form {
             Section {
-                Toggle("Check spelling", isOn: $prefs.spellCheck)
-                Text("Only add tone and vowel marks where they make a valid Vietnamese syllable, so English words such as “class” or “window” stay as typed. "
-                     + "Turn off to apply every Telex key, like UniKey without spell check.")
-                    .font(.caption).foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Toggle("Restore non-Vietnamese words", isOn: $prefs.restoreNonVietnamese)
+                Toggle(tr("Check spelling"), isOn: $prefs.spellCheck)
+                caption(tr("Only add tone and vowel marks where they make a valid Vietnamese syllable, so English words such as “class” or “window” stay as typed. Turn off to apply every Telex key, like UniKey without spell check."))
+                Toggle(tr("Restore non-Vietnamese words"), isOn: $prefs.restoreNonVietnamese)
                     .disabled(!prefs.spellCheck)
-                Text("When a word ends and the result is not a real Vietnamese syllable, retype the keys you pressed: user, data, more.")
-                    .font(.caption).foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                caption(tr("When a word ends and the result is not a real Vietnamese syllable, retype the keys you pressed: user, data, more."))
             }
             Section {
-                Picker("Tone placement", selection: $prefs.modernToneStyle) {
-                    Text("Classic (hòa, khỏe, thúy)").tag(false)
-                    Text("Modern (hoà, khoẻ, thuý)").tag(true)
+                Picker(tr("Tone placement"), selection: $prefs.modernToneStyle) {
+                    Text(tr("Classic (hòa, khỏe, thúy)")).tag(false)
+                    Text(tr("Modern (hoà, khoẻ, thuý)")).tag(true)
                 }
+            }
+            Section(tr("Text Shortcuts")) {
+                MacrosView(prefs: prefs)
             }
         }
         .formStyle(.grouped)
@@ -109,10 +108,25 @@ struct SettingsView: View {
     private var chinese: some View {
         Form {
             Section {
-                Toggle("Full-width punctuation (，。？！)", isOn: $prefs.fullWidthPunctuation)
+                Toggle(tr("Full-width punctuation (，。？！)"), isOn: $prefs.fullWidthPunctuation)
             }
         }
         .formStyle(.grouped)
+    }
+
+    private func caption(_ text: String) -> some View {
+        Text(text).font(.caption).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// Chọn ngôn ngữ giao diện, dùng ở Cài đặt và Giới thiệu.
+struct LanguagePicker: View {
+    @ObservedObject var prefs: Preferences
+
+    var body: some View {
+        Picker(tr("Language"), selection: $prefs.language) {
+            ForEach(UILanguage.allCases) { Text($0.name).tag($0) }
+        }
     }
 }
 
@@ -122,15 +136,17 @@ struct MacrosView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Toggle("Expand text shortcuts in Vietnamese mode", isOn: $prefs.macrosEnabled)
-            Text("Type a shortcut as its own word, then Space, Return or Tab, to replace it with the full text (call2vn@ stays as typed). Letter case follows what you type: vn → Việt Nam, VN → VIỆT NAM.")
+            Toggle(tr("Expand text shortcuts"), isOn: $prefs.macrosEnabled)
+            Text(tr("Type a shortcut as its own word, then Space, Return or Tab, to replace it with the full text (call2vn@ stays as typed). Letter case follows what you type: vn → Việt Nam, VN → VIỆT NAM."))
                 .font(.caption).foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Table(prefs.macros, selection: $selection) {
-                TableColumn("Shortcut") { m in TextField("e.g. vn", text: field(m.id, \.key)) }
+                TableColumn(tr("Shortcut")) { m in TextField(tr("e.g. vn"), text: field(m.id, \.key)) }
                     .width(120)
-                TableColumn("Replace with") { m in TextField("e.g. Việt Nam", text: field(m.id, \.text)) }
+                TableColumn(tr("Replace with")) { m in TextField(tr("e.g. Việt Nam"), text: field(m.id, \.text)) }
             }
+            .labelsHidden()   // trong Form, nhãn TextField hiện cạnh ô: chỉ dùng làm gợi ý
+            .frame(height: 110)
             .disabled(!prefs.macrosEnabled)
             HStack(spacing: 4) {
                 Button { prefs.macros.append(Macro(key: "", text: "")) } label: { Image(systemName: "plus") }
@@ -140,7 +156,7 @@ struct MacrosView: View {
                 } label: { Image(systemName: "minus") }
                     .disabled(selection == nil)
                 Spacer()
-                Text("\(prefs.macros.count) shortcuts").font(.caption).foregroundColor(.secondary)
+                Text(tr("%@ shortcuts", String(prefs.macros.count))).font(.caption).foregroundColor(.secondary)
             }
             .disabled(!prefs.macrosEnabled)
         }
@@ -166,7 +182,7 @@ struct ShortcutRecorder: View {
     @State private var peak: NSEvent.ModifierFlags = []
 
     var body: some View {
-        Button(recording ? "Press the new shortcut…" : shortcut.label) { recording ? stop() : start() }
+        Button(recording ? tr("Press the new shortcut…") : shortcut.label) { recording ? stop() : start() }
             .frame(minWidth: 180)
             .onDisappear { stop() }
     }

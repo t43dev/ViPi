@@ -7,9 +7,9 @@ enum InputMode: String, CaseIterable {
 
     var title: String {
         switch self {
-        case .vietnamese: return "Vietnamese (Telex)"
-        case .chinese: return "Chinese (Pinyin)"
-        case .english: return "English"
+        case .vietnamese: return tr("Vietnamese (Telex)")
+        case .chinese: return tr("Chinese (Pinyin)")
+        case .english: return tr("English")
         }
     }
 

@@ -79,7 +79,7 @@ final class Updater: ObservableObject {
                 latest = found
                 if autoInstall && !userInitiated && isReleaseBuild { install() } else { state = .available(found.version) }
             } catch {
-                state = userInitiated ? .failed("Could not reach GitHub: \(error.localizedDescription)") : .idle
+                state = userInitiated ? .failed(tr("Could not reach GitHub: %@", error.localizedDescription)) : .idle
             }
         }
     }
@@ -136,7 +136,7 @@ final class Updater: ObservableObject {
     static func download(_ dmgURL: URL, replacing dest: URL = Bundle.main.bundleURL) async throws {
         let fm = FileManager.default
         let (file, response) = try await URLSession.shared.download(from: dmgURL)
-        if let http = response as? HTTPURLResponse, http.statusCode != 200 { throw UpdateError("Download failed (HTTP \(http.statusCode))") }
+        if let http = response as? HTTPURLResponse, http.statusCode != 200 { throw UpdateError(tr("Download failed (HTTP %@)", String(http.statusCode))) }
         // thư mục tạm cùng ổ đĩa với ViPi.app để thay bằng cách đổi tên, không ghi đè lên file đang chạy
         let work = try fm.url(for: .itemReplacementDirectory, in: .userDomainMask, appropriateFor: dest, create: true)
         defer { try? fm.removeItem(at: work) }
@@ -154,7 +154,7 @@ final class Updater: ObservableObject {
         do {
             _ = try fm.replaceItemAt(dest, withItemAt: staged)
         } catch {
-            throw UpdateError("Cannot replace \(dest.path). Open the DMG from GitHub and drag ViPi to Applications.")
+            throw UpdateError(tr("Cannot replace %@. Open the DMG from GitHub and drag ViPi to Applications.", dest.path))
         }
     }
 
@@ -165,7 +165,7 @@ final class Updater: ObservableObject {
         guard SecStaticCodeCreateWithPath(app as CFURL, [], &code) == errSecSuccess, let code,
               SecRequirementCreateWithString(requirement as CFString, [], &req) == errSecSuccess, let req,
               SecStaticCodeCheckValidity(code, flags, req) == errSecSuccess
-        else { throw UpdateError("The update is not signed by the ViPi developer") }
+        else { throw UpdateError(tr("The update is not signed by the ViPi developer")) }
     }
 
     private static func run(_ tool: String, _ args: String...) throws {
@@ -176,7 +176,7 @@ final class Updater: ObservableObject {
         p.standardError = FileHandle.nullDevice
         try p.run()
         p.waitUntilExit()
-        guard p.terminationStatus == 0 else { throw UpdateError("\(URL(fileURLWithPath: tool).lastPathComponent) failed") }
+        guard p.terminationStatus == 0 else { throw UpdateError(tr("%@ failed", URL(fileURLWithPath: tool).lastPathComponent)) }
     }
 
     /// Mở lại ViPi sau khi tiến trình hiện tại thoát.
