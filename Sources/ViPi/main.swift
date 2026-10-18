@@ -27,7 +27,7 @@ if let i = args.firstIndex(of: "--verify-update"), i + 1 < args.count {
 } else if let i = args.firstIndex(of: "--snapshot-settings"), i + 1 < args.count {
     // mở từng tab Settings thành cửa sổ thật rồi tự chụp: <prefix>-0.png …
     app.setActivationPolicy(.regular)
-    let windows = (0..<3).map { tab -> NSWindow in
+    let windows = (0..<4).map { tab -> NSWindow in
         let w = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(
             prefs: Preferences(), updater: Updater(), onRecording: { _ in }, showSecureInput: {}, initialTab: tab)))
         w.styleMask = [.titled, .closable]

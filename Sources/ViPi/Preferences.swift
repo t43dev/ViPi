@@ -46,7 +46,8 @@ final class Preferences: ObservableObject {
     @Published var modernToneStyle: Bool { didSet { save(modernToneStyle, "modernToneStyle") } }
     @Published var spellCheck: Bool { didSet { save(spellCheck, "spellCheck") } }
     @Published var restoreNonVietnamese: Bool { didSet { save(restoreNonVietnamese, "restoreNonVietnamese") } }
-    @Published var macrosEnabled: Bool { didSet { save(macrosEnabled, "macrosEnabled") } }
+    @Published var macrosEnabled: Bool { didSet { save(macrosEnabled, "macrosEnabled") } }      // gõ tắt khi gõ tiếng Việt
+    @Published var macrosInEnglish: Bool { didSet { save(macrosInEnglish, "macrosInEnglish") } }
     @Published var macros: [Macro] { didSet { saveJSON(macros, "macros") } }
     @Published var fullWidthPunctuation: Bool { didSet { save(fullWidthPunctuation, "fullWidthPunctuation") } }
     @Published var language: UILanguage {
@@ -60,13 +61,14 @@ final class Preferences: ObservableObject {
     init() {
         defaults.register(defaults: [
             "modernToneStyle": false, "spellCheck": true, "restoreNonVietnamese": true,
-            "macrosEnabled": true, "fullWidthPunctuation": true,
+            "macrosEnabled": true, "macrosInEnglish": false, "fullWidthPunctuation": true,
         ])
         shortcut = Self.loadJSON(defaults, "switchShortcut") ?? .default
         modernToneStyle = defaults.bool(forKey: "modernToneStyle")
         spellCheck = defaults.bool(forKey: "spellCheck")
         restoreNonVietnamese = defaults.bool(forKey: "restoreNonVietnamese")
         macrosEnabled = defaults.bool(forKey: "macrosEnabled")
+        macrosInEnglish = defaults.bool(forKey: "macrosInEnglish")
         macros = Self.loadJSON(defaults, "macros") ?? [
             Macro(key: "vn", text: "Việt Nam"), Macro(key: "ko", text: "không"), Macro(key: "đc", text: "được"),
         ]

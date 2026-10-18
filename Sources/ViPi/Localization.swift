@@ -86,10 +86,11 @@ private let translations: [String: (vi: String, zh: String)] = [
     "Classic (hòa, khỏe, thúy)": ("Kiểu cũ (hòa, khỏe, thúy)", "传统 (hòa, khỏe, thúy)"),
     "Modern (hoà, khoẻ, thuý)": ("Kiểu mới (hoà, khoẻ, thuý)", "新式 (hoà, khoẻ, thuý)"),
     "Text Shortcuts": ("Gõ tắt", "快捷短语"),
-    "Expand text shortcuts": ("Bật gõ tắt", "启用快捷短语"),
-    "Type a shortcut as its own word, then Space, Return or Tab, to replace it with the full text (call2vn@ stays as typed). Letter case follows what you type: vn → Việt Nam, VN → VIỆT NAM.":
-        ("Gõ từ tắt đứng riêng rồi bấm Space, Return hoặc Tab để thay bằng cụm từ đầy đủ (call2vn@ vẫn giữ nguyên). Chữ hoa/thường theo cách gõ: vn → Việt Nam, VN → VIỆT NAM.",
-         "将缩写作为独立单词输入，再按空格、回车或 Tab，即替换为完整文本（call2vn@ 保持不变）。大小写跟随输入：vn → Việt Nam，VN → VIỆT NAM。"),
+    "Use in Vietnamese": ("Dùng khi gõ tiếng Việt", "越南语输入时使用"),
+    "Use in English": ("Dùng khi gõ tiếng Anh", "英文输入时使用"),
+    "Type a shortcut as its own word, then Space, Return or Tab, to replace it with the full text (call2vn@ stays as typed). Letter case follows what you type: vn → Việt Nam, VN → VIỆT NAM. Not used in Chinese mode, where Space picks a candidate.":
+        ("Gõ từ tắt đứng riêng rồi bấm Space, Return hoặc Tab để thay bằng cụm từ đầy đủ (call2vn@ vẫn giữ nguyên). Chữ hoa/thường theo cách gõ: vn → Việt Nam, VN → VIỆT NAM. Không dùng khi gõ tiếng Trung, vì Space dùng để chọn chữ.",
+         "将缩写作为独立单词输入，再按空格、回车或 Tab，即替换为完整文本（call2vn@ 保持不变）。大小写跟随输入：vn → Việt Nam，VN → VIỆT NAM。中文输入时不使用，因为空格用于选字。"),
     "Shortcut": ("Từ tắt", "缩写"),
     "Replace with": ("Thay bằng", "替换为"),
     "e.g. vn": ("vd: vn", "例如 vn"),

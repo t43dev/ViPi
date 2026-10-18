@@ -194,6 +194,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         controller.telex.spellCheck = prefs.spellCheck
         controller.telex.lexicon = prefs.spellCheck && prefs.restoreNonVietnamese ? lexicon : nil
         controller.macros = prefs.macrosEnabled ? prefs.macroTable : nil
+        controller.englishMacros = prefs.macrosInEnglish ? prefs.macroTable : nil
         controller.fullWidthPunctuation = prefs.fullWidthPunctuation
         controller.shortcut = prefs.shortcut
         settingsWindow.relocalize()

@@ -53,15 +53,18 @@ struct SettingsView: View {
             general.tabItem { Label(tr("General"), systemImage: "gearshape") }.tag(0)
             vietnamese.tabItem { Label(tr("Vietnamese"), systemImage: "character.book.closed") }.tag(1)
             chinese.tabItem { Label(tr("Chinese"), systemImage: "character") }.tag(2)
+            MacrosView(prefs: prefs).tabItem { Label(tr("Text Shortcuts"), systemImage: "text.badge.plus") }.tag(3)
         }
         .padding(20)
-        .frame(width: 560, height: 620)
+        .frame(width: 560, height: 500)
     }
 
     private var general: some View {
         Form {
             Section {
-                LanguagePicker(prefs: prefs)
+                Picker(tr("Language"), selection: $prefs.language) {
+                    ForEach(UILanguage.allCases) { Text($0.name).tag($0) }
+                }
             }
             Section {
                 LabeledContent(tr("Switch input")) {
@@ -98,9 +101,6 @@ struct SettingsView: View {
                     Text(tr("Modern (hoà, khoẻ, thuý)")).tag(true)
                 }
             }
-            Section(tr("Text Shortcuts")) {
-                MacrosView(prefs: prefs)
-            }
         }
         .formStyle(.grouped)
     }
@@ -119,35 +119,37 @@ struct SettingsView: View {
     }
 }
 
-/// Chọn ngôn ngữ giao diện, dùng ở Cài đặt và Giới thiệu.
-struct LanguagePicker: View {
-    @ObservedObject var prefs: Preferences
-
-    var body: some View {
-        Picker(tr("Language"), selection: $prefs.language) {
-            ForEach(UILanguage.allCases) { Text($0.name).tag($0) }
-        }
-    }
-}
-
 struct MacrosView: View {
     @ObservedObject var prefs: Preferences
     @State private var selection: Macro.ID?
 
+    /// Một bảng chung, bật riêng cho từng bộ gõ (bộ gõ Trung dùng Space để chọn chữ nên không áp dụng).
+    private var enabled: Bool { prefs.macrosEnabled || prefs.macrosInEnglish }
+
     var body: some View {
+        Form {
+            Section {
+                Toggle(tr("Use in Vietnamese"), isOn: $prefs.macrosEnabled)
+                Toggle(tr("Use in English"), isOn: $prefs.macrosInEnglish)
+                Text(tr("Type a shortcut as its own word, then Space, Return or Tab, to replace it with the full text (call2vn@ stays as typed). Letter case follows what you type: vn → Việt Nam, VN → VIỆT NAM. Not used in Chinese mode, where Space picks a candidate."))
+                    .font(.caption).foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Section { table }
+        }
+        .formStyle(.grouped)
+    }
+
+    private var table: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Toggle(tr("Expand text shortcuts"), isOn: $prefs.macrosEnabled)
-            Text(tr("Type a shortcut as its own word, then Space, Return or Tab, to replace it with the full text (call2vn@ stays as typed). Letter case follows what you type: vn → Việt Nam, VN → VIỆT NAM."))
-                .font(.caption).foregroundColor(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
             Table(prefs.macros, selection: $selection) {
                 TableColumn(tr("Shortcut")) { m in TextField(tr("e.g. vn"), text: field(m.id, \.key)) }
                     .width(120)
                 TableColumn(tr("Replace with")) { m in TextField(tr("e.g. Việt Nam"), text: field(m.id, \.text)) }
             }
             .labelsHidden()   // trong Form, nhãn TextField hiện cạnh ô: chỉ dùng làm gợi ý
-            .frame(height: 110)
-            .disabled(!prefs.macrosEnabled)
+            .frame(height: 170)
+            .disabled(!enabled)
             HStack(spacing: 4) {
                 Button { prefs.macros.append(Macro(key: "", text: "")) } label: { Image(systemName: "plus") }
                 Button {
@@ -158,7 +160,7 @@ struct MacrosView: View {
                 Spacer()
                 Text(tr("%@ shortcuts", String(prefs.macros.count))).font(.caption).foregroundColor(.secondary)
             }
-            .disabled(!prefs.macrosEnabled)
+            .disabled(!enabled)
         }
     }
 }

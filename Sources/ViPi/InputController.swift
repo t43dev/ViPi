@@ -30,7 +30,9 @@ final class InputController {
     var onCycleMode: (() -> Void)?
     var fullWidthPunctuation = true
     var shortcut = SwitchShortcut.default { didSet { chordArmed = false } }
-    var macros: MacroTable?            // nil: tắt gõ tắt
+    var macros: MacroTable?            // gõ tắt khi gõ tiếng Việt, nil: tắt
+    var englishMacros: MacroTable?     // gõ tắt khi gõ tiếng Anh, nil: tắt
+    private var englishWord = ""       // chữ cái của từ đang gõ ở chế độ tiếng Anh
     private var atWordStart = true      // từ đang gõ đứng sau dấu cách/đầu dòng (không dính sau số, @, ...)
     var isRecordingShortcut = false     // đang ghi phím tắt trong Settings: để mọi phím đi qua
 
@@ -140,7 +142,7 @@ final class InputController {
         let printable = typed.count == 1 && typed.unicodeScalars.allSatisfy { (0x21...0x7E).contains($0.value) }
         self.keyCode = printable ? CGKeyCode(keyCode) : 0
         switch mode {
-        case .english: return false
+        case .english: return handleEnglish(keyCode, typed, event)
         case .vietnamese: return handleVietnamese(keyCode, typed, event)
         case .chinese: return handleChinese(keyCode, typed)
         }
@@ -172,6 +174,31 @@ final class InputController {
         let edit = telex.type(ch)
         if edit.backspaces == 0, edit.insert == typed { return false }   // để phím gốc đi qua
         KeySender.send(edit, keyCode: self.keyCode, proxy: proxy)
+        return true
+    }
+
+    /// Tiếng Anh: mọi phím đi qua, chỉ nhớ từ đang gõ để thay gõ tắt khi kết thúc bằng Space/Enter/Tab.
+    private func handleEnglish(_ keyCode: Int, _ typed: String, _ event: CGEvent) -> Bool {
+        guard let macros = englishMacros else { return false }
+        if keyCode == kVK_Delete {
+            englishWord = String(englishWord.dropLast())
+            return false
+        }
+        if typed.count == 1, let ch = typed.first, ch.isASCII, ch.isLetter {
+            englishWord.append(ch)
+            return false
+        }
+        // cùng quy tắc với tiếng Việt: từ đứng riêng, kết thúc bằng Space/Enter/Tab
+        let ascii = typed.count == 1 ? typed.first?.asciiValue : nil
+        let isSpace = ascii == 0x20 || ascii == 0x0D || ascii == 0x09
+        let word = englishWord
+        let expand = isSpace && atWordStart
+        englishWord = ""
+        atWordStart = isSpace
+        guard expand, let text = macros.expansion(for: word) else { return false }
+        KeySender.send(TextEdit(backspaces: word.count, insert: text),
+                       keyCode: ascii == 0x20 ? CGKeyCode(kVK_Space) : self.keyCode, proxy: proxy)
+        KeySender.repost(event, proxy: proxy)
         return true
     }
 
@@ -265,6 +292,7 @@ final class InputController {
 
     func cancelComposition() {
         atWordStart = true
+        englishWord = ""
         telex.reset()
         pinyin?.reset()
         page = 0

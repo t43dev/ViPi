@@ -75,7 +75,6 @@ struct AboutView: View {
                         Text(tr("Development build: automatic updates are off."))
                             .font(.caption).foregroundColor(.secondary)
                     }
-                    LanguagePicker(prefs: prefs).fixedSize()
                 }
                 .padding(4)
             }
