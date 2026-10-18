@@ -60,7 +60,7 @@ private let translations: [String: (vi: String, zh: String)] = [
 
     // Cài đặt
     "ViPi Settings": ("Cài đặt ViPi", "ViPi 设置"),
-    "General": ("Chung", "通用"),
+    "General": ("Cài đặt", "设置"),
     "Vietnamese": ("Tiếng Việt", "越南语"),
     "Chinese": ("Tiếng Trung", "中文"),
     "Language": ("Ngôn ngữ", "语言"),

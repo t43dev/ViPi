@@ -101,7 +101,7 @@ struct AboutView: View {
     private func shortcut(_ key: String, _ action: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(key).font(.system(.callout, design: .monospaced)).frame(width: 130, alignment: .leading)
-            Text(action).font(.callout).foregroundColor(.secondary)
+            Text(action).font(.callout).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
         }
     }
 
