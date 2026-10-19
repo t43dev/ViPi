@@ -4,16 +4,18 @@
 # Chạy từ máy dev: scripts/mac-release.sh 0.2.0      (tag v0.2.0 phải trỏ đúng commit HEAD)
 # Apple notarize lâu (lần đầu của team: hàng giờ) → script chỉ chờ 15 phút; chưa xong thì in mã lần gửi,
 # sau đó chạy: scripts/mac-release.sh 0.2.0 --finish   (staple + kiểm Gatekeeper + đưa lên GitHub, không cần secret)
-# Cần trong $APPLE_DEV_DIR: developer-id.p12 + DEVID_CERT_P12_PASSWORD trong apple.env, ASC key.
+# Cấu hình trong .env (gitignored): MAC=user@host, SSH_KEY, APPLE_DEV_DIR (chứa developer-id.p12, apple.env với
+# DEVID_CERT_P12_PASSWORD, ASC key).
 # Chứng chỉ chỉ chép tạm vào một keychain riêng trên Mac rồi xoá ngay khi xong.
 set -euo pipefail
 VERSION=${1:?usage: scripts/mac-release.sh <version> [--finish]}
-MAC=${MAC:-user@mac-host}
+cd "$(dirname "$0")/.."
+set -a; . ./.env; set +a
+: "${MAC:?MAC=user@host missing in .env}" "${SSH_KEY:?SSH_KEY missing in .env}" "${APPLE_DEV_DIR:?APPLE_DEV_DIR missing in .env}"
 SSH="ssh -i $SSH_KEY -o BatchMode=yes $MAC"
 SCP="scp -q -i $SSH_KEY"
 AD=$APPLE_DEV_DIR
 DIR=vipi-release-$VERSION      # thư mục làm việc trên Mac, riêng từng phiên bản
-cd "$(dirname "$0")/.."
 set -a; . $AD/apple.env; set +a
 
 # DMG đã notarize trên Mac → staple, kiểm Gatekeeper, kéo về, đính vào GitHub release (bản chính thức, latest)

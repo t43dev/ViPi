@@ -1,11 +1,13 @@
 #!/bin/bash
 # Build ViPi trên Mac Studio, ký bằng chứng chỉ dev tự tạo (chữ ký ổn định → quyền Accessibility
 # không mất khi build lại), cài vào /Applications và khởi động lại. Chạy từ máy dev.
+# Cấu hình trong .env (gitignored): MAC=user@host, SSH_KEY, DEV_KEYCHAIN_PW.
 # Dùng: scripts/mac-dev.sh [selftest-args...]
 set -euo pipefail
-MAC=user@mac-host
-SSH="ssh -i $SSH_KEY -o BatchMode=yes $MAC"
 cd "$(dirname "$0")/.."
+set -a; . ./.env; set +a
+: "${MAC:?MAC=user@host missing in .env}" "${SSH_KEY:?SSH_KEY missing in .env}" "${DEV_KEYCHAIN_PW:?DEV_KEYCHAIN_PW missing in .env}"
+SSH="ssh -i $SSH_KEY -o BatchMode=yes $MAC"
 
 git archive --format=tar HEAD | $SSH 'rm -rf ~/vipi-dev && mkdir -p ~/vipi-dev && tar -x -C ~/vipi-dev'
 # bản đang sửa dở (chưa commit) cũng được đẩy lên
@@ -14,7 +16,7 @@ git ls-files --others --exclude-standard -z | xargs -0r tar -c | $SSH 'tar -x -C
 # bản dev mang số phiên bản của tag gần nhất + "-dev", build = commit (có "+" nếu còn sửa dở)
 VER="$(git describe --tags --abbrev=0 | sed 's/^v//')-dev"
 REV="$(git rev-parse --short HEAD)$(git diff --quiet HEAD || echo +)"
-$SSH "VER=$VER REV=$REV bash -s" <<'REMOTE'
+$SSH "VER=$VER REV=$REV KC_PW=$DEV_KEYCHAIN_PW bash -s" <<'REMOTE'
 set -euo pipefail
 cd ~/vipi-dev
 swift build -c release 2>&1 | grep -E "error|warning: |Compiling|Build complete" | grep -v "^\[" | tail -20
