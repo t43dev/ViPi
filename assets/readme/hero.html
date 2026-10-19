@@ -1,0 +1,85 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  :root { --red:#c8102e; --gold:#f5b82e; }
+  html,body { margin:0; background:transparent; }
+  body { width:1280px; height:520px; font-family:"Helvetica Neue","PingFang SC",sans-serif; -webkit-font-smoothing:antialiased; }
+  .card { position:absolute; inset:0; border-radius:28px; overflow:hidden;
+          background: radial-gradient(900px 500px at 0% 0%, #ffe9e2 0%, transparent 60%),
+                      radial-gradient(800px 500px at 100% 100%, #fff1cf 0%, transparent 60%), #fffaf6;
+          border:1px solid #f0dcd2; }
+  .dark .card { background: radial-gradient(900px 500px at 0% 0%, #3a1115 0%, transparent 60%),
+                            radial-gradient(800px 500px at 100% 100%, #3a2a0c 0%, transparent 60%), #16120f;
+                border-color:#3a2a24; }
+  .menubar { height:34px; display:flex; align-items:center; justify-content:flex-end; gap:18px; padding:0 22px;
+             font-size:14px; font-weight:500; color:#1d1d1f; background:rgba(255,255,255,.55); border-bottom:1px solid rgba(0,0,0,.06); }
+  .dark .menubar { color:#f2f2f2; background:rgba(0,0,0,.35); border-color:rgba(255,255,255,.06); }
+  .badge { display:inline-flex; align-items:center; justify-content:center; height:18px; min-width:26px; padding:0 3px; border-radius:5px;
+           background:#1d1d1f; color:#fffaf6; font-size:11px; font-weight:800; letter-spacing:.3px; }
+  .dark .badge { background:#f2f2f2; color:#1b1613; }
+  .badge.zh { font-size:13px; font-weight:700; }
+  .menubar .muted { opacity:.55; }
+
+  .win { position:absolute; left:48px; top:70px; width:700px; height:400px; border-radius:14px; background:#fff;
+         box-shadow:0 30px 70px rgba(80,20,10,.18), 0 0 0 1px rgba(0,0,0,.08); }
+  .dark .win { background:#1f1f1f; box-shadow:0 30px 70px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.08); }
+  .title { height:44px; display:flex; align-items:center; padding:0 16px; gap:8px; border-bottom:1px solid #eee; }
+  .dark .title { border-color:#2c2c2c; }
+  .dot { width:12px; height:12px; border-radius:50%; }
+  .title span { margin-left:auto; margin-right:auto; transform:translateX(-30px); font-size:14px; font-weight:600; color:#6e6e73; }
+  .doc { padding:28px 36px; font-size:25px; line-height:1.75; color:#1d1d1f; }
+  .dark .doc { color:#ececec; }
+  .doc .note { font-size:15px; color:#8a8a8e; line-height:1.4; margin:-4px 0 14px; font-family:"SF Mono",Menlo,monospace; }
+  .caret { display:inline-block; width:2px; height:28px; background:var(--red); vertical-align:-5px; margin-left:1px; }
+  .cands { position:absolute; left:160px; top:318px; width:321px; }
+
+  .side { position:absolute; left:790px; top:76px; width:440px; display:flex; flex-direction:column; gap:20px; }
+  .tile { border-radius:16px; padding:18px 22px; background:rgba(255,255,255,.75); box-shadow:0 0 0 1px rgba(0,0,0,.06), 0 10px 30px rgba(80,20,10,.08); }
+  .dark .tile { background:rgba(255,255,255,.06); box-shadow:0 0 0 1px rgba(255,255,255,.08); }
+  .tile .k { font-size:13px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--red); }
+  .dark .tile .k { color:#ff6b6b; }
+  .tile .row { margin-top:8px; display:flex; align-items:center; gap:14px; font-size:26px; color:#1d1d1f; }
+  .dark .tile .row { color:#f2f2f2; }
+  .typed { font-family:"SF Mono",Menlo,monospace; font-size:21px; padding:3px 10px; border-radius:8px; background:#f2ece8; color:#5b4b44; }
+  .dark .typed { background:#2c2622; color:#d8c8bf; }
+  .arrow { color:#b0a49e; font-size:22px; }
+  .out { font-weight:700; }
+  .key { display:inline-flex; align-items:center; justify-content:center; min-width:44px; height:40px; padding:0 10px; border-radius:9px; font-size:19px; font-weight:600;
+         background:#fff; color:#1d1d1f; box-shadow:0 2px 0 #d9cfca, 0 0 0 1px #e4dad5; }
+  .dark .key { background:#2e2e2e; color:#f2f2f2; box-shadow:0 2px 0 #111, 0 0 0 1px #444; }
+  .plus { color:#b0a49e; font-size:20px; }
+  .cycle { display:flex; align-items:center; gap:8px; margin-left:6px; }
+  .cycle .badge { height:24px; min-width:34px; font-size:13px; border-radius:6px; }
+  .cycle .badge.zh { font-size:15px; }
+  .cycle .badge.on { background:var(--red); color:#fff; }
+</style></head>
+<body>
+<div class="card">
+  <div class="menubar"><span class="badge">VI</span><span>Mon 9:41</span></div>
+
+  <div class="win">
+    <div class="title"><i class="dot" style="background:#ff5f57"></i><i class="dot" style="background:#febc2e"></i><i class="dot" style="background:#28c840"></i><span>Notes</span></div>
+    <div class="doc">
+      <div>Chào buổi sáng! Hôm nay mình học tiếng Trung.</div>
+      <div class="note">Chaof buooir sangs! Hoom nay minhf hocj tieengs Trung.</div>
+      <div>老师说：你好，我是越南人。</div>
+      <div class="note">laoshi shuo: nihao, woshi yuenanren.</div>
+      <div>我也想说<span class="caret"></span></div>
+    </div>
+  </div>
+  <img class="cands" id="cands" src="cand-light.png">
+
+  <div class="side">
+    <div class="tile"><div class="k">Vietnamese · Telex</div>
+      <div class="row"><span class="typed">tieengs Vieetj</span><span class="arrow">→</span><span class="out">tiếng Việt</span></div></div>
+    <div class="tile"><div class="k">Chinese · Pinyin</div>
+      <div class="row"><span class="typed">woshi yuenanren</span><span class="arrow">→</span><span class="out">我是越南人</span></div></div>
+    <div class="tile"><div class="k">One shortcut</div>
+      <div class="row"><span class="key">⌃</span><span class="plus">+</span><span class="key">⇧</span>
+        <span class="cycle"><span class="badge on">VI</span><span class="arrow">⇄</span><span class="badge zh">拼</span><span class="arrow">⇄</span><span class="badge">EN</span></span></div></div>
+  </div>
+</div>
+<script>
+  if (location.hash === '#dark') { document.body.classList.add('dark'); document.getElementById('cands').src = 'cand-dark.png'; }
+</script>
+</body></html>
