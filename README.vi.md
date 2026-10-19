@@ -154,24 +154,7 @@ Mình gõ tiếng Việt và tiếng Trung hằng ngày, nhưng trên macOS khô
 
 ViPi còn mới. Gặp chỗ nào chưa ổn xin [báo ở Issues](../../issues). Nếu ViPi giúp bạn gõ nhẹ nhàng hơn, một ⭐ sẽ giúp người khác tìm thấy nó.
 
-<details>
-<summary><h2>🛠️ Tự build từ mã nguồn</h2></summary>
-
-macOS 13+, Xcode command line tools:
-
-```sh
-swift test                           # bộ xử lý Telex/Pinyin (chạy được cả trên Linux)
-VERSION=0.1.0 scripts/build-app.sh   # → build/ViPi.app + build/ViPi-0.1.0.zip (ký ad-hoc)
-```
-
-Có `SIGN_IDENTITY="Developer ID Application: …"` thì script ký với hardened runtime và đóng `build/ViPi-x.y.z.dmg`; có thêm `NOTARY_KEY`/`NOTARY_KEY_ID`/`NOTARY_ISSUER` (API key App Store Connect) thì notarize và staple luôn DMG. `scripts/mac-release.sh <version>` làm tất cả trên một máy Mac build rồi đính DMG vào GitHub release `v<version>`.
-
-`open -n /Applications/ViPi.app --args --selftest <words.txt> <out.txt> [gapMs] [holdMs] [variant]` gõ từng từ qua ViPi đang chạy, các phím đè lên nhau như gõ nhanh thật, rồi báo từ nào ra sai.
-
-CI (`.github/workflows/build.yml`) chạy test và đưa bản build chưa ký lên làm artifact.
-
-Từ điển Pinyin `Resources/pinyin.tsv` được tạo từ [rime-ice](https://github.com/iDvel/rime-ice) bằng `scripts/build_pinyin_dict.py`.
-</details>
+Muốn tự build? Xem [docs/development.md](docs/development.md).
 
 ## 📄 Giấy phép
 

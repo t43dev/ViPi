@@ -154,24 +154,7 @@ macOS 13 Ventura 及以上，Apple 芯片和 Intel 均可。
 
 ViPi 刚刚发布，如有不顺手的地方，欢迎在 [Issues](../../issues) 反馈。如果它让你打字更轻松，点个 ⭐ 能帮更多人找到它。
 
-<details>
-<summary><h2>🛠️ 从源码构建</h2></summary>
-
-macOS 13+，Xcode 命令行工具：
-
-```sh
-swift test                           # 输入引擎测试（Linux 上也能运行）
-VERSION=0.1.0 scripts/build-app.sh   # → build/ViPi.app + build/ViPi-0.1.0.zip（ad-hoc 签名）
-```
-
-设置 `SIGN_IDENTITY="Developer ID Application: …"` 时，脚本会启用 hardened runtime 签名并生成 `build/ViPi-x.y.z.dmg`；再提供 `NOTARY_KEY`/`NOTARY_KEY_ID`/`NOTARY_ISSUER`（App Store Connect API 密钥）即可公证并 staple DMG。`scripts/mac-release.sh <version>` 在一台构建用 Mac 上完成以上全部步骤，并把 DMG 附加到 GitHub release `v<version>`。
-
-`open -n /Applications/ViPi.app --args --selftest <words.txt> <out.txt> [gapMs] [holdMs] [variant]` 会通过正在运行的 ViPi 以重叠按键逐个输入单词，并报告输出错误的词。
-
-CI（`.github/workflows/build.yml`）运行测试，并上传未签名的构建作为 artifact。
-
-拼音词库 `Resources/pinyin.tsv` 由 `scripts/build_pinyin_dict.py` 从 [rime-ice](https://github.com/iDvel/rime-ice) 生成。
-</details>
+想自己构建？请看 [docs/development.md](docs/development.md)。
 
 ## 📄 许可证
 
