@@ -64,6 +64,10 @@ private let translations: [String: (vi: String, zh: String)] = [
     "Vietnamese": ("Tiếng Việt", "越南语"),
     "Chinese": ("Tiếng Trung", "中文"),
     "Language": ("Ngôn ngữ", "语言"),
+    "Appearance": ("Giao diện", "外观"),
+    "System": ("Theo hệ thống", "跟随系统"),
+    "Light": ("Sáng", "浅色"),
+    "Dark": ("Tối", "深色"),
     "Switch input": ("Chuyển bộ gõ", "切换输入法"),
     "Press once to go back to the previous input, twice quickly for the next one. Use two or more modifier keys (pressed together, then released), or modifiers plus a key such as Control+Space.":
         ("Bấm một lần để quay về bộ gõ trước, bấm nhanh hai lần để sang bộ gõ tiếp theo. Dùng từ hai phím bổ trợ trở lên (nhấn cùng lúc rồi nhả), hoặc phím bổ trợ cộng một phím, ví dụ Control+Space.",

@@ -197,6 +197,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         controller.englishMacros = prefs.macrosInEnglish ? prefs.macroTable : nil
         controller.fullWidthPunctuation = prefs.fullWidthPunctuation
         controller.shortcut = prefs.shortcut
+        NSApp.appearance = prefs.appearance.nsAppearance
         settingsWindow.relocalize()
         aboutWindow.relocalize()
         secureWindow.relocalize()

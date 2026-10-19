@@ -3,6 +3,17 @@ import SwiftUI
 
 let app = NSApplication.shared
 let args = CommandLine.arguments
+
+/// Chụp một view ra PNG ở độ phân giải 2x (ảnh sắc nét cho README).
+func writePNG(_ view: NSView, to path: String) {
+    let b = view.bounds
+    guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(b.width * 2), pixelsHigh: Int(b.height * 2),
+                                     bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                     colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return }
+    rep.size = b.size
+    view.cacheDisplay(in: b, to: rep)
+    try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+}
 if let i = args.firstIndex(of: "--verify-update"), i + 1 < args.count {
     // kiểm tra một ViPi.app có qua được bước kiểm chữ ký của bộ cập nhật không
     do { try Updater.verify(URL(fileURLWithPath: args[i + 1])); print("VERIFY OK") } catch { print("VERIFY FAIL: \(error.localizedDescription)") }
@@ -21,12 +32,11 @@ if let i = args.firstIndex(of: "--verify-update"), i + 1 < args.count {
     view.frame = NSRect(origin: .zero, size: view.fittingSize)
     view.appearance = NSAppearance(named: args.contains("--dark") ? .darkAqua : .aqua)
     view.layoutSubtreeIfNeeded()
-    let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
-    view.cacheDisplay(in: view.bounds, to: rep)
-    try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: args[i + 1]))
+    writePNG(view, to: args[i + 1])
 } else if let i = args.firstIndex(of: "--snapshot-settings"), i + 1 < args.count {
     // mở từng tab Settings thành cửa sổ thật rồi tự chụp: <prefix>-0.png …
     app.setActivationPolicy(.regular)
+    app.appearance = Preferences().appearance.nsAppearance
     let windows = (0..<4).map { tab -> NSWindow in
         let w = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(
             prefs: Preferences(), updater: Updater(), onRecording: { _ in }, showSecureInput: {}, initialTab: tab)))
@@ -36,11 +46,19 @@ if let i = args.firstIndex(of: "--verify-update"), i + 1 < args.count {
         w.orderFrontRegardless()
         return w
     }
+    // khung chọn chữ Hán mẫu (ảnh cho README): <prefix>-candidates.png
+    let candidates = NSWindow(contentViewController: NSHostingController(rootView: CandidateView(
+        preedit: "ni hao", items: ["你好", "拟好", "你", "尼", "泥"], highlight: 0, hasPrev: false, hasNext: true)
+        .padding(16)))
+    candidates.styleMask = [.borderless]
+    candidates.isOpaque = false
+    candidates.backgroundColor = .clear
+    candidates.setFrameOrigin(NSPoint(x: 700, y: 120))
+    candidates.orderFrontRegardless()
     DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+        if let v = candidates.contentView { writePNG(v, to: "\(args[i + 1])-candidates.png") }
         for (tab, w) in windows.enumerated() {
-            guard let v = w.contentView?.superview, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) else { continue }
-            v.cacheDisplay(in: v.bounds, to: rep)
-            try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: "\(args[i + 1])-\(tab).png"))
+            if let v = w.contentView?.superview { writePNG(v, to: "\(args[i + 1])-\(tab).png") }
         }
         exit(0)
     }

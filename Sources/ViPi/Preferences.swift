@@ -31,6 +31,27 @@ struct SwitchShortcut: Codable, Equatable {
     }
 }
 
+/// Giao diện sáng/tối của các cửa sổ ViPi (Settings, About, khung chọn chữ Hán…).
+enum Appearance: String, CaseIterable, Identifiable {
+    case system, light, dark
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .system: return tr("System")
+        case .light: return tr("Light")
+        case .dark: return tr("Dark")
+        }
+    }
+    /// nil = theo macOS
+    var nsAppearance: NSAppearance? {
+        switch self {
+        case .system: return nil
+        case .light: return NSAppearance(named: .aqua)
+        case .dark: return NSAppearance(named: .darkAqua)
+        }
+    }
+}
+
 struct Macro: Codable, Identifiable, Equatable {
     var id = UUID()
     var key: String
@@ -50,6 +71,9 @@ final class Preferences: ObservableObject {
     @Published var macrosInEnglish: Bool { didSet { save(macrosInEnglish, "macrosInEnglish") } }
     @Published var macros: [Macro] { didSet { saveJSON(macros, "macros") } }
     @Published var fullWidthPunctuation: Bool { didSet { save(fullWidthPunctuation, "fullWidthPunctuation") } }
+    @Published var appearance: Appearance {
+        didSet { defaults.set(appearance.rawValue, forKey: "appearance"); onChange?() }
+    }
     @Published var language: UILanguage {
         didSet {
             UILanguage.current = language
@@ -73,6 +97,7 @@ final class Preferences: ObservableObject {
             Macro(key: "vn", text: "Việt Nam"), Macro(key: "ko", text: "không"), Macro(key: "đc", text: "được"),
         ]
         fullWidthPunctuation = defaults.bool(forKey: "fullWidthPunctuation")
+        appearance = defaults.string(forKey: "appearance").flatMap(Appearance.init(rawValue:)) ?? .system
         language = defaults.string(forKey: "uiLanguage").flatMap(UILanguage.init(rawValue:)) ?? .system
         UILanguage.current = language
     }

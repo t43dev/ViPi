@@ -65,6 +65,9 @@ struct SettingsView: View {
                 Picker(tr("Language"), selection: $prefs.language) {
                     ForEach(UILanguage.allCases) { Text($0.name).tag($0) }
                 }
+                Picker(tr("Appearance"), selection: $prefs.appearance) {
+                    ForEach(Appearance.allCases) { Text($0.title).tag($0) }
+                }
             }
             Section {
                 LabeledContent(tr("Switch input")) {
