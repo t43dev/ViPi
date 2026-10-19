@@ -16,14 +16,14 @@ DIR=vipi-release-$VERSION      # thư mục làm việc trên Mac, riêng từng
 cd "$(dirname "$0")/.."
 set -a; . $AD/apple.env; set +a
 
-# DMG đã notarize trên Mac → staple, kiểm Gatekeeper, kéo về, đính vào GitHub release (pre-release)
+# DMG đã notarize trên Mac → staple, kiểm Gatekeeper, kéo về, đính vào GitHub release (bản chính thức, latest)
 finish() {
   $SSH "cd ~/$DIR && xcrun stapler staple build/ViPi-$VERSION.dmg && spctl --assess --type open --context context:primary-signature --verbose build/ViPi-$VERSION.dmg"
   mkdir -p build
   $SCP $MAC:$DIR/build/ViPi-$VERSION.dmg build/
   ls -la build/ViPi-$VERSION.dmg
   gh release view v$VERSION -R kulinh/ViPi >/dev/null 2>&1 \
-    || gh release create v$VERSION -R kulinh/ViPi --verify-tag --prerelease --generate-notes --title "ViPi $VERSION"
+    || gh release create v$VERSION -R kulinh/ViPi --verify-tag --latest --generate-notes --title "ViPi $VERSION"
   gh release upload v$VERSION build/ViPi-$VERSION.dmg -R kulinh/ViPi --clobber
   echo "uploaded to release v$VERSION"
 }
