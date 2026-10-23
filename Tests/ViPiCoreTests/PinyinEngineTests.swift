@@ -72,6 +72,132 @@ final class PinyinEngineTests: XCTestCase {
         XCTAssertEqual(e.preedit, "zhong guo ren")
     }
 
+    // MARK: - 0.2.2: học từ, âm mờ, phồn thể
+
+    static let s2t: ChineseConverter = {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Resources/s2t.tsv")
+        return try! ChineseConverter(contentsOf: url)
+    }()
+
+    private func engine(fuzzy: Set<String> = [], traditional: Bool = false,
+                        userDict: PinyinUserDictionary? = nil) -> PinyinEngine {
+        let e = PinyinEngine(dictionary: Self.dict)
+        e.fuzzyRules = fuzzy
+        e.converter = traditional ? Self.s2t : nil
+        e.userDictionary = userDict
+        return e
+    }
+
+    private func typed(_ e: PinyinEngine, _ input: String) -> [String] {
+        e.reset()
+        for c in input { e.type(c) }
+        return e.candidates.map(\.text)
+    }
+
+    func testLearnedWordMovesToFront() {
+        let ud = PinyinUserDictionary(fileURL: nil)
+        let e = engine(userDict: ud)
+        let before = typed(e, "nihao")
+        XCTAssertEqual(before.first, "你好")
+        let other = before.firstIndex { $0 != "你好" && $0.count == 2 }!
+        let picked = before[other]
+        XCTAssertEqual(e.select(other), picked)
+        let after = typed(e, "nihao")
+        XCTAssertEqual(after.first, picked)
+        XCTAssertEqual(after.filter { $0 == picked }.count, 1, "không trùng ứng viên")
+        XCTAssertEqual(ud.words(for: "nihao"), [picked])
+    }
+
+    func testLearnedPhraseFromTwoSelections() {
+        let ud = PinyinUserDictionary(fileURL: nil)
+        let e = engine(userDict: ud)
+        XCTAssertFalse(typed(e, "longxiao").contains("笼笑"), "chưa có trong từ điển")
+        let long = e.candidates.firstIndex { $0.text == "笼" }!
+        XCTAssertNil(e.select(long))
+        let xiao = e.candidates.firstIndex { $0.text == "笑" }!
+        XCTAssertEqual(e.select(xiao), "笼笑")
+        XCTAssertEqual(typed(e, "longxiao").first, "笼笑")
+        XCTAssertEqual(ud.words(for: "longxiao"), ["笼笑"])
+    }
+
+    func testLearnedCandidateLengthCountsApostrophe() {
+        let ud = PinyinUserDictionary(fileURL: nil)
+        ud.record("xian", "西安")
+        let e = engine(userDict: ud)
+        _ = typed(e, "xi'an")
+        XCTAssertEqual(e.candidates.first, PinyinCandidate(text: "西安", length: 5))
+        XCTAssertEqual(e.select(0), "西安")
+        XCTAssertFalse(e.isComposing)
+    }
+
+    func testUserDictionaryPersistsAndClears() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("vipi-test-\(UUID().uuidString)/learned.json")
+        let a = PinyinUserDictionary(fileURL: url)
+        a.record("nihao", "泥嚎")
+        a.record("nihao", "泥嚎")
+        a.record("nihao", "你好")
+        // ghi ở hàng đợi nền: đợi một chút
+        let deadline = Date().addingTimeInterval(3)
+        while !FileManager.default.fileExists(atPath: url.path), Date() < deadline { Thread.sleep(forTimeInterval: 0.05) }
+        let b = PinyinUserDictionary(fileURL: url)
+        XCTAssertEqual(b.words(for: "nihao"), ["泥嚎", "你好"])
+        b.clear()
+        XCTAssertEqual(b.count, 0)
+        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+    }
+
+    func testFuzzyInitial() {
+        XCTAssertFalse(typed(engine(), "zongguo").prefix(5).contains("中国"))
+        let e = engine(fuzzy: ["z=zh"])
+        XCTAssertTrue(typed(e, "zongguo").prefix(5).contains("中国"))
+        XCTAssertEqual(typed(e, "zhongguo").first, "中国", "âm đúng vẫn thắng")
+        XCTAssertEqual(e.preedit, "zhong guo")
+        _ = typed(e, "zongguo")
+        XCTAssertEqual(e.preedit, "zong guo")
+    }
+
+    func testFuzzyFinal() {
+        XCTAssertFalse(typed(engine(), "xingqin").prefix(5).contains("心情"))
+        let e = engine(fuzzy: ["in=ing"])
+        XCTAssertTrue(typed(e, "xingqin").prefix(5).contains("心情"))
+        XCTAssertTrue(typed(engine(fuzzy: ["an=ang"]), "zhuan").prefix(10).contains("装"))
+    }
+
+    func testFuzzyAliases() {
+        let a = FuzzyRule.aliases(rules: ["z=zh", "in=ing"], syllables: ["zhi", "zi", "xin", "xing", "ma"])
+        XCTAssertEqual(a["zi"], ["zhi"])
+        XCTAssertEqual(a["zhi"], ["zi"])
+        XCTAssertEqual(Set(a["xin"]!), ["xing"])
+        XCTAssertNil(a["ma"])
+    }
+
+    func testTraditionalOutput() {
+        XCTAssertEqual(Self.s2t.convert("头发"), "頭髮")
+        XCTAssertEqual(Self.s2t.convert("后天"), "後天")
+        XCTAssertEqual(Self.s2t.convert("皇后"), "皇后")
+        XCTAssertEqual(Self.s2t.convert("发"), "發")
+        XCTAssertEqual(Self.s2t.convert("hello 中国"), "hello 中國")
+        let e = engine(traditional: true)
+        XCTAssertEqual(typed(e, "zhongguo").first, "中國")
+        XCTAssertEqual(e.select(0), "中國")
+        _ = typed(e, "nihaoma")
+        _ = e.select(e.candidates.firstIndex { $0.text == "你好" }!)
+        XCTAssertEqual(e.preedit, "你好ma")
+        XCTAssertEqual(e.commitRaw(), "你好ma")
+    }
+
+    func testTraditionalLearnsSimplified() {
+        let ud = PinyinUserDictionary(fileURL: nil)
+        let e = engine(traditional: true, userDict: ud)
+        _ = typed(e, "zhongguo")
+        _ = e.select(0)
+        XCTAssertEqual(ud.words(for: "zhongguo"), ["中国"])
+        e.converter = nil
+        XCTAssertEqual(typed(e, "zhongguo").first, "中国")
+    }
+
     func testLoadAndLookupSpeed() {
         let url = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

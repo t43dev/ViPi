@@ -2,6 +2,7 @@ import Foundation
 
 // Bộ gõ Pinyin: tách chuỗi pinyin thành âm tiết, tra từ điển rime-ice (pinyin.tsv),
 // ghép câu bằng quy hoạch động trên lưới từ, và cho chọn từng phần như các bộ gõ Trung thông thường.
+// Bên trong luôn là giản thể; phồn thể (converter) chỉ áp ở đầu ra: candidates, preedit, kết quả commit.
 
 public struct PinyinEntry: Equatable {
     public let word: String
@@ -13,6 +14,7 @@ public final class PinyinDictionary {
     private(set) var abbrev: [String: [PinyinEntry]] = [:]  // "nh" → từ 2-4 chữ viết tắt bằng phụ âm đầu
     public private(set) var syllables: Set<String> = []
     private var byPrefix: [String: [String]] = [:]          // "zh" → [zha, zhai, ...]
+    private(set) var keyPrefixes: Set<String> = []          // "ni", "ni hao" của khoá "ni hao ma": cắt nhánh khi dò
     let maxSyllableLength = 6
 
     public convenience init(contentsOf url: URL) throws {
@@ -31,6 +33,11 @@ public final class PinyinDictionary {
             if sylls.count == 1 { syllables.insert(key) }
             if (2...4).contains(sylls.count) {
                 abbrev[String(sylls.map { $0.first! }), default: []].append(entry)
+            }
+            var p = ""
+            for s in sylls {
+                p += p.isEmpty ? String(s) : " " + s
+                keyPrefixes.insert(p)
             }
         }
         for k in words.keys { words[k]!.sort { $0.weight > $1.weight } }
@@ -54,9 +61,20 @@ public final class PinyinEngine {
     public let dict: PinyinDictionary
     public let maxInput = 48
 
+    /// Âm mờ đang bật (id của FuzzyRule, vd "z=zh").
+    public var fuzzyRules: Set<String> = [] {
+        didSet { aliases = FuzzyRule.aliases(rules: fuzzyRules, syllables: dict.syllables); refresh() }
+    }
+    /// Có thì đầu ra là phồn thể.
+    public var converter: ChineseConverter? { didSet { refresh() } }
+    /// Có thì học từ/cụm người dùng chọn và đưa lên đầu lần sau.
+    public var userDictionary: PinyinUserDictionary?
+
     public private(set) var input = ""                                     // phần pinyin chưa chọn
-    private var chosen: [(text: String, raw: String)] = []                 // các đoạn đã chọn, chưa commit
-    public private(set) var candidates: [PinyinCandidate] = []
+    private var chosen: [(text: String, raw: String)] = []                 // các đoạn đã chọn (giản thể), chưa commit
+    public private(set) var candidates: [PinyinCandidate] = []             // đã chuyển phồn thể nếu bật
+    private var internalCandidates: [PinyinCandidate] = []                 // giản thể, cùng chỉ số với candidates
+    private var aliases: [String: [String]] = [:]
 
     public init(dictionary: PinyinDictionary) { dict = dictionary }
 
@@ -64,13 +82,14 @@ public final class PinyinEngine {
 
     /// Chuỗi hiển thị trong ô gợi ý: phần đã chọn + pinyin còn lại tách âm tiết.
     public var preedit: String {
-        chosen.map(\.text).joined() + segmentForDisplay(input)
+        output(chosen.map(\.text).joined()) + segmentForDisplay(input)
     }
 
     public func reset() {
         input = ""
         chosen = []
         candidates = []
+        internalCandidates = []
     }
 
     /// a-z hoặc dấu ' (v thay cho ü).
@@ -92,16 +111,21 @@ public final class PinyinEngine {
 
     /// Chọn ứng viên; trả về chuỗi cần commit khi đã dùng hết input, nil nếu còn phải chọn tiếp.
     public func select(_ index: Int) -> String? {
-        guard candidates.indices.contains(index) else { return nil }
-        let c = candidates[index]
+        guard internalCandidates.indices.contains(index) else { return nil }
+        let c = internalCandidates[index]
         let raw = String(input.prefix(c.length))
+        userDictionary?.record(Self.letters(raw), c.text)
         chosen.append((c.text, raw))
         input = String(input.dropFirst(c.length))
         while input.first == "'" { input.removeFirst() }
         if input.isEmpty {
             let text = chosen.map(\.text).joined()
+            // cụm ghép từ nhiều lần chọn: học cả cụm để lần sau ra một phát
+            if chosen.count >= 2, text.count <= 10 {
+                userDictionary?.record(Self.letters(chosen.map(\.raw).joined()), text)
+            }
             reset()
-            return text
+            return output(text)
         }
         refresh()
         return nil
@@ -109,13 +133,38 @@ public final class PinyinEngine {
 
     /// Enter: commit phần đã chọn + pinyin thô còn lại.
     public func commitRaw() -> String {
-        let text = chosen.map(\.text).joined() + input.replacingOccurrences(of: "'", with: "")
+        let text = output(chosen.map(\.text).joined()) + Self.letters(input)
         reset()
         return text
     }
 
+    static func letters(_ raw: String) -> String { raw.replacingOccurrences(of: "'", with: "") }
+
+    private func output(_ simplified: String) -> String {
+        converter?.convert(simplified) ?? simplified
+    }
+
     private func refresh() {
-        candidates = input.isEmpty ? [] : PinyinEngine.candidates(for: Array(input), dict: dict)
+        guard !input.isEmpty else { candidates = []; internalCandidates = []; return }
+        var list = PinyinEngine.candidates(for: Array(input), dict: dict, aliases: aliases)
+        if let ud = userDictionary {
+            // từ/cụm đã học cho đúng chuỗi đang gõ lên đầu
+            let learned = ud.words(for: Self.letters(input)).map { PinyinCandidate(text: $0, length: input.count) }
+            if !learned.isEmpty {
+                let top = Set(learned.map(\.text))
+                list = learned + list.filter { !top.contains($0.text) }
+            }
+        }
+        internalCandidates = []
+        candidates = []
+        var seen = Set<String>()
+        for c in list {
+            let shown = output(c.text)
+            if seen.insert(shown).inserted {
+                internalCandidates.append(c)
+                candidates.append(PinyinCandidate(text: shown, length: c.length))
+            }
+        }
     }
 
     // MARK: - Candidate generation
@@ -126,7 +175,9 @@ public final class PinyinEngine {
     }
 
     /// Mọi từ trong từ điển bắt đầu tại `start` (đi theo lưới âm tiết, tối đa 8 âm tiết).
-    static func words(from start: Int, in s: [Character], dict: PinyinDictionary) -> [WordMatch] {
+    /// `aliases`: âm tiết gõ theo âm mờ → âm tiết thật; từ tìm qua âm mờ bị hạ weight để âm đúng thắng.
+    static func words(from start: Int, in s: [Character], dict: PinyinDictionary,
+                      aliases: [String: [String]] = [:]) -> [WordMatch] {
         var out: [WordMatch] = []
         func walk(_ pos: Int, _ prefix: [String]) {
             guard prefix.count < 8 else { return }
@@ -139,10 +190,18 @@ public final class PinyinEngine {
                 if piece.contains("'") { break }
                 let syl = String(piece)
                 let end = p + len
-                if dict.syllables.contains(syl) {
-                    let key = prefix + [syl]
-                    let found = dict.lookup(key.joined(separator: " "))
-                    if !found.isEmpty { out.append(WordMatch(end: end, entries: found)) }
+                var options: [(syllable: String, fuzzy: Bool)] = []
+                if dict.syllables.contains(syl) { options.append((syl, false)) }
+                for a in aliases[syl] ?? [] { options.append((a, true)) }
+                for o in options {
+                    let key = prefix + [o.syllable]
+                    let joined = key.joined(separator: " ")
+                    guard dict.keyPrefixes.contains(joined) else { continue }
+                    let found = dict.lookup(joined)
+                    if !found.isEmpty {
+                        let entries = o.fuzzy ? found.map { PinyinEntry(word: $0.word, weight: $0.weight / 8) } : found
+                        out.append(WordMatch(end: end, entries: entries))
+                    }
                     walk(end, key)
                 }
                 // âm tiết cuối chưa gõ xong: "nih" → ni + (ha, hai, hao, ...)
@@ -163,7 +222,8 @@ public final class PinyinEngine {
         return out
     }
 
-    static func candidates(for s: [Character], dict: PinyinDictionary) -> [PinyinCandidate] {
+    static func candidates(for s: [Character], dict: PinyinDictionary,
+                           aliases: [String: [String]] = [:]) -> [PinyinCandidate] {
         let n = s.count
         var list: [PinyinCandidate] = []
         var seen = Set<String>()
@@ -180,7 +240,7 @@ public final class PinyinEngine {
         // Ghép câu: best[i] = (điểm, câu) tốt nhất cho s[i...]
         var matchesAt: [[WordMatch]] = Array(repeating: [], count: n + 1)
         for i in 0..<n {
-            matchesAt[i] = words(from: i, in: s, dict: dict)
+            matchesAt[i] = words(from: i, in: s, dict: dict, aliases: aliases)
         }
         var best: [(score: Double, text: String, words: Int)?] = Array(repeating: nil, count: n + 1)
         best[n] = (0, "", 0)
@@ -206,15 +266,16 @@ public final class PinyinEngine {
         return Array(list.prefix(200))
     }
 
-    /// "nihao" → "ni hao" (tách tham lam, dài nhất trước).
+    /// "nihao" → "ni hao" (tách tham lam, dài nhất trước; âm mờ cũng tính là âm tiết).
     func segmentForDisplay(_ text: String) -> String {
         let s = Array(text)
         var out: [String] = []
         var i = 0
+        func isSyllable(_ x: String) -> Bool { dict.syllables.contains(x) || aliases[x] != nil }
         while i < s.count {
             if s[i] == "'" { out.append("'"); i += 1; continue }
             var len = min(dict.maxSyllableLength, s.count - i)
-            while len > 1, !dict.syllables.contains(String(s[i..<(i + len)])) { len -= 1 }
+            while len > 1, !isSyllable(String(s[i..<(i + len)])) { len -= 1 }
             out.append(String(s[i..<(i + len)]))
             i += len
         }
