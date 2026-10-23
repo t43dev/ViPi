@@ -81,6 +81,10 @@
 
 `1`–`9` 或 `空格` 选词 · `←` `→` 移动 · `-` `=` 或 `↑` `↓` 翻页 · `回车` 输入原始拼音 · `Esc` 取消 · 全角标点 `，。？！`
 
+- **越用越懂你：** 你选过的词和短语下次优先显示。仅保存在你的 Mac 上，一键清除。
+- **模糊音：** `z/zh` `c/ch` `s/sh` `n/l` `f/h` `l/r` `an/ang` `en/eng` `in/ing`，逐项可选，输入 `zongguo` 也能找到中国。
+- **简体或繁体：** 一个开关，头发变 頭髮、后天变 後天，按词组转换。
+
 ### ⌨️ 一个快捷键，切换所有语言
 
 按一次 **`⌃ Control` + `⇧ Shift`** 回到上一个输入法，快速按两次切到下一个。按最近使用顺序排列，就像给语言用的 ⌘Tab：**VI ⇄ 拼 ⇄ EN**。更喜欢 Option+Shift 或 Control+Space？在设置里随时修改。
@@ -92,7 +96,7 @@
 ### 🎨 与你的 Mac 浑然一体
 
 - **你的语言：** 整个界面支持 English、Tiếng Việt 和简体中文。
-- **浅色或深色：** 跟随系统，或自己选择（0.2.2 起）。
+- **浅色或深色：** 跟随系统，或自己选择。
 - **自动更新：** ViPi 从 GitHub 检查新版本，验证下载文件确实由 ViPi 开发者签名，安装后在你停止打字时自动重启。
 - **登录时自动启动**，安静地待在菜单栏。
 
@@ -158,4 +162,4 @@ ViPi 刚刚发布，如有不顺手的地方，欢迎在 [Issues](../../issues) 
 
 ## 📄 许可证
 
-GPL-3.0。Telex 规则和元音表参照 [UniKey](https://www.unikey.org)（GPL）；拼音词库来自 [rime-ice](https://github.com/iDvel/rime-ice)（GPL-3.0）；越南语音节表源自 [胡玉德（Hồ Ngọc Đức）的词表](https://github.com/duyet/vietnamese-wordlist)（GPL）。Logo 的红金配色、V–P 连笔和星星的含义见 [assets/logo-meaning.md](assets/logo-meaning.md)。
+GPL-3.0。Telex 规则和元音表参照 [UniKey](https://www.unikey.org)（GPL）；拼音词库来自 [rime-ice](https://github.com/iDvel/rime-ice)（GPL-3.0）；越南语音节表源自 [胡玉德（Hồ Ngọc Đức）的词表](https://github.com/duyet/vietnamese-wordlist)（GPL）；简繁转换表来自 [OpenCC](https://github.com/BYVoid/OpenCC)（Apache-2.0）。Logo 的红金配色、V–P 连笔和星星的含义见 [assets/logo-meaning.md](assets/logo-meaning.md)。

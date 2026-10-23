@@ -81,6 +81,10 @@ If you write in Vietnamese and Chinese, your Mac probably looks like this:
 
 `1`–`9` or `Space` to pick · `←` `→` to move · `-` `=` or `↑` `↓` to page · `Enter` types the raw pinyin · `Esc` cancels · full-width punctuation `，。？！`
 
+- **Learns from you:** the words and phrases you pick come first next time. Stored only on your Mac, one click to clear.
+- **Fuzzy pinyin:** `z/zh` `c/ch` `s/sh` `n/l` `f/h` `l/r` `an/ang` `en/eng` `in/ing`, each one optional, so `zongguo` still finds 中国.
+- **Simplified or Traditional:** one switch turns 头发 into 頭髮 and 后天 into 後天, phrase-aware.
+
 ### ⌨️ One shortcut for every language
 
 Press **`⌃ Control` + `⇧ Shift`** once to go back to the previous input, twice quickly for the next one. It works in most-recently-used order, like ⌘Tab for languages: **VI ⇄ 拼 ⇄ EN**. Prefer Option+Shift or Control+Space? Change it in Settings.
@@ -92,7 +96,7 @@ When a password field or a terminal turns on macOS Secure Input, every input too
 ### 🎨 Feels at home on your Mac
 
 - **Your language:** the whole interface comes in English, Tiếng Việt and 简体中文.
-- **Light or Dark:** follow macOS or pick one yourself (from 0.2.2).
+- **Light or Dark:** follow macOS or pick one yourself.
 - **Updates itself:** ViPi checks GitHub, verifies the download is signed by the ViPi developer, installs it and relaunches when you stop typing.
 - **Launches at login**, lives quietly in the menu bar.
 
@@ -158,4 +162,4 @@ Want to build it yourself? See [docs/development.md](docs/development.md).
 
 ## 📄 License
 
-GPL-3.0. Telex rules and vowel tables follow [UniKey](https://www.unikey.org) (GPL); the Pinyin dictionary comes from [rime-ice](https://github.com/iDvel/rime-ice) (GPL-3.0); the Vietnamese syllable list is derived from [Ho Ngoc Duc's word list](https://github.com/duyet/vietnamese-wordlist) (GPL). The logo's red and gold, V–P ligature and star are explained in [assets/logo-meaning.md](assets/logo-meaning.md).
+GPL-3.0. Telex rules and vowel tables follow [UniKey](https://www.unikey.org) (GPL); the Pinyin dictionary comes from [rime-ice](https://github.com/iDvel/rime-ice) (GPL-3.0); the Vietnamese syllable list is derived from [Ho Ngoc Duc's word list](https://github.com/duyet/vietnamese-wordlist) (GPL); the Simplified→Traditional tables come from [OpenCC](https://github.com/BYVoid/OpenCC) (Apache-2.0). The logo's red and gold, V–P ligature and star are explained in [assets/logo-meaning.md](assets/logo-meaning.md).

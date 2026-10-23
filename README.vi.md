@@ -81,6 +81,10 @@ Nếu bạn viết cả tiếng Việt lẫn tiếng Trung, máy Mac của bạn
 
 `1`–`9` hoặc `Space` để chọn · `←` `→` di chuyển · `-` `=` hoặc `↑` `↓` lật trang · `Enter` gõ nguyên pinyin · `Esc` huỷ · dấu câu toàn khổ `，。？！`
 
+- **Học theo bạn:** từ và cụm bạn chọn sẽ lên đầu ở lần sau. Chỉ lưu trên máy Mac của bạn, một nút để xoá.
+- **Âm mờ (模糊音):** `z/zh` `c/ch` `s/sh` `n/l` `f/h` `l/r` `an/ang` `en/eng` `in/ing`, bật riêng từng cặp, nên gõ `zongguo` vẫn ra 中国.
+- **Giản thể hoặc phồn thể:** một công tắc biến 头发 thành 頭髮 và 后天 thành 後天, hiểu theo cụm từ.
+
 ### ⌨️ Một phím tắt cho mọi ngôn ngữ
 
 Bấm **`⌃ Control` + `⇧ Shift`** một lần để quay về bộ gõ trước, bấm nhanh hai lần để sang bộ tiếp theo. Thứ tự theo lần dùng gần nhất, giống ⌘Tab nhưng cho ngôn ngữ: **VI ⇄ 拼 ⇄ EN**. Thích Option+Shift hay Control+Space hơn? Đổi trong Cài đặt.
@@ -92,7 +96,7 @@ Khi một ô mật khẩu hay cửa sổ terminal bật Secure Input của macOS
 ### 🎨 Hoà hợp với máy Mac của bạn
 
 - **Ngôn ngữ của bạn:** toàn bộ giao diện có tiếng Anh, tiếng Việt và tiếng Trung giản thể.
-- **Sáng hoặc Tối:** theo macOS hoặc tự chọn (từ bản 0.2.2).
+- **Sáng hoặc Tối:** theo macOS hoặc tự chọn.
 - **Tự cập nhật:** ViPi kiểm tra GitHub, xác minh bản tải về có chữ ký của nhà phát triển ViPi, cài đặt và khởi động lại khi bạn ngừng gõ.
 - **Tự chạy khi đăng nhập**, nằm gọn trên thanh menu.
 
@@ -158,4 +162,4 @@ Muốn tự build? Xem [docs/development.md](docs/development.md).
 
 ## 📄 Giấy phép
 
-GPL-3.0. Quy tắc Telex và bảng nguyên âm theo [UniKey](https://www.unikey.org) (GPL); từ điển Pinyin lấy từ [rime-ice](https://github.com/iDvel/rime-ice) (GPL-3.0); danh sách âm tiết tiếng Việt lấy từ [danh sách từ của Hồ Ngọc Đức](https://github.com/duyet/vietnamese-wordlist) (GPL). Ý nghĩa màu đỏ vàng, chữ V–P lồng nhau và ngôi sao trên logo xem ở [assets/logo-meaning.md](assets/logo-meaning.md).
+GPL-3.0. Quy tắc Telex và bảng nguyên âm theo [UniKey](https://www.unikey.org) (GPL); từ điển Pinyin lấy từ [rime-ice](https://github.com/iDvel/rime-ice) (GPL-3.0); danh sách âm tiết tiếng Việt lấy từ [danh sách từ của Hồ Ngọc Đức](https://github.com/duyet/vietnamese-wordlist) (GPL); bảng chuyển giản→phồn thể lấy từ [OpenCC](https://github.com/BYVoid/OpenCC) (Apache-2.0). Ý nghĩa màu đỏ vàng, chữ V–P lồng nhau và ngôi sao trên logo xem ở [assets/logo-meaning.md](assets/logo-meaning.md).
