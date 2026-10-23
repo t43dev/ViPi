@@ -71,6 +71,13 @@ If you write in Vietnamese and Chinese, your Mac probably looks like this:
 
 ### 🇨🇳 Chinese Pinyin with a real candidate window
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/cand-dark.png">
+    <img src="assets/readme/cand-light.png" alt="The candidate window for ni hao" width="330">
+  </picture>
+</p>
+
 | You type | You get | |
 |:--|:--|:--|
 | `nihao` | **你好** | full pinyin, `v` = ü |
@@ -102,13 +109,27 @@ When a password field or a terminal turns on macOS Secure Input, every input too
 
 <table>
   <tr>
-    <td><img src="assets/readme/settings-general-en.png" alt="General settings"></td>
-    <td><img src="assets/readme/settings-vietnamese-en.png" alt="Vietnamese settings"></td>
-    <td><img src="assets/readme/settings-shortcuts-en.png" alt="Text shortcuts"></td>
+    <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/settings-general-en-dark.png">
+    <img src="assets/readme/settings-general-en-light.png" alt="General settings">
+  </picture></td>
+    <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/settings-vietnamese-en-dark.png">
+    <img src="assets/readme/settings-vietnamese-en-light.png" alt="Vietnamese settings">
+  </picture></td>
+    <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/settings-chinese-en-dark.png">
+    <img src="assets/readme/settings-chinese-en-light.png" alt="Chinese settings">
+  </picture></td>
+    <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/settings-shortcuts-en-dark.png">
+    <img src="assets/readme/settings-shortcuts-en-light.png" alt="Text shortcuts">
+  </picture></td>
   </tr>
   <tr>
     <td align="center"><sub>Language, appearance, shortcut</sub></td>
     <td align="center"><sub>Spelling and tone placement</sub></td>
+    <td align="center"><sub>Traditional, learning, fuzzy pinyin</sub></td>
     <td align="center"><sub>Text shortcuts</sub></td>
   </tr>
 </table>

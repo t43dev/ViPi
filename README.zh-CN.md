@@ -71,6 +71,13 @@
 
 ### 🇨🇳 拼音，配真正的候选框
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/cand-dark.png">
+    <img src="assets/readme/cand-light.png" alt="输入 ni hao 时的候选框" width="330">
+  </picture>
+</p>
+
 | 你输入 | 你得到 | |
 |:--|:--|:--|
 | `nihao` | **你好** | 全拼，`v` = ü |
@@ -102,13 +109,27 @@
 
 <table>
   <tr>
-    <td><img src="assets/readme/settings-general-zh.png" alt="通用设置"></td>
-    <td><img src="assets/readme/settings-vietnamese-zh.png" alt="越南语设置"></td>
-    <td><img src="assets/readme/settings-shortcuts-zh.png" alt="快捷短语"></td>
+    <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/settings-general-zh-dark.png">
+    <img src="assets/readme/settings-general-zh-light.png" alt="通用设置">
+  </picture></td>
+    <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/settings-vietnamese-zh-dark.png">
+    <img src="assets/readme/settings-vietnamese-zh-light.png" alt="越南语设置">
+  </picture></td>
+    <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/settings-chinese-zh-dark.png">
+    <img src="assets/readme/settings-chinese-zh-light.png" alt="中文设置">
+  </picture></td>
+    <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/settings-shortcuts-zh-dark.png">
+    <img src="assets/readme/settings-shortcuts-zh-light.png" alt="快捷短语">
+  </picture></td>
   </tr>
   <tr>
     <td align="center"><sub>语言、外观、快捷键</sub></td>
     <td align="center"><sub>拼写检查与声调位置</sub></td>
+    <td align="center"><sub>繁体、记忆选词、模糊音</sub></td>
     <td align="center"><sub>快捷短语</sub></td>
   </tr>
 </table>

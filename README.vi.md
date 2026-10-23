@@ -71,6 +71,13 @@ Nếu bạn viết cả tiếng Việt lẫn tiếng Trung, máy Mac của bạn
 
 ### 🇨🇳 Pinyin có ô gợi ý thật sự
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/cand-dark.png">
+    <img src="assets/readme/cand-light.png" alt="Ô gợi ý khi gõ ni hao" width="330">
+  </picture>
+</p>
+
 | Bạn gõ | Bạn được | |
 |:--|:--|:--|
 | `nihao` | **你好** | pinyin đầy đủ, `v` = ü |
@@ -102,13 +109,27 @@ Khi một ô mật khẩu hay cửa sổ terminal bật Secure Input của macOS
 
 <table>
   <tr>
-    <td><img src="assets/readme/settings-general-vi.png" alt="Cài đặt chung"></td>
-    <td><img src="assets/readme/settings-vietnamese-vi.png" alt="Cài đặt tiếng Việt"></td>
-    <td><img src="assets/readme/settings-shortcuts-vi.png" alt="Gõ tắt"></td>
+    <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/settings-general-vi-dark.png">
+    <img src="assets/readme/settings-general-vi-light.png" alt="Cài đặt chung">
+  </picture></td>
+    <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/settings-vietnamese-vi-dark.png">
+    <img src="assets/readme/settings-vietnamese-vi-light.png" alt="Cài đặt tiếng Việt">
+  </picture></td>
+    <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/settings-chinese-vi-dark.png">
+    <img src="assets/readme/settings-chinese-vi-light.png" alt="Cài đặt tiếng Trung">
+  </picture></td>
+    <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/settings-shortcuts-vi-dark.png">
+    <img src="assets/readme/settings-shortcuts-vi-light.png" alt="Gõ tắt">
+  </picture></td>
   </tr>
   <tr>
     <td align="center"><sub>Ngôn ngữ, giao diện, phím tắt</sub></td>
     <td align="center"><sub>Chính tả và kiểu đặt dấu</sub></td>
+    <td align="center"><sub>Phồn thể, học từ, âm mờ</sub></td>
     <td align="center"><sub>Gõ tắt</sub></td>
   </tr>
 </table>

@@ -52,6 +52,9 @@
   .cycle .badge { height:24px; min-width:34px; font-size:13px; border-radius:6px; }
   .cycle .badge.zh { font-size:15px; }
   .cycle .badge.on { background:var(--red); color:#fff; }
+  .chips { margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; }
+  .chip { font-size:13px; font-weight:600; padding:4px 10px; border-radius:999px; background:#fbe9e9; color:#8c1d2b; }
+  .dark .chip { background:#3a1b1f; color:#ffb3b3; }
 </style></head>
 <body>
 <div class="card">
@@ -73,7 +76,8 @@
     <div class="tile"><div class="k">Vietnamese · Telex</div>
       <div class="row"><span class="typed">tieengs Vieetj</span><span class="arrow">→</span><span class="out">tiếng Việt</span></div></div>
     <div class="tile"><div class="k">Chinese · Pinyin</div>
-      <div class="row"><span class="typed">woshi yuenanren</span><span class="arrow">→</span><span class="out">我是越南人</span></div></div>
+      <div class="row"><span class="typed">woshi yuenanren</span><span class="arrow">→</span><span class="out">我是越南人</span></div>
+      <div class="chips"><span class="chip">Learns your words</span><span class="chip">Fuzzy pinyin</span><span class="chip">繁體 Traditional</span></div></div>
     <div class="tile"><div class="k">One shortcut</div>
       <div class="row"><span class="key">⌃</span><span class="plus">+</span><span class="key">⇧</span>
         <span class="cycle"><span class="badge on">VI</span><span class="arrow">⇄</span><span class="badge zh">拼</span><span class="arrow">⇄</span><span class="badge">EN</span></span></div></div>

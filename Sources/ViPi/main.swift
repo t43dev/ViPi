@@ -15,6 +15,12 @@ func writePNG(_ view: NSView, to path: String) {
     view.cacheDisplay(in: b, to: rep)
     try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
 }
+/// Chụp một cửa sổ đang hiện trên màn hình đúng như người dùng thấy (cả thanh tiêu đề, bóng, giao diện tối);
+/// cửa sổ của chính mình nên không cần quyền Screen Recording. Màn hình phải đang bật (caffeinate -u).
+func captureWindow(_ w: NSWindow, to path: String) {
+    guard let img = CGWindowListCreateImage(.null, .optionIncludingWindow, CGWindowID(w.windowNumber), [.bestResolution]) else { return }
+    try? NSBitmapImageRep(cgImage: img).representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+}
 if let i = args.firstIndex(of: "--verify-update"), i + 1 < args.count {
     // kiểm tra một ViPi.app có qua được bước kiểm chữ ký của bộ cập nhật không
     do { try Updater.verify(URL(fileURLWithPath: args[i + 1])); print("VERIFY OK") } catch { print("VERIFY FAIL: \(error.localizedDescription)") }
@@ -35,7 +41,7 @@ if let i = args.firstIndex(of: "--verify-update"), i + 1 < args.count {
     view.layoutSubtreeIfNeeded()
     writePNG(view, to: args[i + 1])
 } else if let i = args.firstIndex(of: "--snapshot-settings"), i + 1 < args.count {
-    // mở từng tab Settings thành cửa sổ thật rồi tự chụp: <prefix>-0.png …
+    // mở từng tab Settings thành cửa sổ thật trên màn hình rồi chụp: <prefix>-0.png … (-appearance dark để chụp bản tối)
     app.setActivationPolicy(.regular)
     app.appearance = Preferences().appearance.nsAppearance
     let windows = (0..<4).map { tab -> NSWindow in
@@ -58,9 +64,12 @@ if let i = args.firstIndex(of: "--verify-update"), i + 1 < args.count {
     candidates.setFrameOrigin(NSPoint(x: 700, y: 120))
     candidates.orderFrontRegardless()
     DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-        if let v = candidates.contentView { writePNG(v, to: "\(args[i + 1])-candidates.png") }
+        // bản 1x đúng như trên màn hình, và bản 2x vẽ lại từ view (sắc nét cho README)
+        captureWindow(candidates, to: "\(args[i + 1])-candidates.png")
+        if let v = candidates.contentView { writePNG(v, to: "\(args[i + 1])-candidates@2x.png") }
         for (tab, w) in windows.enumerated() {
-            if let v = w.contentView?.superview { writePNG(v, to: "\(args[i + 1])-\(tab).png") }
+            captureWindow(w, to: "\(args[i + 1])-\(tab).png")
+            if let v = w.contentView?.superview { writePNG(v, to: "\(args[i + 1])-\(tab)@2x.png") }
         }
         exit(0)
     }
