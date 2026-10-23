@@ -24,11 +24,11 @@ finish() {
   mkdir -p build
   $SCP $MAC:$DIR/build/ViPi-$VERSION.dmg build/
   ls -la build/ViPi-$VERSION.dmg
-  gh release view v$VERSION -R kulinh/ViPi >/dev/null 2>&1 \
-    || gh release create v$VERSION -R kulinh/ViPi --verify-tag --latest --generate-notes --title "ViPi $VERSION"
+  gh release view v$VERSION -R t43dev/ViPi >/dev/null 2>&1 \
+    || gh release create v$VERSION -R t43dev/ViPi --verify-tag --latest --generate-notes --title "ViPi $VERSION"
   # thêm bản tên cố định để README trỏ thẳng releases/latest/download/ViPi.dmg
   cp build/ViPi-$VERSION.dmg build/ViPi.dmg
-  gh release upload v$VERSION build/ViPi-$VERSION.dmg build/ViPi.dmg -R kulinh/ViPi --clobber
+  gh release upload v$VERSION build/ViPi-$VERSION.dmg build/ViPi.dmg -R t43dev/ViPi --clobber
   echo "uploaded to release v$VERSION"
 }
 if [ "${2:-}" = "--finish" ]; then finish; exit; fi

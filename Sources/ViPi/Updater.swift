@@ -12,7 +12,7 @@ final class Updater: ObservableObject {
         case failed(String)
     }
 
-    static let repo = "kulinh/ViPi"
+    static let repo = "t43dev/ViPi"
     static let pageURL = URL(string: "https://github.com/\(repo)")!
     static let releasesURL = URL(string: "https://github.com/\(repo)/releases")!
     static let issuesURL = URL(string: "https://github.com/\(repo)/issues")!
@@ -21,7 +21,7 @@ final class Updater: ObservableObject {
 
     /// Chỉ tin bản ký Developer ID của team ABONY LLC với đúng bundle id.
     private static let requirement = """
-        identifier "io.github.kulinh.vipi" and anchor apple generic \
+        identifier "dev.t43.vipi" and anchor apple generic \
         and certificate 1[field.1.2.840.113635.100.6.2.6] exists \
         and certificate leaf[field.1.2.840.113635.100.6.1.13] exists \
         and certificate leaf[subject.OU] = "7H93ZLWK98"

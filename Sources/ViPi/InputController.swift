@@ -316,7 +316,7 @@ final class InputController {
     ]
 }
 
-/// Nhật ký chẩn đoán (chỉ khi `defaults write io.github.kulinh.vipi debugLog -bool true`):
+/// Nhật ký chẩn đoán (chỉ khi `defaults write dev.t43.vipi debugLog -bool true`):
 /// ghi từng phím và từng sửa đổi vào ~/Library/Logs/ViPi-debug.log. Tắt mặc định — nó ghi lại phím gõ.
 enum DebugLog {
     static let enabled = UserDefaults.standard.bool(forKey: "debugLog")

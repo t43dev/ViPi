@@ -8,8 +8,8 @@
 </p>
 
 <p align="center">
-  <a href="../../releases/latest"><img src="https://img.shields.io/github/v/release/kulinh/ViPi?label=release&color=c8102e" alt="最新版本"></a>
-  <a href="../../releases"><img src="https://img.shields.io/github/downloads/kulinh/ViPi/total?label=downloads&color=f5b82e" alt="下载量"></a>
+  <a href="../../releases/latest"><img src="https://img.shields.io/github/v/release/t43dev/ViPi?label=release&color=c8102e" alt="最新版本"></a>
+  <a href="../../releases"><img src="https://img.shields.io/github/downloads/t43dev/ViPi/total?label=downloads&color=f5b82e" alt="下载量"></a>
   <img src="https://img.shields.io/badge/macOS-13%2B-000000?logo=apple&logoColor=white" alt="macOS 13+">
   <img src="https://img.shields.io/badge/Apple-notarized-2ea44f?logo=apple&logoColor=white" alt="已通过 Apple 公证">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-blue" alt="GPL-3.0"></a>
