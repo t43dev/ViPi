@@ -138,10 +138,13 @@ final class PinyinEngineTests: XCTestCase {
         a.record("nihao", "泥嚎")
         a.record("nihao", "泥嚎")
         a.record("nihao", "你好")
-        // ghi ở hàng đợi nền: đợi một chút
-        let deadline = Date().addingTimeInterval(3)
-        while !FileManager.default.fileExists(atPath: url.path), Date() < deadline { Thread.sleep(forTimeInterval: 0.05) }
-        let b = PinyinUserDictionary(fileURL: url)
+        // ghi ở hàng đợi nền: đọc lại cho tới khi file có đủ cả ba lần ghi
+        let deadline = Date().addingTimeInterval(5)
+        var b = PinyinUserDictionary(fileURL: url)
+        while b.words(for: "nihao") != ["泥嚎", "你好"], Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.05)
+            b = PinyinUserDictionary(fileURL: url)
+        }
         XCTAssertEqual(b.words(for: "nihao"), ["泥嚎", "你好"])
         b.clear()
         XCTAssertEqual(b.count, 0)
