@@ -14,3 +14,5 @@ With `SIGN_IDENTITY="Developer ID Application: …"` the script signs with the h
 CI (`.github/workflows/build.yml`) runs the tests and uploads an unsigned build as an artifact.
 
 The Pinyin dictionary `Resources/pinyin.tsv` is generated from [rime-ice](https://github.com/iDvel/rime-ice) by `scripts/build_pinyin_dict.py`.
+The word bigram model `Resources/bigram.bin` is built from [libpinyin](https://github.com/libpinyin/libpinyin)'s `interpolation2.text` by `scripts/make-bigram.py` (see the script header for the download).
+The Simplified→Traditional table `Resources/s2t.tsv` is `STCharacters.txt` + `STPhrases.txt` from [OpenCC](https://github.com/BYVoid/OpenCC), first variant of each entry, one `simplified<TAB>traditional` line each.
