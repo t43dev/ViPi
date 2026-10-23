@@ -15,7 +15,7 @@ rm -rf build
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN/ViPi" "$APP/Contents/MacOS/ViPi"
 sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD/" Resources/Info.plist > "$APP/Contents/Info.plist"
-cp Resources/pinyin.tsv Resources/vietnamese-syllables.txt "$APP/Contents/Resources/"
+cp Resources/pinyin.tsv Resources/s2t.tsv Resources/vietnamese-syllables.txt "$APP/Contents/Resources/"
 [ -d Resources/AppIcon.iconset ] && iconutil -c icns Resources/AppIcon.iconset -o "$APP/Contents/Resources/AppIcon.icns"
 
 # Ký: có SIGN_IDENTITY (Developer ID Application) thì ký hardened runtime, đóng DMG, notarize + staple;

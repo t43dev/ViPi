@@ -71,6 +71,9 @@ final class Preferences: ObservableObject {
     @Published var macrosInEnglish: Bool { didSet { save(macrosInEnglish, "macrosInEnglish") } }
     @Published var macros: [Macro] { didSet { saveJSON(macros, "macros") } }
     @Published var fullWidthPunctuation: Bool { didSet { save(fullWidthPunctuation, "fullWidthPunctuation") } }
+    @Published var traditionalChinese: Bool { didSet { save(traditionalChinese, "traditionalChinese") } }  // đầu ra phồn thể
+    @Published var learnWords: Bool { didSet { save(learnWords, "learnWords") } }                          // học từ đã chọn
+    @Published var fuzzyRules: Set<String> { didSet { saveJSON(fuzzyRules, "fuzzyRules") } }               // id FuzzyRule đang bật
     @Published var appearance: Appearance {
         didSet { defaults.set(appearance.rawValue, forKey: "appearance"); onChange?() }
     }
@@ -86,6 +89,7 @@ final class Preferences: ObservableObject {
         defaults.register(defaults: [
             "modernToneStyle": false, "spellCheck": true, "restoreNonVietnamese": true,
             "macrosEnabled": true, "macrosInEnglish": false, "fullWidthPunctuation": true,
+            "traditionalChinese": false, "learnWords": true,
         ])
         shortcut = Self.loadJSON(defaults, "switchShortcut") ?? .default
         modernToneStyle = defaults.bool(forKey: "modernToneStyle")
@@ -97,6 +101,9 @@ final class Preferences: ObservableObject {
             Macro(key: "vn", text: "Việt Nam"), Macro(key: "ko", text: "không"), Macro(key: "đc", text: "được"),
         ]
         fullWidthPunctuation = defaults.bool(forKey: "fullWidthPunctuation")
+        traditionalChinese = defaults.bool(forKey: "traditionalChinese")
+        learnWords = defaults.bool(forKey: "learnWords")
+        fuzzyRules = Self.loadJSON(defaults, "fuzzyRules") ?? []
         appearance = defaults.string(forKey: "appearance").flatMap(Appearance.init(rawValue:)) ?? .system
         language = defaults.string(forKey: "uiLanguage").flatMap(UILanguage.init(rawValue:)) ?? .system
         UILanguage.current = language

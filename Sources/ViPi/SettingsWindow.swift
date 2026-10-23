@@ -1,23 +1,28 @@
 import AppKit
 import SwiftUI
+import ViPiCore
 
 final class SettingsWindowController {
     private var window: NSWindow?
     private let prefs: Preferences
     private let updater: Updater
+    private let userDictionary: PinyinUserDictionary
     private let onRecording: (Bool) -> Void
     private let showSecureInput: () -> Void
 
-    init(prefs: Preferences, updater: Updater, onRecording: @escaping (Bool) -> Void, showSecureInput: @escaping () -> Void) {
+    init(prefs: Preferences, updater: Updater, userDictionary: PinyinUserDictionary,
+         onRecording: @escaping (Bool) -> Void, showSecureInput: @escaping () -> Void) {
         self.prefs = prefs
         self.updater = updater
+        self.userDictionary = userDictionary
         self.onRecording = onRecording
         self.showSecureInput = showSecureInput
     }
 
     func show() {
         if window == nil {
-            let view = SettingsView(prefs: prefs, updater: updater, onRecording: onRecording, showSecureInput: showSecureInput)
+            let view = SettingsView(prefs: prefs, updater: updater, userDictionary: userDictionary,
+                                    onRecording: onRecording, showSecureInput: showSecureInput)
             let w = NSWindow(contentViewController: NSHostingController(rootView: view))
             w.styleMask = [.titled, .closable]
             w.isReleasedWhenClosed = false
@@ -35,14 +40,17 @@ final class SettingsWindowController {
 struct SettingsView: View {
     @ObservedObject var prefs: Preferences
     @ObservedObject var updater: Updater
+    let userDictionary: PinyinUserDictionary
     let onRecording: (Bool) -> Void
     let showSecureInput: () -> Void
     @State var tab: Int
+    @State private var learnedCount = 0
 
-    init(prefs: Preferences, updater: Updater, onRecording: @escaping (Bool) -> Void,
+    init(prefs: Preferences, updater: Updater, userDictionary: PinyinUserDictionary, onRecording: @escaping (Bool) -> Void,
          showSecureInput: @escaping () -> Void, initialTab: Int = 0) {
         self.prefs = prefs
         self.updater = updater
+        self.userDictionary = userDictionary
         self.onRecording = onRecording
         self.showSecureInput = showSecureInput
         _tab = State(initialValue: initialTab)
@@ -111,10 +119,36 @@ struct SettingsView: View {
     private var chinese: some View {
         Form {
             Section {
+                Picker(tr("Characters"), selection: $prefs.traditionalChinese) {
+                    Text(tr("Simplified (中国)")).tag(false)
+                    Text(tr("Traditional (中國)")).tag(true)
+                }
                 Toggle(tr("Full-width punctuation (，。？！)"), isOn: $prefs.fullWidthPunctuation)
+            }
+            Section {
+                Toggle(tr("Learn the words I pick"), isOn: $prefs.learnWords)
+                caption(tr("Words and phrases you choose come first next time. They are stored only on this Mac."))
+                LabeledContent(tr("%@ learned words", String(learnedCount))) {
+                    Button(tr("Clear")) { userDictionary.clear(); learnedCount = 0 }
+                        .disabled(learnedCount == 0)
+                }
+            }
+            Section(tr("Fuzzy pinyin")) {
+                caption(tr("Treat these sounds as the same, so zong also finds zhong."))
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading), count: 3), spacing: 6) {
+                    ForEach(FuzzyRule.all) { rule in
+                        Toggle(rule.label, isOn: fuzzy(rule.id)).toggleStyle(.checkbox)
+                    }
+                }
             }
         }
         .formStyle(.grouped)
+        .onAppear { learnedCount = userDictionary.count }
+    }
+
+    private func fuzzy(_ id: String) -> Binding<Bool> {
+        Binding(get: { prefs.fuzzyRules.contains(id) },
+                set: { on in if on { prefs.fuzzyRules.insert(id) } else { prefs.fuzzyRules.remove(id) } })
     }
 
     private func caption(_ text: String) -> some View {

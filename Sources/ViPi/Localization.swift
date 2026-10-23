@@ -101,6 +101,18 @@ private let translations: [String: (vi: String, zh: String)] = [
     "e.g. Việt Nam": ("vd: Việt Nam", "例如 Việt Nam"),
     "%@ shortcuts": ("%@ từ tắt", "%@ 条快捷短语"),
     "Full-width punctuation (，。？！)": ("Dấu câu toàn khổ (，。？！)", "全角标点（，。？！）"),
+    "Characters": ("Chữ Hán", "字形"),
+    "Simplified (中国)": ("Giản thể (中国)", "简体（中国）"),
+    "Traditional (中國)": ("Phồn thể (中國)", "繁体（中國）"),
+    "Learn the words I pick": ("Học từ tôi chọn", "记住我选择的词"),
+    "Words and phrases you choose come first next time. They are stored only on this Mac.":
+        ("Từ và cụm bạn chọn sẽ hiện lên đầu ở lần sau. Chỉ lưu trên máy Mac này.",
+         "你选过的词和短语下次优先显示。仅保存在这台 Mac 上。"),
+    "%@ learned words": ("%@ từ đã học", "已记住 %@ 个词"),
+    "Clear": ("Xoá", "清除"),
+    "Fuzzy pinyin": ("Âm mờ (模糊音)", "模糊音"),
+    "Treat these sounds as the same, so zong also finds zhong.":
+        ("Coi các âm này là một, vd gõ zong vẫn ra zhong.", "将这些读音视为相同，例如输入 zong 也能找到 zhong。"),
 
     // Giới thiệu, cập nhật
     "Version %@ (%@)": ("Phiên bản %@ (%@)", "版本 %@ (%@)"),

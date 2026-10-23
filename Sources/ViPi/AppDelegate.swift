@@ -10,9 +10,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let prefs = Preferences()
     private lazy var aboutWindow = AboutWindowController(updater: updater, prefs: prefs)
     private lazy var settingsWindow = SettingsWindowController(
-        prefs: prefs, updater: updater,
+        prefs: prefs, updater: updater, userDictionary: userDictionary,
         onRecording: { [weak self] in self?.controller.isRecordingShortcut = $0 },
         showSecureInput: { [weak self] in self?.secureWindow.show() })
+    /// Từ/cụm tiếng Trung người dùng đã chọn, lưu trong Application Support/ViPi/learned.json.
+    private let userDictionary = PinyinUserDictionary(
+        fileURL: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("ViPi/learned.json"))
+    private var traditional: ChineseConverter?
     private let hud = ModeHUD()
     private var permissionTimer: Timer?
     private var lexicon: VietnameseLexicon?
@@ -96,7 +101,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         DispatchQueue.global(qos: .userInitiated).async {
             do {
                 let dict = try PinyinDictionary(contentsOf: url)
-                DispatchQueue.main.async { self.controller.pinyin = PinyinEngine(dictionary: dict) }
+                let s2t = Bundle.main.url(forResource: "s2t", withExtension: "tsv").flatMap { try? ChineseConverter(contentsOf: $0) }
+                DispatchQueue.main.async {
+                    self.traditional = s2t
+                    self.controller.pinyin = PinyinEngine(dictionary: dict)
+                    self.applyPreferences()   // engine mới sinh: áp âm mờ, phồn thể, học từ
+                }
             } catch {
                 NSLog("ViPi: cannot load pinyin dictionary: \(error)")
             }
@@ -196,6 +206,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         controller.macros = prefs.macrosEnabled ? prefs.macroTable : nil
         controller.englishMacros = prefs.macrosInEnglish ? prefs.macroTable : nil
         controller.fullWidthPunctuation = prefs.fullWidthPunctuation
+        if let py = controller.pinyin {
+            if py.fuzzyRules != prefs.fuzzyRules { py.fuzzyRules = prefs.fuzzyRules }
+            let converter = prefs.traditionalChinese ? traditional : nil
+            if py.converter !== converter { py.converter = converter }
+            py.userDictionary = prefs.learnWords ? userDictionary : nil
+        }
         controller.shortcut = prefs.shortcut
         NSApp.appearance = prefs.appearance.nsAppearance
         settingsWindow.relocalize()
