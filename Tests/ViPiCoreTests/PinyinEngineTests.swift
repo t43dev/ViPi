@@ -198,6 +198,36 @@ final class PinyinEngineTests: XCTestCase {
         XCTAssertEqual(typed(e, "zhongguo").first, "中国")
     }
 
+    // MARK: - 0.3.0: bigram
+
+    static let bigram: BigramModel = {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Resources/bigram.bin")
+        return try! BigramModel(contentsOf: url)
+    }()
+
+    func testBigramModel() {
+        XCTAssertEqual(BigramModel.fnv1a("a"), 0xaf63dc4c8601ec8c)          // vector chuẩn FNV-1a 64, khớp make-bigram.py
+        XCTAssertGreaterThan(Self.bigram.pairCount, 500_000)
+        XCTAssertThrowsError(try BigramModel(data: Data("nope".utf8)))
+        let p = 1e-6
+        XCTAssertGreaterThan(Self.bigram.logProb("我", "是", unigram: p), Self.bigram.logProb("我", "时", unigram: p))
+        // từ chưa có trong corpus đứng trước: chỉ unigram, có phạt (1-λ)
+        XCTAssertEqual(Self.bigram.logProb("㑇", "是", unigram: p), log(0.3 * p), accuracy: 1e-9)
+    }
+
+    func testBigramPicksWordByContext() {
+        let e = PinyinEngine(dictionary: Self.dict)
+        e.bigram = Self.bigram
+        func first(_ s: String) -> String? { e.reset(); for c in s { e.type(c) }; return e.candidates.first?.text }
+        XCTAssertEqual(first("wozaixuexizhongwen"), "我在学习中文")      // unigram: 我再学习中文
+        XCTAssertEqual(first("qingnizaishuoyibian"), "请你再说一遍")    // unigram: 请你再说一边
+        XCTAssertEqual(first("tadezhongwenshuodehenhao"), "他的中文说得很好")
+        XCTAssertEqual(first("woshizhongguoren"), "我是中国人")
+        XCTAssertEqual(first("jintiantianqihenhao"), "今天天气很好")
+    }
+
     func testLoadAndLookupSpeed() {
         let url = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

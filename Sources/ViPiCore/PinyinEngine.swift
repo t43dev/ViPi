@@ -15,6 +15,7 @@ public final class PinyinDictionary {
     public private(set) var syllables: Set<String> = []
     private var byPrefix: [String: [String]] = [:]          // "zh" → [zha, zhai, ...]
     private(set) var keyPrefixes: Set<String> = []          // "ni", "ni hao" của khoá "ni hao ma": cắt nhánh khi dò
+    public private(set) var totalWeight: Double = 0         // tổng weight: P(w) = weight / totalWeight
     let maxSyllableLength = 6
 
     public convenience init(contentsOf url: URL) throws {
@@ -28,6 +29,7 @@ public final class PinyinDictionary {
             guard cols.count >= 2 else { continue }
             let word = String(cols[0]), key = String(cols[1])
             let entry = PinyinEntry(word: word, weight: cols.count > 2 ? Int(cols[2]) ?? 0 : 0)
+            totalWeight += Double(max(entry.weight, 1))
             words[key, default: []].append(entry)
             let sylls = key.split(separator: " ")
             if sylls.count == 1 { syllables.insert(key) }
@@ -69,6 +71,8 @@ public final class PinyinEngine {
     public var converter: ChineseConverter? { didSet { refresh() } }
     /// Có thì học từ/cụm người dùng chọn và đưa lên đầu lần sau.
     public var userDictionary: PinyinUserDictionary?
+    /// Có thì ghép câu theo ngữ cảnh (từ trước quyết định từ sau), không thì chỉ theo tần suất.
+    public var bigram: BigramModel? { didSet { refresh() } }
 
     public private(set) var input = ""                                     // phần pinyin chưa chọn
     private var chosen: [(text: String, raw: String)] = []                 // các đoạn đã chọn (giản thể), chưa commit
@@ -146,7 +150,7 @@ public final class PinyinEngine {
 
     private func refresh() {
         guard !input.isEmpty else { candidates = []; internalCandidates = []; return }
-        var list = PinyinEngine.candidates(for: Array(input), dict: dict, aliases: aliases)
+        var list = PinyinEngine.candidates(for: Array(input), dict: dict, aliases: aliases, bigram: bigram)
         if let ud = userDictionary {
             // từ/cụm đã học cho đúng chuỗi đang gõ lên đầu
             let learned = ud.words(for: Self.letters(input)).map { PinyinCandidate(text: $0, length: input.count) }
@@ -223,7 +227,7 @@ public final class PinyinEngine {
     }
 
     static func candidates(for s: [Character], dict: PinyinDictionary,
-                           aliases: [String: [String]] = [:]) -> [PinyinCandidate] {
+                           aliases: [String: [String]] = [:], bigram: BigramModel? = nil) -> [PinyinCandidate] {
         let n = s.count
         var list: [PinyinCandidate] = []
         var seen = Set<String>()
@@ -237,24 +241,49 @@ public final class PinyinEngine {
             for e in dict.abbreviation(String(letters)).prefix(10) { add(e.word, n) }
         }
 
-        // Ghép câu: best[i] = (điểm, câu) tốt nhất cho s[i...]
+        // Ghép câu: Viterbi trái→phải trên lưới từ, mỗi vị trí giữ `beam` giả thuyết tốt nhất;
+        // điểm = Σ log P(w | từ trước) (bigram, hoặc chỉ unigram khi không có mô hình).
         var matchesAt: [[WordMatch]] = Array(repeating: [], count: n + 1)
         for i in 0..<n {
             matchesAt[i] = words(from: i, in: s, dict: dict, aliases: aliases)
         }
-        var best: [(score: Double, text: String, words: Int)?] = Array(repeating: nil, count: n + 1)
-        best[n] = (0, "", 0)
-        for i in stride(from: n - 1, through: 0, by: -1) {
-            if s[i] == "'", let next = best[i + 1] { best[i] = next; continue }
+        struct Hyp { let score: Double; let word: String; let prev: (pos: Int, idx: Int)?; let words: Int }
+        let beam = 8, alternatives = bigram == nil ? 1 : 5   // giả thuyết giữ mỗi vị trí; từ thay thế xét cho mỗi đoạn
+        var hyps: [[Hyp]] = Array(repeating: [], count: n + 1)
+        hyps[0] = [Hyp(score: 0, word: "", prev: nil, words: 0)]
+        func push(_ h: Hyp, at pos: Int) {
+            var list = hyps[pos]
+            if list.count >= beam, let worst = list.indices.min(by: { list[$0].score < list[$1].score }) {
+                guard h.score > list[worst].score else { return }
+                list.remove(at: worst)
+            }
+            list.append(h)
+            hyps[pos] = list
+        }
+        for i in 0..<n {
+            if s[i] == "'" { for h in hyps[i] { push(h, at: i + 1) }; continue }
+            guard !hyps[i].isEmpty else { continue }
             for m in matchesAt[i] {
-                guard let rest = best[m.end], let top = m.entries.first else { continue }
-                let score = log(Double(max(top.weight, 1))) - 20 + rest.score
-                if best[i] == nil || score > best[i]!.score {
-                    best[i] = (score, top.word + rest.text, rest.words + 1)
+                for e in m.entries.prefix(alternatives) {
+                    let p = Double(max(e.weight, 1)) / dict.totalWeight
+                    for (hi, h) in hyps[i].enumerated() {
+                        let lp = h.prev == nil || bigram == nil ? log(p) : bigram!.logProb(h.word, e.word, unigram: p)
+                        push(Hyp(score: h.score + lp, word: e.word, prev: (i, hi), words: h.words + 1), at: m.end)
+                    }
                 }
             }
         }
-        if let sentence = best[0], sentence.words > 1 { add(sentence.text, n) }
+        if let last = hyps[n].max(by: { $0.score < $1.score }), last.words > 1 {
+            var parts: [String] = []
+            var cur: Hyp? = last
+            var pos = n
+            while let h = cur, let prev = h.prev {
+                parts.append(h.word)
+                pos = prev.pos
+                cur = hyps[pos][prev.idx]
+            }
+            add(parts.reversed().joined(), n)
+        }
 
         // Từ bắt đầu ở đầu chuỗi: dài trước, rồi theo weight
         let starts = matchesAt[0].sorted { $0.end > $1.end }

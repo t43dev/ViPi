@@ -76,7 +76,7 @@ Nếu bạn viết cả tiếng Việt lẫn tiếng Trung, máy Mac của bạn
 | `nihao` | **你好** | pinyin đầy đủ, `v` = ü |
 | `nh` | **你好** | chỉ gõ phụ âm đầu |
 | `nih` | **你好** | âm cuối gõ dở vẫn ra chữ |
-| `woshizhongguoren` | **我是中国人** | gõ cả câu một lần |
+| `woshizhongguoren` | **我是中国人** | gõ cả câu một lần, mỗi từ chọn theo từ đứng trước (`wozaixuexi` → 我在学习, không phải 再) |
 | `xi'an` | **西安** | `'` để tách âm |
 
 `1`–`9` hoặc `Space` để chọn · `←` `→` di chuyển · `-` `=` hoặc `↑` `↓` lật trang · `Enter` gõ nguyên pinyin · `Esc` huỷ · dấu câu toàn khổ `，。？！`
@@ -162,4 +162,4 @@ Muốn tự build? Xem [docs/development.md](docs/development.md).
 
 ## 📄 Giấy phép
 
-GPL-3.0. Quy tắc Telex và bảng nguyên âm theo [UniKey](https://www.unikey.org) (GPL); từ điển Pinyin lấy từ [rime-ice](https://github.com/iDvel/rime-ice) (GPL-3.0); danh sách âm tiết tiếng Việt lấy từ [danh sách từ của Hồ Ngọc Đức](https://github.com/duyet/vietnamese-wordlist) (GPL); bảng chuyển giản→phồn thể lấy từ [OpenCC](https://github.com/BYVoid/OpenCC) (Apache-2.0). Ý nghĩa màu đỏ vàng, chữ V–P lồng nhau và ngôi sao trên logo xem ở [assets/logo-meaning.md](assets/logo-meaning.md).
+GPL-3.0. Quy tắc Telex và bảng nguyên âm theo [UniKey](https://www.unikey.org) (GPL); từ điển Pinyin lấy từ [rime-ice](https://github.com/iDvel/rime-ice) (GPL-3.0); danh sách âm tiết tiếng Việt lấy từ [danh sách từ của Hồ Ngọc Đức](https://github.com/duyet/vietnamese-wordlist) (GPL); bảng chuyển giản→phồn thể lấy từ [OpenCC](https://github.com/BYVoid/OpenCC) (Apache-2.0); mô hình bigram từ rút từ mô hình ngôn ngữ của [libpinyin](https://github.com/libpinyin/libpinyin) (GPL-3.0). Ý nghĩa màu đỏ vàng, chữ V–P lồng nhau và ngôi sao trên logo xem ở [assets/logo-meaning.md](assets/logo-meaning.md).

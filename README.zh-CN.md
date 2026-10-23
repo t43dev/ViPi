@@ -76,7 +76,7 @@
 | `nihao` | **你好** | 全拼，`v` = ü |
 | `nh` | **你好** | 简拼（只打声母） |
 | `nih` | **你好** | 最后一个音节没打完也能出字 |
-| `woshizhongguoren` | **我是中国人** | 整句一次输入 |
+| `woshizhongguoren` | **我是中国人** | 整句一次输入，按上下文选词（`wozaixuexi` → 我在学习，而不是 再） |
 | `xi'an` | **西安** | 用 `'` 分隔音节 |
 
 `1`–`9` 或 `空格` 选词 · `←` `→` 移动 · `-` `=` 或 `↑` `↓` 翻页 · `回车` 输入原始拼音 · `Esc` 取消 · 全角标点 `，。？！`
@@ -162,4 +162,4 @@ ViPi 刚刚发布，如有不顺手的地方，欢迎在 [Issues](../../issues) 
 
 ## 📄 许可证
 
-GPL-3.0。Telex 规则和元音表参照 [UniKey](https://www.unikey.org)（GPL）；拼音词库来自 [rime-ice](https://github.com/iDvel/rime-ice)（GPL-3.0）；越南语音节表源自 [胡玉德（Hồ Ngọc Đức）的词表](https://github.com/duyet/vietnamese-wordlist)（GPL）；简繁转换表来自 [OpenCC](https://github.com/BYVoid/OpenCC)（Apache-2.0）。Logo 的红金配色、V–P 连笔和星星的含义见 [assets/logo-meaning.md](assets/logo-meaning.md)。
+GPL-3.0。Telex 规则和元音表参照 [UniKey](https://www.unikey.org)（GPL）；拼音词库来自 [rime-ice](https://github.com/iDvel/rime-ice)（GPL-3.0）；越南语音节表源自 [胡玉德（Hồ Ngọc Đức）的词表](https://github.com/duyet/vietnamese-wordlist)（GPL）；简繁转换表来自 [OpenCC](https://github.com/BYVoid/OpenCC)（Apache-2.0）；词语二元模型源自 [libpinyin](https://github.com/libpinyin/libpinyin) 的语言模型（GPL-3.0）。Logo 的红金配色、V–P 连笔和星星的含义见 [assets/logo-meaning.md](assets/logo-meaning.md)。

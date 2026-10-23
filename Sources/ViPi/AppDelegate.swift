@@ -102,9 +102,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             do {
                 let dict = try PinyinDictionary(contentsOf: url)
                 let s2t = Bundle.main.url(forResource: "s2t", withExtension: "tsv").flatMap { try? ChineseConverter(contentsOf: $0) }
+                let bigram = Bundle.main.url(forResource: "bigram", withExtension: "bin").flatMap { try? BigramModel(contentsOf: $0) }
                 DispatchQueue.main.async {
                     self.traditional = s2t
-                    self.controller.pinyin = PinyinEngine(dictionary: dict)
+                    let engine = PinyinEngine(dictionary: dict)
+                    engine.bigram = bigram
+                    self.controller.pinyin = engine
                     self.applyPreferences()   // engine mới sinh: áp âm mờ, phồn thể, học từ
                 }
             } catch {

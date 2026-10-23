@@ -76,7 +76,7 @@ If you write in Vietnamese and Chinese, your Mac probably looks like this:
 | `nihao` | **你好** | full pinyin, `v` = ü |
 | `nh` | **你好** | initials only |
 | `nih` | **你好** | unfinished last syllable |
-| `woshizhongguoren` | **我是中国人** | whole sentences in one go |
+| `woshizhongguoren` | **我是中国人** | whole sentences in one go, each word chosen from the one before it (`wozaixuexi` → 我在学习, not 再) |
 | `xi'an` | **西安** | `'` splits syllables |
 
 `1`–`9` or `Space` to pick · `←` `→` to move · `-` `=` or `↑` `↓` to page · `Enter` types the raw pinyin · `Esc` cancels · full-width punctuation `，。？！`
@@ -162,4 +162,4 @@ Want to build it yourself? See [docs/development.md](docs/development.md).
 
 ## 📄 License
 
-GPL-3.0. Telex rules and vowel tables follow [UniKey](https://www.unikey.org) (GPL); the Pinyin dictionary comes from [rime-ice](https://github.com/iDvel/rime-ice) (GPL-3.0); the Vietnamese syllable list is derived from [Ho Ngoc Duc's word list](https://github.com/duyet/vietnamese-wordlist) (GPL); the Simplified→Traditional tables come from [OpenCC](https://github.com/BYVoid/OpenCC) (Apache-2.0). The logo's red and gold, V–P ligature and star are explained in [assets/logo-meaning.md](assets/logo-meaning.md).
+GPL-3.0. Telex rules and vowel tables follow [UniKey](https://www.unikey.org) (GPL); the Pinyin dictionary comes from [rime-ice](https://github.com/iDvel/rime-ice) (GPL-3.0); the Vietnamese syllable list is derived from [Ho Ngoc Duc's word list](https://github.com/duyet/vietnamese-wordlist) (GPL); the Simplified→Traditional tables come from [OpenCC](https://github.com/BYVoid/OpenCC) (Apache-2.0); the word bigram model is derived from [libpinyin](https://github.com/libpinyin/libpinyin)'s language model (GPL-3.0). The logo's red and gold, V–P ligature and star are explained in [assets/logo-meaning.md](assets/logo-meaning.md).
