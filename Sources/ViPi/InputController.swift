@@ -347,9 +347,25 @@ enum KeySender {
     static let marker: Int64 = 0x5669_5069   // "ViPi"
     private static let source = CGEventSource(stateID: .privateState)
 
+    /// Thanh địa chỉ trình duyệt tự điền phần gợi ý (bôi chọn) ngay sau chữ đang gõ; Backspace đầu tiên
+    /// chỉ xoá phần gợi ý đó chứ không xoá chữ ("noojp" → "noộp"). Trong trình duyệt, gửi trước một ký tự
+    /// rỗng để ghi đè phần gợi ý rồi xoá thêm một lần; không có gợi ý thì ký tự đó bị xoá ngay, không để lại gì.
+    static let browsers = ["com.google.Chrome", "org.chromium.Chromium", "com.microsoft.edgemac", "com.brave.Browser",
+                           "com.vivaldi.Vivaldi", "company.thebrowser.Browser", "com.operasoftware.Opera",
+                           "com.apple.Safari", "org.mozilla.firefox", "com.kagi.kagimacOS"]
+    static var inBrowser: Bool {
+        guard let id = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else { return false }
+        return browsers.contains { id.hasPrefix($0) }
+    }
+
     static func send(_ edit: TextEdit, keyCode: CGKeyCode, proxy: CGEventTapProxy?) {
         DebugLog.line("  SEND bs=\(edit.backspaces) insert=\"\(edit.insert)\" keyCode=\(keyCode)")
-        for _ in 0..<edit.backspaces { post(key: CGKeyCode(kVK_Delete), text: nil, proxy: proxy) }
+        var backspaces = edit.backspaces
+        if backspaces > 0, inBrowser {
+            insert("\u{200C}", keyCode: keyCode, proxy: proxy)
+            backspaces += 1
+        }
+        for _ in 0..<backspaces { post(key: CGKeyCode(kVK_Delete), text: nil, proxy: proxy) }
         insert(edit.insert, keyCode: keyCode, proxy: proxy)
     }
 
