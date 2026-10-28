@@ -16,3 +16,7 @@ CI (`.github/workflows/build.yml`) runs the tests and uploads an unsigned build 
 The Pinyin dictionary `Resources/pinyin.tsv` is generated from [rime-ice](https://github.com/iDvel/rime-ice) by `scripts/build_pinyin_dict.py`.
 The word bigram model `Resources/bigram.bin` is built from [libpinyin](https://github.com/libpinyin/libpinyin)'s `interpolation2.text` by `scripts/make-bigram.py` (see the script header for the download).
 The Simplified→Traditional table `Resources/s2t.tsv` is `STCharacters.txt` + `STPhrases.txt` from [OpenCC](https://github.com/BYVoid/OpenCC), first variant of each entry, one `simplified<TAB>traditional` line each.
+
+## Website
+
+`site/` is the static page served at [vipi.t43.app](https://vipi.t43.app) (Cloudflare Pages project `vipi`). `scripts/site.sh` assembles `build/site` from it, the README screenshots, the syllable list and a cut-down Pinyin dictionary (`scripts/site-pinyin.py`); `scripts/site.sh deploy` also uploads it, using `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` from `.env`. The typing demo in `site/app.js` ports the Telex rules of `TelexEngine.swift`; keep them in step when the engine changes.

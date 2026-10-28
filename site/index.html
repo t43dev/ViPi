@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ViPi: Vietnamese and Chinese typing for Mac</title>
+<meta name="description" content="Telex and Pinyin in one small menu-bar app for macOS. One shortcut switches languages. Free, open source and fully offline.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfaf8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1c1011" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://vipi.t43.app/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://vipi.t43.app/">
+<meta property="og:title" content="ViPi: Vietnamese and Chinese on one Mac keyboard">
+<meta property="og:description" content="Telex and Pinyin in one small menu-bar app. One shortcut switches. Free, open source, offline.">
+<meta property="og:image" content="https://vipi.t43.app/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="img/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="img/logo-256.png">
+<link rel="preload" href="fonts/be-vietnam-pro-800-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="style.css">
+<script src="theme.js"></script>
+<script src="app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <a class="brand" href="#top" aria-label="ViPi home"><img src="img/logo.svg" alt="" width="32" height="32"><span>ViPi</span></a>
+  <nav aria-label="Sections">
+    <a href="#vietnamese">Vietnamese</a>
+    <a href="#chinese">Chinese</a>
+    <a href="#switch">Shortcut</a>
+    <a href="#faq">FAQ</a>
+    <a href="https://github.com/t43dev/ViPi">GitHub</a>
+  </nav>
+  <button class="theme" type="button" aria-label="Switch to dark appearance" title="Appearance">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></svg>
+  </button>
+</header>
+
+<main id="main">
+<section class="hero" id="top">
+  <div class="hero-copy">
+    <h1>Vietnamese and Chinese on one Mac keyboard.</h1>
+    <p class="lede">ViPi puts Telex and Pinyin in one small menu-bar app. Press <kbd>⌃</kbd>&#8239;<kbd>⇧</kbd> to change language. Free, open source, and it never goes online except to check for updates.</p>
+    <div class="cta">
+      <a class="button" href="https://github.com/t43dev/ViPi/releases/latest/download/ViPi.dmg">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Download for macOS
+      </a>
+      <p class="fine"><span data-version>Latest version</span>, macOS 13 or later, Apple silicon and Intel. Notarized by Apple.</p>
+    </div>
+  </div>
+
+  <div class="demo" aria-label="Typing demo">
+    <div class="demo-bar">
+      <span class="demo-title">Try it here</span>
+      <div class="modes" role="group" aria-label="Input language">
+        <button type="button" data-mode="vi" aria-pressed="true" title="Vietnamese Telex">VI</button>
+        <button type="button" data-mode="zh" aria-pressed="false" title="Chinese Pinyin" lang="zh">拼</button>
+        <button type="button" data-mode="en" aria-pressed="false" title="English">EN</button>
+      </div>
+    </div>
+    <div class="demo-field" id="demo-field">
+      <p class="demo-text" aria-hidden="true"><span class="committed"></span><span class="word"></span><span class="caret"></span></p>
+      <ol class="cands" lang="zh" hidden></ol>
+      <textarea class="demo-input" rows="1" aria-label="Type here to try ViPi" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+    </div>
+    <div class="tape" aria-hidden="true"></div>
+    <p class="demo-hint">Click and type. Telex in VI, pinyin in 拼. <kbd>⌃</kbd>&#8239;<kbd>⇧</kbd> switches, or pick a language above.</p>
+  </div>
+</section>
+
+<section class="band" id="vietnamese" aria-labelledby="vi-h">
+  <div class="band-head">
+    <h2 id="vi-h">Telex that keeps up with you</h2>
+    <p>The UniKey Telex you already know, with spell checking that knows every real Vietnamese syllable.</p>
+  </div>
+  <div class="band-body">
+    <dl class="specimen">
+      <div><dt><kbd class="typed">tieengs Vieetj</kbd></dt><dd><span class="out">tiếng Việt</span><span class="note"><kbd>aa</kbd> <kbd>aw</kbd> <kbd>ee</kbd> <kbd>oo</kbd> <kbd>ow</kbd> <kbd>uw</kbd> <kbd>dd</kbd>, tones with <kbd>s</kbd> <kbd>f</kbd> <kbd>r</kbd> <kbd>x</kbd> <kbd>j</kbd></span></dd></div>
+      <div><dt><kbd class="typed">tosan</kbd></dt><dd><span class="out">toán</span><span class="note">Put the tone key anywhere in the word.</span></dd></div>
+      <div><dt><kbd class="typed">ass</kbd></dt><dd><span class="out">as</span><span class="note">Press a key twice to take the mark back.</span></dd></div>
+      <div><dt><kbd class="typed">user data class</kbd></dt><dd><span class="out">user data class</span><span class="note">English words come back exactly as you typed them.</span></dd></div>
+      <div><dt><kbd class="typed">vn</kbd> <kbd>Space</kbd></dt><dd><span class="out">Việt Nam</span><span class="note">Your own text shortcuts. <kbd>VN</kbd> gives VIỆT NAM.</span></dd></div>
+    </dl>
+    <ul class="facts">
+      <li>Classic <em>hòa</em> or modern <em>hoà</em> tone placement.</li>
+      <li>Spell checking on or off.</li>
+      <li>Tested on a real Mac with all 8,329 valid syllables at 8 to 12 ms per key, and in Chrome at 3 ms per key, without losing a key or a mark.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="band" id="chinese" aria-labelledby="zh-h">
+  <div class="band-head">
+    <h2 id="zh-h">Pinyin with a real candidate window</h2>
+    <p>Candidates appear at the cursor. Whole sentences convert at once, each word chosen from the one before it.</p>
+    <figure class="cand-shot">
+      <img class="for-light" src="img/cand-light.png" width="289" height="57" alt="ViPi candidate window showing 你好 for nihao">
+      <img class="for-dark" src="img/cand-dark.png" width="289" height="57" alt="ViPi candidate window showing 你好 for nihao">
+    </figure>
+  </div>
+  <div class="band-body">
+    <dl class="specimen">
+      <div><dt><kbd class="typed">nihao</kbd></dt><dd><span class="out" lang="zh">你好</span><span class="note">Full pinyin, <kbd>v</kbd> for ü.</span></dd></div>
+      <div><dt><kbd class="typed">nh</kbd></dt><dd><span class="out" lang="zh">你好</span><span class="note">Initials only.</span></dd></div>
+      <div><dt><kbd class="typed">nih</kbd></dt><dd><span class="out" lang="zh">你好</span><span class="note">Leave the last syllable unfinished.</span></dd></div>
+      <div><dt><kbd class="typed">wozaixuexi</kbd></dt><dd><span class="out" lang="zh">我在学习</span><span class="note">A whole sentence in one go, with 在 rather than 再 from context.</span></dd></div>
+      <div><dt><kbd class="typed">xi'an</kbd></dt><dd><span class="out" lang="zh">西安</span><span class="note">An apostrophe splits syllables.</span></dd></div>
+    </dl>
+    <p class="keys"><kbd>1</kbd>–<kbd>9</kbd> or <kbd>Space</kbd> picks a candidate. <kbd>←</kbd> <kbd>→</kbd> move, <kbd>-</kbd> <kbd>=</kbd> or <kbd>↑</kbd> <kbd>↓</kbd> turn the page. <kbd>Enter</kbd> types the raw pinyin and <kbd>Esc</kbd> cancels. Punctuation is full width: <span lang="zh">，。？！</span></p>
+    <div class="trio">
+      <div>
+        <h3>Learns from you</h3>
+        <p>The words and phrases you pick come first next time. They are stored only on your Mac and clear with one click.</p>
+      </div>
+      <div>
+        <h3>Fuzzy pinyin</h3>
+        <p><span class="pairs">z/zh c/ch s/sh n/l f/h l/r an/ang en/eng in/ing</span>, each one optional, so <kbd>zongguo</kbd> still finds <span lang="zh">中国</span>.</p>
+      </div>
+      <div>
+        <h3>Simplified or Traditional</h3>
+        <p>One switch turns <span lang="zh">头发</span> into <span lang="zh-Hant">頭髮</span> and <span lang="zh">后天</span> into <span lang="zh-Hant">後天</span>, phrase by phrase.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band switch" id="switch" aria-labelledby="sw-h">
+  <div class="band-head">
+    <h2 id="sw-h">One shortcut for every language</h2>
+    <p>Like <kbd>⌘</kbd>&#8239;<kbd>Tab</kbd>, but for languages. Prefer <kbd>⌥</kbd>&#8239;<kbd>⇧</kbd> or <kbd>⌃</kbd>&#8239;<kbd>Space</kbd>? Change it in Settings.</p>
+  </div>
+  <div class="band-body">
+    <div class="chord" aria-hidden="true"><kbd class="cap">⌃<small>control</small></kbd><span>+</span><kbd class="cap">⇧<small>shift</small></kbd></div>
+    <div class="rotation">
+      <p><strong>Press once</strong> to go back to the language you used last.</p>
+      <p><strong>Press twice quickly</strong> for the one before that.</p>
+      <ol class="mru" aria-label="Most recently used order">
+        <li><span class="badge">VI</span></li>
+        <li><span class="badge" lang="zh">拼</span></li>
+        <li><span class="badge">EN</span></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="secure" aria-labelledby="se-h">
+  <div class="band-head">
+    <h2 id="se-h">When typing stops, ViPi tells you why</h2>
+    <p>A password field or a terminal can turn on macOS Secure Input, and every input method goes silent. ViPi's menu-bar icon turns into a lock and names the app holding it.</p>
+  </div>
+  <div class="band-body">
+    <div class="monitor" role="img" aria-label="Secure Input Monitor window naming Terminal as the app holding Secure Input">
+      <div class="monitor-bar"><span class="lock" aria-hidden="true"><svg viewBox="0 0 16 16" width="12" height="12"><rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></span><span>Secure Input Monitor</span></div>
+      <div class="monitor-body">
+        <p class="monitor-state">Secure Input is ON — typing is blocked</p>
+        <p>Held by Terminal (PID 812) · com.apple.Terminal</p>
+        <p class="monitor-since">Since 09:41:07</p>
+        <div class="monitor-actions"><span>Show App</span><span>Reveal in Finder</span><span>Quit Terminal</span></div>
+      </div>
+    </div>
+    <p class="after">Close that field or quit the app, and typing comes back. The window keeps a history with the time, app and path of every change.</p>
+  </div>
+</section>
+
+<section class="band" id="settings" aria-labelledby="st-h">
+  <div class="band-head">
+    <h2 id="st-h">Settings that fit on one screen</h2>
+    <ul class="facts">
+      <li>The interface speaks English, Tiếng Việt and <span lang="zh">简体中文</span>.</li>
+      <li>Light or dark, following macOS or your choice.</li>
+      <li>Updates itself: it checks GitHub, verifies the download is signed by the ViPi developer, and relaunches when you stop typing.</li>
+      <li>Starts at login and stays in the menu bar.</li>
+    </ul>
+  </div>
+  <div class="band-body">
+    <div class="tabs" role="tablist" aria-label="Settings tabs">
+      <button role="tab" id="tab-general" aria-controls="shot" aria-selected="true" data-shot="general">General</button>
+      <button role="tab" id="tab-vietnamese" aria-controls="shot" aria-selected="false" tabindex="-1" data-shot="vietnamese">Vietnamese</button>
+      <button role="tab" id="tab-chinese" aria-controls="shot" aria-selected="false" tabindex="-1" data-shot="chinese">Chinese</button>
+      <button role="tab" id="tab-shortcuts" aria-controls="shot" aria-selected="false" tabindex="-1" data-shot="shortcuts">Text shortcuts</button>
+    </div>
+    <figure class="shot" id="shot" role="tabpanel" aria-labelledby="tab-general">
+      <img class="for-light" src="img/settings-general-en-light.png" width="562" height="532" alt="ViPi General settings: language, appearance and switching shortcut">
+      <img class="for-dark" src="img/settings-general-en-dark.png" width="562" height="532" alt="ViPi General settings: language, appearance and switching shortcut">
+    </figure>
+  </div>
+</section>
+
+<section class="band promise" aria-labelledby="pr-h">
+  <div class="band-head">
+    <h2 id="pr-h">What you will not find</h2>
+  </div>
+  <div class="band-body">
+    <ul class="vows">
+      <li><strong>No price.</strong> Free forever under GPL-3.0. There is no Pro version.</li>
+      <li><strong>No tracking.</strong> Keystrokes are processed on your Mac and never leave it. The only network request is the update check to GitHub.</li>
+      <li><strong>No ads, no account, no nagging.</strong></li>
+      <li><strong>No warnings.</strong> ViPi is signed and notarized by Apple, so macOS opens it straight away and the Accessibility permission survives updates.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="band" id="start" aria-labelledby="go-h">
+  <div class="band-head">
+    <h2 id="go-h">Set up in under a minute</h2>
+  </div>
+  <div class="band-body">
+    <ol class="steps">
+      <li><a href="https://github.com/t43dev/ViPi/releases/latest/download/ViPi.dmg">Download ViPi.dmg</a>, open it and drag ViPi onto Applications.</li>
+      <li>Open ViPi and allow it in System Settings, Privacy &amp; Security, Accessibility. It starts working within two seconds.</li>
+      <li>Press <kbd>⌃</kbd>&#8239;<kbd>⇧</kbd> and type.</li>
+    </ol>
+    <p class="after">Turn off other Vietnamese input methods such as UniKey, EVKey or GoNhanh, and keep the plain ABC input source, so only ViPi changes what you type.</p>
+  </div>
+</section>
+
+<section class="band" id="faq" aria-labelledby="faq-h">
+  <div class="band-head">
+    <h2 id="faq-h">Questions</h2>
+  </div>
+  <div class="band-body faq">
+    <details>
+      <summary>ViPi suddenly stopped typing in every app</summary>
+      <p>Some app has turned on Secure Input: a password field, a terminal with Secure Keyboard Entry, or a password manager. The menu-bar icon shows a lock. Open Secure Input Monitor from the menu to see which app it is, then close that field or quit the app.</p>
+    </details>
+    <details>
+      <summary>An English word came out as Vietnamese</summary>
+      <p>Words that are also real Vietnamese syllables, such as <kbd>of</kbd> becoming ò, cannot be told apart automatically. Press the tone key twice (<kbd>off</kbd> gives of) or switch to English with <kbd>⌃</kbd>&#8239;<kbd>⇧</kbd>.</p>
+    </details>
+    <details>
+      <summary>Do I have to uninstall UniKey, EVKey or GoNhanh?</summary>
+      <p>No, just turn them off while you use ViPi. Two tools rewriting the same keystrokes fight each other.</p>
+    </details>
+    <details>
+      <summary>Which Macs are supported?</summary>
+      <p>macOS 13 Ventura or later, on Apple silicon and Intel.</p>
+    </details>
+    <details>
+      <summary>Does ViPi send what I type anywhere?</summary>
+      <p>No. Everything happens on your Mac. The learned Pinyin words stay in a file on your Mac, and the only request ViPi makes is the update check to GitHub.</p>
+    </details>
+    <details>
+      <summary>How do I uninstall it?</summary>
+      <p>Choose Quit ViPi from its menu, then drag ViPi from Applications to the Trash.</p>
+    </details>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="foot-brand"><img src="img/logo.svg" alt="" width="40" height="40"><p>ViPi is free software under GPL-3.0.<br>Found a problem? <a href="https://github.com/t43dev/ViPi/issues">Open an issue</a>.</p></div>
+  <p class="credits">Telex rules follow <a href="https://www.unikey.org">UniKey</a>. The Pinyin dictionary comes from <a href="https://github.com/iDvel/rime-ice">rime-ice</a>, the word model from <a href="https://github.com/libpinyin/libpinyin">libpinyin</a>, Traditional tables from <a href="https://github.com/BYVoid/OpenCC">OpenCC</a>, and the syllable list from <a href="https://github.com/duyet/vietnamese-wordlist">Hồ Ngọc Đức's word list</a>. Set in Be Vietnam Pro.</p>
+  <nav class="foot-links" aria-label="Project">
+    <a href="https://github.com/t43dev/ViPi">Source code</a>
+    <a href="https://github.com/t43dev/ViPi/releases">All releases</a>
+    <a href="https://github.com/t43dev/ViPi/blob/main/LICENSE">License</a>
+  </nav>
+</footer>
+</body>
+</html>
