@@ -164,16 +164,17 @@ final class InputController {
             if let ascii, (0x20...0x7E).contains(ascii) || isSpace,
                let edit = macro ?? telex.finishWord() {
                 // gõ nhanh thì phím chữ cuối có thể còn đang giữ: mượn mã của chính phím Space (app chưa thấy nó)
-                KeySender.send(edit, keyCode: ascii == 0x20 ? CGKeyCode(kVK_Space) : self.keyCode, proxy: proxy)
+                KeySender.send(edit, wholeWord: true, keyCode: ascii == 0x20 ? CGKeyCode(kVK_Space) : self.keyCode, proxy: proxy)
                 KeySender.repost(event, proxy: proxy)
                 return true
             }
             telex.reset()
             return false
         }
+        let shown = telex.output.count
         let edit = telex.type(ch)
         if edit.backspaces == 0, edit.insert == typed { return false }   // để phím gốc đi qua
-        KeySender.send(edit, keyCode: self.keyCode, proxy: proxy)
+        KeySender.send(edit, wholeWord: edit.backspaces == shown, keyCode: self.keyCode, proxy: proxy)
         return true
     }
 
@@ -196,7 +197,7 @@ final class InputController {
         englishWord = ""
         atWordStart = isSpace
         guard expand, let text = macros.expansion(for: word) else { return false }
-        KeySender.send(TextEdit(backspaces: word.count, insert: text),
+        KeySender.send(TextEdit(backspaces: word.count, insert: text), wholeWord: true,
                        keyCode: ascii == 0x20 ? CGKeyCode(kVK_Space) : self.keyCode, proxy: proxy)
         KeySender.repost(event, proxy: proxy)
         return true
@@ -348,22 +349,70 @@ enum KeySender {
     private static let source = CGEventSource(stateID: .privateState)
 
     /// Thanh địa chỉ trình duyệt tự điền phần gợi ý (bôi chọn) ngay sau chữ đang gõ; Backspace đầu tiên
-    /// chỉ xoá phần gợi ý đó chứ không xoá chữ ("noojp" → "noộp"). Trong trình duyệt, gửi trước một ký tự
+    /// chỉ xoá phần gợi ý đó chứ không xoá chữ ("noojp" → "noộp"). Ở thanh địa chỉ, gửi trước một ký tự
     /// rỗng để ghi đè phần gợi ý rồi xoá thêm một lần; không có gợi ý thì ký tự đó bị xoá ngay, không để lại gì.
+    /// Trong trang web, vài ô soạn thảo (chat.b.ai) tự xoá dấu cách cuối khi Backspace làm chữ kết thúc bằng
+    /// khoảng trắng: thay cả từ bằng Backspace ăn mất dấu cách trước từ ("code được" → "codeđược"). Ở đó thay
+    /// cả từ bằng cách bôi chọn (Shift+←) rồi gõ đè. Chỉ làm khi thay cả từ: terminal web (xterm.js) không bôi
+    /// chọn được bằng Shift+←, còn sửa giữa từ thì Backspace không bao giờ để lại khoảng trắng cuối.
     static let browsers = ["com.google.Chrome", "org.chromium.Chromium", "com.microsoft.edgemac", "com.brave.Browser",
                            "com.vivaldi.Vivaldi", "company.thebrowser.Browser", "com.operasoftware.Opera",
                            "com.apple.Safari", "org.mozilla.firefox", "com.kagi.kagimacOS"]
-    static var inBrowser: Bool {
-        guard let id = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else { return false }
-        return browsers.contains { id.hasPrefix($0) }
+
+    enum Focus { case addressBar, webPage, other }
+    private static var lastFocus: AXUIElement?
+    private static var lastKind = Focus.other
+
+    /// Ô đang focus trong trình duyệt: trong trang web (có tổ tiên AXWebArea), thanh địa chỉ (ô nhập một dòng
+    /// ngoài trang), hay không rõ (không phải trình duyệt / Accessibility không trả lời): gõ như app thường.
+    static var focus: Focus {
+        guard let id = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+              browsers.contains(where: { id.hasPrefix($0) }) else { return .other }
+        let system = AXUIElementCreateSystemWide()
+        AXUIElementSetMessagingTimeout(system, 0.15)
+        guard let focused = axElement(system, kAXFocusedUIElementAttribute) else { return .other }
+        if let lastFocus, CFEqual(lastFocus, focused) { return lastKind }
+        let role = axString(focused, kAXRoleAttribute)
+        var kind = role == "AXTextField" || role == "AXComboBox" ? Focus.addressBar : .other
+        var node = axElement(focused, kAXParentAttribute)
+        for _ in 0..<64 {
+            guard let n = node else { break }
+            if axString(n, kAXRoleAttribute) == "AXWebArea" { kind = .webPage; break }
+            node = axElement(n, kAXParentAttribute)
+        }
+        lastFocus = focused
+        lastKind = kind
+        DebugLog.line("  focus role=\(role ?? "?") kind=\(kind)")
+        return kind
     }
 
-    static func send(_ edit: TextEdit, keyCode: CGKeyCode, proxy: CGEventTapProxy?) {
-        DebugLog.line("  SEND bs=\(edit.backspaces) insert=\"\(edit.insert)\" keyCode=\(keyCode)")
+    private static func axElement(_ e: AXUIElement, _ attr: String) -> AXUIElement? {
+        var ref: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(e, attr as CFString, &ref) == .success, let ref,
+              CFGetTypeID(ref) == AXUIElementGetTypeID() else { return nil }
+        return (ref as! AXUIElement)
+    }
+
+    private static func axString(_ e: AXUIElement, _ attr: String) -> String? {
+        var ref: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(e, attr as CFString, &ref) == .success else { return nil }
+        return ref as? String
+    }
+
+    /// `wholeWord`: `edit` xoá hết từ đang gõ (xoá lùi tới tận đầu từ).
+    static func send(_ edit: TextEdit, wholeWord: Bool, keyCode: CGKeyCode, proxy: CGEventTapProxy?) {
+        DebugLog.line("  SEND bs=\(edit.backspaces) insert=\"\(edit.insert)\" keyCode=\(keyCode) whole=\(wholeWord)")
         var backspaces = edit.backspaces
-        if backspaces > 0, inBrowser {
-            insert("\u{200C}", keyCode: keyCode, proxy: proxy)
-            backspaces += 1
+        if backspaces > 0 {
+            switch focus {
+            case .addressBar:
+                insert("\u{200C}", keyCode: keyCode, proxy: proxy)
+                backspaces += 1
+            case .webPage where wholeWord:
+                for _ in 0..<backspaces { post(key: CGKeyCode(kVK_LeftArrow), text: nil, flags: .maskShift, proxy: proxy) }
+                backspaces = edit.insert.isEmpty ? 1 : 0   // không còn chữ để gõ đè: xoá phần đã bôi chọn
+            default: break
+            }
         }
         for _ in 0..<backspaces { post(key: CGKeyCode(kVK_Delete), text: nil, proxy: proxy) }
         insert(edit.insert, keyCode: keyCode, proxy: proxy)
@@ -380,10 +429,10 @@ enum KeySender {
         for ch in text { post(key: keyCode, text: String(ch), proxy: proxy) }
     }
 
-    private static func post(key: CGKeyCode, text: String?, proxy: CGEventTapProxy?) {
+    private static func post(key: CGKeyCode, text: String?, flags: CGEventFlags = [], proxy: CGEventTapProxy?) {
         for down in [true, false] {
             guard let e = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: down) else { continue }
-            e.flags = []
+            e.flags = flags
             if let text {
                 let units = Array(text.utf16)
                 e.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
