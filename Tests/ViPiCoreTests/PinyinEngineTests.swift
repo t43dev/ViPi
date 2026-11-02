@@ -6,8 +6,8 @@ final class PinyinEngineTests: XCTestCase {
     static let dict: PinyinDictionary = {
         let url = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Resources/pinyin.tsv")
-        return try! PinyinDictionary(contentsOf: url)
+            .appendingPathComponent("Resources")
+        return try! PinyinDictionary(directory: url)
     }()
 
     private func top(_ input: String, _ n: Int = 5) -> [String] {
@@ -77,7 +77,7 @@ final class PinyinEngineTests: XCTestCase {
     static let s2t: ChineseConverter = {
         let url = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Resources/s2t.tsv")
+            .appendingPathComponent("Resources/s2t.bin")
         return try! ChineseConverter(contentsOf: url)
     }()
 
@@ -234,9 +234,9 @@ final class PinyinEngineTests: XCTestCase {
     func testLoadAndLookupSpeed() {
         let url = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Resources/pinyin.tsv")
+            .appendingPathComponent("Resources")
         let t0 = Date()
-        let d = try! PinyinDictionary(contentsOf: url)
+        let d = try! PinyinDictionary(directory: url)
         let load = Date().timeIntervalSince(t0)
         let e = PinyinEngine(dictionary: d)
         let t1 = Date()

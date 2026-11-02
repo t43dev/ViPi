@@ -1,24 +1,12 @@
 import Foundation
 
-/// Chuyển giản thể → phồn thể bằng bảng OpenCC (s2t.tsv: `giản<TAB>phồn`, cụm từ trước, từng chữ sau).
+/// Chuyển giản thể → phồn thể bằng bảng OpenCC (s2t.bin dựng từ s2t.tsv: `giản<TAB>phồn`, cụm từ trước, từng chữ sau).
 /// Khớp dài nhất trước, nên 头发 → 頭髮 còn 发 một mình → 發.
 public final class ChineseConverter {
-    private var table: [String: String] = [:]
-    private var prefixes: Set<String> = []   // mọi tiền tố của khoá, để dừng sớm khi dò
+    private let table: SortedTable
 
-    public convenience init(contentsOf url: URL) throws {
-        self.init(tsv: try String(contentsOf: url, encoding: .utf8))
-    }
-
-    public init(tsv: String) {
-        for line in tsv.split(separator: "\n") {
-            let cols = line.split(separator: "\t")
-            guard cols.count >= 2 else { continue }
-            let key = String(cols[0])
-            table[key] = String(cols[1])
-            var p = ""
-            for c in key { p.append(c); prefixes.insert(p) }
-        }
+    public init(contentsOf url: URL) throws {
+        table = try SortedTable(contentsOf: url)
     }
 
     public func convert(_ text: String) -> String {
@@ -31,8 +19,8 @@ public final class ChineseConverter {
             var j = i
             while j < s.count {
                 key.append(s[j])
-                guard prefixes.contains(key) else { break }
-                if let v = table[key] { best = (j - i + 1, v) }
+                guard table.hasKey(withPrefix: key) else { break }
+                if let v = table.value(for: key) { best = (j - i + 1, String(decoding: v, as: UTF8.self)) }
                 j += 1
             }
             if let best {

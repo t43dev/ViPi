@@ -94,15 +94,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: - Setup
 
     private func loadDictionary() {
-        guard let url = Bundle.main.url(forResource: "pinyin", withExtension: "tsv") else {
-            NSLog("ViPi: pinyin.tsv missing from app bundle")
-            return
-        }
+        guard let dir = Bundle.main.resourceURL else { return }
         DispatchQueue.global(qos: .userInitiated).async {
             do {
-                let dict = try PinyinDictionary(contentsOf: url)
-                let s2t = Bundle.main.url(forResource: "s2t", withExtension: "tsv").flatMap { try? ChineseConverter(contentsOf: $0) }
-                let bigram = Bundle.main.url(forResource: "bigram", withExtension: "bin").flatMap { try? BigramModel(contentsOf: $0) }
+                let dict = try PinyinDictionary(directory: dir)
+                let s2t = try? ChineseConverter(contentsOf: dir.appendingPathComponent("s2t.bin"))
+                let bigram = try? BigramModel(contentsOf: dir.appendingPathComponent("bigram.bin"))
                 DispatchQueue.main.async {
                     self.traditional = s2t
                     let engine = PinyinEngine(dictionary: dict)

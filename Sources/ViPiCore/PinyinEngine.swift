@@ -10,48 +10,66 @@ public struct PinyinEntry: Equatable {
 }
 
 public final class PinyinDictionary {
-    private(set) var words: [String: [PinyinEntry]] = [:]   // "ni hao" → [你好, 拟好...] theo weight giảm dần
-    private(set) var abbrev: [String: [PinyinEntry]] = [:]  // "nh" → từ 2-4 chữ viết tắt bằng phụ âm đầu
-    public private(set) var syllables: Set<String> = []
-    private var byPrefix: [String: [String]] = [:]          // "zh" → [zha, zhai, ...]
-    private(set) var keyPrefixes: Set<String> = []          // "ni", "ni hao" của khoá "ni hao ma": cắt nhánh khi dò
-    public private(set) var totalWeight: Double = 0         // tổng weight: P(w) = weight / totalWeight
+    private let words: SortedTable    // "ni hao" → [你好, 拟好...] theo weight giảm dần (pinyin-words.bin)
+    private let abbrev: SortedTable   // "nh" → vị trí các mục trong words: từ 2-4 chữ viết tắt bằng phụ âm đầu
+    public let syllables: Set<String>
+    private let byPrefix: [String: [String]]          // "zh" → [zha, zhai, ...]
+    public let totalWeight: Double                    // tổng weight: P(w) = weight / totalWeight
     let maxSyllableLength = 6
 
-    public convenience init(contentsOf url: URL) throws {
-        try self.init(tsv: String(contentsOf: url, encoding: .utf8))
-    }
-
-    /// Dòng: `word<TAB>pin yin<TAB>weight`.
-    public init(tsv: String) {
-        for line in tsv.split(separator: "\n", omittingEmptySubsequences: true) {
-            let cols = line.split(separator: "\t", omittingEmptySubsequences: false)
-            guard cols.count >= 2 else { continue }
-            let word = String(cols[0]), key = String(cols[1])
-            let entry = PinyinEntry(word: word, weight: cols.count > 2 ? Int(cols[2]) ?? 0 : 0)
-            totalWeight += Double(max(entry.weight, 1))
-            words[key, default: []].append(entry)
-            let sylls = key.split(separator: " ")
-            if sylls.count == 1 { syllables.insert(key) }
-            if (2...4).contains(sylls.count) {
-                abbrev[String(sylls.map { $0.first! }), default: []].append(entry)
-            }
-            var p = ""
-            for s in sylls {
-                p += p.isEmpty ? String(s) : " " + s
-                keyPrefixes.insert(p)
-            }
+    /// `directory` chứa pinyin-words.bin và pinyin-abbrev.bin (scripts/build-tables.py từ pinyin.tsv).
+    public init(directory: URL) throws {
+        words = try SortedTable(contentsOf: directory.appendingPathComponent("pinyin-words.bin"))
+        abbrev = try SortedTable(contentsOf: directory.appendingPathComponent("pinyin-abbrev.bin"))
+        totalWeight = words.meta
+        var syllables = Set<String>()
+        for i in 0..<words.count where !words.key(at: i).contains(0x20) {
+            syllables.insert(String(decoding: words.key(at: i), as: UTF8.self))
         }
-        for k in words.keys { words[k]!.sort { $0.weight > $1.weight } }
-        for k in abbrev.keys { abbrev[k] = Array(abbrev[k]!.sorted { $0.weight > $1.weight }.prefix(30)) }
+        var byPrefix: [String: [String]] = [:]
         for s in syllables {
             for n in 1..<s.count { byPrefix[String(s.prefix(n)), default: []].append(s) }
         }
+        self.syllables = syllables
+        self.byPrefix = byPrefix
     }
 
-    func lookup(_ key: String) -> [PinyinEntry] { words[key] ?? [] }
-    func abbreviation(_ key: String) -> [PinyinEntry] { abbrev[key] ?? [] }
+    func lookup(_ key: String) -> [PinyinEntry] {
+        guard let v = words.value(for: key) else { return [] }
+        var out: [PinyinEntry] = [], o = 0
+        while o < v.count { out.append(Self.entry(v, at: &o)) }
+        return out
+    }
+
+    func abbreviation(_ key: String) -> [PinyinEntry] {
+        guard let refs = abbrev.value(for: key) else { return [] }
+        return stride(from: 0, to: refs.count, by: 4).map { i in
+            let at = Int(refs.loadUnaligned(fromByteOffset: i, as: UInt32.self).littleEndian)
+            let n = Int(words.values(offset: at, count: 1)[0])
+            var o = 0
+            return Self.entry(words.values(offset: at, count: 1 + n + 4), at: &o)
+        }
+    }
+
     func completions(of prefix: String) -> [String] { byPrefix[prefix] ?? [] }
+
+    /// "ni", "ni hao" là đầu (theo âm tiết) của khoá "ni hao ma": cắt nhánh khi dò.
+    func hasKeyPrefix(_ prefix: String) -> Bool {
+        let p = Array(prefix.utf8)
+        let i = words.lowerBound(p)
+        guard i < words.count else { return false }
+        let k = words.key(at: i)
+        return k.count == p.count ? k.elementsEqual(p) : k.starts(with: p + [0x20])
+    }
+
+    /// Mục: độ dài từ (1 byte), từ UTF-8, weight (u32).
+    private static func entry(_ v: UnsafeRawBufferPointer, at o: inout Int) -> PinyinEntry {
+        let n = Int(v[o])
+        let word = String(decoding: UnsafeRawBufferPointer(rebasing: v[(o + 1)..<(o + 1 + n)]), as: UTF8.self)
+        let weight = Int(v.loadUnaligned(fromByteOffset: o + 1 + n, as: UInt32.self).littleEndian)
+        o += 1 + n + 4
+        return PinyinEntry(word: word, weight: weight)
+    }
 }
 
 public struct PinyinCandidate: Equatable {
@@ -200,7 +218,7 @@ public final class PinyinEngine {
                 for o in options {
                     let key = prefix + [o.syllable]
                     let joined = key.joined(separator: " ")
-                    guard dict.keyPrefixes.contains(joined) else { continue }
+                    guard dict.hasKeyPrefix(joined) else { continue }
                     let found = dict.lookup(joined)
                     if !found.isEmpty {
                         let entries = o.fuzzy ? found.map { PinyinEntry(word: $0.word, weight: $0.weight / 8) } : found
