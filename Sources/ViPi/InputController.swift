@@ -32,6 +32,9 @@ final class InputController {
     var shortcut = SwitchShortcut.default { didSet { chordArmed = false } }
     var macros: MacroTable?            // gõ tắt khi gõ tiếng Việt, nil: tắt
     var englishMacros: MacroTable?     // gõ tắt khi gõ tiếng Anh, nil: tắt
+    var autoSwitch: AutoSwitch?        // tự đổi Anh/Việt khi kết thúc từ (thử nghiệm), nil: tắt
+    var onAutoSwitch: ((InputMode) -> Void)?
+    private var autoSwitchPausedUntil = Date.distantPast
     private var englishWord = ""       // chữ cái của từ đang gõ ở chế độ tiếng Anh
     private var atWordStart = true      // từ đang gõ đứng sau dấu cách/đầu dòng (không dính sau số, @, ...)
     var isRecordingShortcut = false     // đang ghi phím tắt trong Settings: để mọi phím đi qua
@@ -158,15 +161,30 @@ final class InputController {
             // tiếng Việt thì gõ lại như đã gõ ("ủe" → "user"), rồi mới cho phím kết thúc từ đi qua
             let ascii = typed.count == 1 ? typed.first?.asciiValue : nil
             let isSpace = ascii == 0x20 || ascii == 0x0D || ascii == 0x09
+            let word = telex.keys, shown = telex.output
             // gõ tắt chỉ khi từ đứng riêng và kết thúc bằng Space/Enter/Tab: "call2vn@" giữ nguyên
             let macro = isSpace && atWordStart ? macros.flatMap(telex.expandMacro) : nil
+            let auto = atWordStart ? activeAutoSwitch(typed) : nil
             atWordStart = isSpace
-            if let ascii, (0x20...0x7E).contains(ascii) || isSpace,
-               let edit = macro ?? telex.finishWord() {
-                // gõ nhanh thì phím chữ cuối có thể còn đang giữ: mượn mã của chính phím Space (app chưa thấy nó)
-                KeySender.send(edit, wholeWord: true, keyCode: ascii == 0x20 ? CGKeyCode(kVK_Space) : self.keyCode, proxy: proxy)
-                KeySender.repost(event, proxy: proxy)
-                return true
+            if let ascii, (0x20...0x7E).contains(ascii) || isSpace {
+                var edit = macro, switchTo: InputMode?
+                // tự đổi: từ tiếng Anh gõ ở chế độ tiếng Việt ("server", "more") → trả lại phím đã gõ, sang tiếng Anh
+                if edit == nil, let auto, auto.prefersEnglish(keys: word, shown: shown) {
+                    edit = TextEdit(backspaces: shown.count, insert: String(word))
+                    switchTo = .english
+                } else if edit == nil, let restored = telex.finishWord() {
+                    edit = restored
+                    if auto?.isForeign(keys: word, shown: shown) == true { switchTo = .english }
+                }
+                autoSwitch?.remember(ascii == 0x20 && !word.isEmpty ? word : nil)
+                if let edit {
+                    // gõ nhanh thì phím chữ cuối có thể còn đang giữ: mượn mã của chính phím Space (app chưa thấy nó)
+                    KeySender.send(edit, wholeWord: true, keyCode: ascii == 0x20 ? CGKeyCode(kVK_Space) : self.keyCode, proxy: proxy)
+                    KeySender.repost(event, proxy: proxy)
+                    telex.reset()
+                    if let switchTo { onAutoSwitch?(switchTo) }
+                    return true
+                }
             }
             telex.reset()
             return false
@@ -180,7 +198,7 @@ final class InputController {
 
     /// Tiếng Anh: mọi phím đi qua, chỉ nhớ từ đang gõ để thay gõ tắt khi kết thúc bằng Space/Enter/Tab.
     private func handleEnglish(_ keyCode: Int, _ typed: String, _ event: CGEvent) -> Bool {
-        guard let macros = englishMacros else { return false }
+        guard englishMacros != nil || autoSwitch != nil else { return false }
         if keyCode == kVK_Delete {
             englishWord = String(englishWord.dropLast())
             return false
@@ -193,15 +211,36 @@ final class InputController {
         let ascii = typed.count == 1 ? typed.first?.asciiValue : nil
         let isSpace = ascii == 0x20 || ascii == 0x0D || ascii == 0x09
         let word = englishWord
-        let expand = isSpace && atWordStart
+        let started = atWordStart
         englishWord = ""
         atWordStart = isSpace
-        guard expand, let text = macros.expansion(for: word) else { return false }
+        var text = isSpace && started ? englishMacros?.expansion(for: word) : nil
+        var switchTo: InputMode?
+        // tự đổi: chữ Telex gõ ở chế độ tiếng Anh ("treen") → chữ tiếng Việt, sang tiếng Việt
+        if text == nil, started, let auto = activeAutoSwitch(typed),
+           let vietnamese = auto.vietnamese(for: Array(word), modern: telex.modernToneStyle) {
+            text = vietnamese
+            switchTo = .vietnamese
+        }
+        autoSwitch?.remember(ascii == 0x20 && !word.isEmpty ? Array(word) : nil)
+        guard let text else { return false }
         KeySender.send(TextEdit(backspaces: word.count, insert: text), wholeWord: true,
                        keyCode: ascii == 0x20 ? CGKeyCode(kVK_Space) : self.keyCode, proxy: proxy)
         KeySender.repost(event, proxy: proxy)
+        if let switchTo { onAutoSwitch?(switchTo) }
         return true
     }
+
+    /// Tự đổi đang bật, không trong 5 giây sau một lần đổi tay, và phím kết thúc từ là Space/Enter/Tab
+    /// hoặc dấu câu sau một từ ("nhes." → "nhé.").
+    private func activeAutoSwitch(_ typed: String) -> AutoSwitch? {
+        guard let autoSwitch, Date() >= autoSwitchPausedUntil, typed.count == 1,
+              let c = typed.first, " \r\t,.;!?)'\"".contains(c) else { return nil }
+        return autoSwitch
+    }
+
+    /// Người dùng tự đổi bộ gõ: tạm dừng tự đổi 5 giây (cách của Vikey).
+    func pauseAutoSwitch() { autoSwitchPausedUntil = Date().addingTimeInterval(5) }
 
     private func handleChinese(_ keyCode: Int, _ typed: String) -> Bool {
         guard let py = pinyin else { return false }
@@ -293,6 +332,7 @@ final class InputController {
 
     func cancelComposition() {
         atWordStart = true
+        autoSwitch?.remember(nil)
         englishWord = ""
         telex.reset()
         pinyin?.reset()

@@ -50,6 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Bấm 1 lần: về bộ gõ trước đó. Bấm liên tiếp (< 0.8 s): đi tiếp các bộ còn lại theo thứ tự dùng gần nhất.
     private func switchMode() {
+        controller.pauseAutoSwitch()
         let now = Date()
         var run = switchRun.flatMap { now.timeIntervalSince($0.at) < 0.8 ? $0 : nil } ?? (order: recent, step: 0, at: now)
         run.step += 1
@@ -75,6 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         prefs.onChange = { [weak self] in self?.applyPreferences() }
         applyPreferences()
         controller.onCycleMode = { [weak self] in self?.switchMode() }
+        controller.onAutoSwitch = { [weak self] in self?.setMode($0) }
 
         secureInput.onChange = { [weak self] in self?.updateIcon() }
         secureInput.start()
@@ -194,7 +196,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: - Actions
 
     @objc private func selectMode(_ sender: NSMenuItem) {
-        if let raw = sender.representedObject as? String, let m = InputMode(rawValue: raw) { setMode(m) }
+        if let raw = sender.representedObject as? String, let m = InputMode(rawValue: raw) {
+            controller.pauseAutoSwitch()
+            setMode(m)
+        }
     }
 
     @objc private func showSettings() { settingsWindow.show() }
@@ -206,6 +211,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         controller.macros = prefs.macrosEnabled ? prefs.macroTable : nil
         controller.englishMacros = prefs.macrosInEnglish ? prefs.macroTable : nil
         controller.fullWidthPunctuation = prefs.fullWidthPunctuation
+        if !prefs.autoSwitch {
+            controller.autoSwitch = nil
+        } else if controller.autoSwitch == nil, let auto = loadAutoSwitch() {
+            controller.autoSwitch = auto
+            if mode != .english { setMode(.english) }   // vừa bật (hoặc mở app): bắt đầu ở tiếng Anh
+        }
         if let py = controller.pinyin {
             if py.fuzzyRules != prefs.fuzzyRules { py.fuzzyRules = prefs.fuzzyRules }
             let converter = prefs.traditionalChinese ? traditional : nil
@@ -218,6 +229,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         aboutWindow.relocalize()
         secureWindow.relocalize()
         updateIcon()
+    }
+
+    private func loadAutoSwitch() -> AutoSwitch? {
+        func text(_ name: String) -> String? {
+            Bundle.main.url(forResource: name, withExtension: "tsv").flatMap { try? String(contentsOf: $0, encoding: .utf8) }
+        }
+        guard let vi = text("autoswitch-vi"), let en = text("autoswitch-en") else { return nil }
+        return AutoSwitch(vietnamese: vi, english: en)
     }
 
     @objc private func showSecureInput() { secureWindow.show() }

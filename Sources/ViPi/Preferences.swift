@@ -67,6 +67,7 @@ final class Preferences: ObservableObject {
     @Published var modernToneStyle: Bool { didSet { save(modernToneStyle, "modernToneStyle") } }
     @Published var spellCheck: Bool { didSet { save(spellCheck, "spellCheck") } }
     @Published var restoreNonVietnamese: Bool { didSet { save(restoreNonVietnamese, "restoreNonVietnamese") } }
+    @Published var autoSwitch: Bool { didSet { save(autoSwitch, "autoSwitch") } }                          // tự đổi Anh/Việt (thử nghiệm)
     @Published var macrosEnabled: Bool { didSet { save(macrosEnabled, "macrosEnabled") } }      // gõ tắt khi gõ tiếng Việt
     @Published var macrosInEnglish: Bool { didSet { save(macrosInEnglish, "macrosInEnglish") } }
     @Published var macros: [Macro] { didSet { saveJSON(macros, "macros") } }
@@ -87,7 +88,7 @@ final class Preferences: ObservableObject {
 
     init() {
         defaults.register(defaults: [
-            "modernToneStyle": false, "spellCheck": true, "restoreNonVietnamese": true,
+            "modernToneStyle": false, "spellCheck": true, "restoreNonVietnamese": true, "autoSwitch": false,
             "macrosEnabled": true, "macrosInEnglish": false, "fullWidthPunctuation": true,
             "traditionalChinese": false, "learnWords": true,
         ])
@@ -95,6 +96,7 @@ final class Preferences: ObservableObject {
         modernToneStyle = defaults.bool(forKey: "modernToneStyle")
         spellCheck = defaults.bool(forKey: "spellCheck")
         restoreNonVietnamese = defaults.bool(forKey: "restoreNonVietnamese")
+        autoSwitch = defaults.bool(forKey: "autoSwitch")
         macrosEnabled = defaults.bool(forKey: "macrosEnabled")
         macrosInEnglish = defaults.bool(forKey: "macrosInEnglish")
         macros = Self.loadJSON(defaults, "macros") ?? [

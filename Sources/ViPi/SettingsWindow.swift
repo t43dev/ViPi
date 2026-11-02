@@ -107,6 +107,10 @@ struct SettingsView: View {
                 caption(tr("When a word ends and the result is not a real Vietnamese syllable, retype the keys you pressed: user, data, more."))
             }
             Section {
+                Toggle(tr("Switch between Vietnamese and English automatically"), isOn: $prefs.autoSwitch)
+                caption(tr("Experimental. Type Telex in English and treen becomes trên, then ViPi switches to Vietnamese. English words typed in Vietnamese, such as server or this makes, come back as typed and ViPi switches to English. Turning this on switches to English. Word lists from Vikey."))
+            }
+            Section {
                 Picker(tr("Tone placement"), selection: $prefs.modernToneStyle) {
                     Text(tr("Classic (hòa, khỏe, thúy)")).tag(false)
                     Text(tr("Modern (hoà, khoẻ, thuý)")).tag(true)
