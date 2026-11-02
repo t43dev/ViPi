@@ -2498,7 +2498,6 @@ lật
 lậu
 lậy
 lắc
-lắk
 lắm
 lắng
 lắp
@@ -6469,7 +6468,6 @@ yểu
 đậu
 đậy
 đắc
-đắk
 đắm
 đắn
 đắng
