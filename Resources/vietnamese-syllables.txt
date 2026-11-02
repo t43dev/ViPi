@@ -458,6 +458,7 @@ chòi
 chòm
 chòng
 chó
+chóa
 chóc
 chóe
 chói
@@ -1034,6 +1035,7 @@ dõng
 dù
 dùa
 dùi
+dùm
 dùn
 dùng
 dúa
@@ -2376,6 +2378,7 @@ lòm
 lòn
 lòng
 ló
+lóa
 lóc
 lóe
 lói
@@ -2495,6 +2498,7 @@ lật
 lậu
 lậy
 lắc
+lắk
 lắm
 lắng
 lắp
@@ -2644,6 +2648,7 @@ lựa
 lực
 lựng
 lựu
+lỳ
 lỵ
 lỹ
 miên
@@ -2936,6 +2941,7 @@ mửng
 mự
 mựa
 mực
+mỳ
 mỹ
 nghiêm
 nghiên
@@ -3005,6 +3011,7 @@ ngoàm
 ngoác
 ngoách
 ngoái
+ngoáo
 ngoáp
 ngoáy
 ngoãn
@@ -3042,6 +3049,7 @@ ngoẻn
 ngoẻo
 nguyên
 nguyền
+nguyễn
 nguyện
 nguyệt
 nguây
@@ -4170,6 +4178,7 @@ quới
 quờ
 quờn
 quở
+quởn
 quỳ
 quỳnh
 quỵ
@@ -5424,6 +5433,7 @@ tôi
 tôm
 tôn
 tông
+tõe
 tõm
 tù
 tùm
@@ -6459,6 +6469,7 @@ yểu
 đậu
 đậy
 đắc
+đắk
 đắm
 đắn
 đắng
@@ -6646,6 +6657,7 @@ yểu
 ẹo
 ẹp
 ẹt
+ẻm
 ẻn
 ẻo
 ẽo
