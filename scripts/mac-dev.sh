@@ -25,7 +25,7 @@ APP=build/ViPi.app
 rm -rf build && mkdir -p $APP/Contents/MacOS $APP/Contents/Resources
 cp $BIN/ViPi $APP/Contents/MacOS/
 sed -e "s/__VERSION__/$VER/" -e "s/__BUILD__/$REV/" Resources/Info.plist > $APP/Contents/Info.plist
-cp Resources/pinyin-words.bin Resources/pinyin-abbrev.bin Resources/s2t.bin Resources/bigram.bin Resources/vietnamese-syllables.txt Resources/autoswitch-vi.tsv Resources/autoswitch-en.tsv $APP/Contents/Resources/
+cp Resources/pinyin-words.bin Resources/pinyin-abbrev.bin Resources/s2t.bin Resources/bigram.bin Resources/vietnamese-syllables.txt Resources/autoswitch-vi.bin Resources/autoswitch-en.bin $APP/Contents/Resources/
 iconutil -c icns Resources/AppIcon.iconset -o $APP/Contents/Resources/AppIcon.icns
 KC=$HOME/Library/Keychains/vipi-dev.keychain-db
 security unlock-keychain -p "$KC_PW" $KC

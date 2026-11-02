@@ -7,6 +7,8 @@ Dùng: python3 -I scripts/build-tables.py      (chạy lại mỗi khi sửa m�
                       → pinyin-abbrev.bin  "nh" → 30 từ 2-4 âm tiết nặng nhất viết tắt bằng phụ âm đầu,
                                            mỗi từ là vị trí (u32) của mục đó trong pinyin-words.bin
   s2t.tsv             → s2t.bin            giản thể → phồn thể (OpenCC)
+  autoswitch-vi.tsv   → autoswitch-vi.bin  khoá Telex → điểm tần suất (1 byte có dấu)
+  autoswitch-en.tsv   → autoswitch-en.bin
 """
 import pathlib
 import struct
@@ -76,5 +78,16 @@ def s2t():
     write_table("s2t.bin", table)
 
 
+def autoswitch():
+    for lang in ("vi", "en"):
+        table = {}
+        for line in (RES / f"autoswitch-{lang}.tsv").read_text(encoding="utf-8").split("\n"):
+            cols = line.split("\t")
+            if len(cols) == 2:
+                table[cols[0]] = struct.pack("<b", int(cols[1]))
+        write_table(f"autoswitch-{lang}.bin", table)
+
+
 pinyin()
 s2t()
+autoswitch()

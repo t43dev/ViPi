@@ -232,11 +232,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func loadAutoSwitch() -> AutoSwitch? {
-        func text(_ name: String) -> String? {
-            Bundle.main.url(forResource: name, withExtension: "tsv").flatMap { try? String(contentsOf: $0, encoding: .utf8) }
-        }
-        guard let vi = text("autoswitch-vi"), let en = text("autoswitch-en") else { return nil }
-        return AutoSwitch(vietnamese: vi, english: en)
+        Bundle.main.resourceURL.flatMap { try? AutoSwitch(directory: $0) }
     }
 
     @objc private func showSecureInput() { secureWindow.show() }

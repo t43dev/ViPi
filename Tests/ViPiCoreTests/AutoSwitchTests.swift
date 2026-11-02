@@ -15,7 +15,7 @@ final class AutoSwitchTests: XCTestCase {
     /// Gõ cả chuỗi như InputController: Telex khi đang ở tiếng Việt, ghi phím khi ở tiếng Anh; ký tự không phải
     /// chữ cái kết thúc từ. Trả về chữ trên màn hình và chế độ cuối (true = tiếng Việt).
     private func type(_ keys: String, vietnamese start: Bool) -> (String, Bool) {
-        let auto = AutoSwitch(vietnamese: Self.text("autoswitch-vi.tsv"), english: Self.text("autoswitch-en.tsv"))
+        let auto = try! AutoSwitch(directory: Self.resources)
         let telex = TelexEngine()
         telex.modernToneStyle = true
         telex.lexicon = Self.lexicon
