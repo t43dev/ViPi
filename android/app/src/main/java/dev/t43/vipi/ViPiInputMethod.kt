@@ -186,9 +186,8 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
     private fun applyChinese(ic: InputConnection, key: KeyInput?, r: KeyOutcome, wasComposing: Boolean) {
         val c = composer ?: return
         if (!r.handled) { if (key != null) deliver(ic, key); return }
+        // pinyin đang gõ chỉ hiện trong bàn phím (refreshUi); app chỉ nhận chữ Hán đã chọn
         r.edit?.let { ic.commitText(it.insert, 1) }
-        if (c.isComposingChinese()) ic.setComposingText(c.preedit(), 1)
-        else if (wasComposing && r.edit == null) { ic.setComposingText("", 1); ic.finishComposingText() }
         if (r.repostKey && key != null) deliver(ic, key)
     }
 
@@ -273,13 +272,13 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         if (manual) c.pauseAutoSwitch()
         prefs.mode = mode
         refreshUi()
+        updateShift()
     }
 
     /** Bỏ phần đang gõ: chữ Việt đang gõ giữ lại, pinyin chưa chọn thì xoá. */
     private fun endComposition() {
         val c = composer ?: return
         val ic = currentInputConnection
-        if (c.isComposingChinese()) ic?.setComposingText("", 1)
         ic?.finishComposingText()
         c.cancel()
         refreshUi()
@@ -289,13 +288,20 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         val kb = keyboard ?: return
         val c = composer
         kb.mode = if (passthrough || c == null) InputMode.ENGLISH else c.mode()
-        kb.setCandidates(if (c != null && c.isComposingChinese()) c.candidates().map { it.text } else emptyList())
+        val chinese = c != null && !passthrough && c.isComposingChinese()
+        kb.preedit = if (chinese) c!!.preedit() else ""
+        kb.setCandidates(if (chinese) c!!.candidates().map { it.text } else emptyList())
     }
 
     private fun updateShift() {
         val kb = keyboard ?: return
         if (kb.shift == KeyboardView.Shift.LOCK || kb.layout != KeyboardView.Layout.LETTERS) return
-        if (!prefs.autoCap || composer?.isComposingChinese() == true) return
+        // tiếng Trung: không tự viết hoa (chữ hoa không phải pinyin, sẽ đi thẳng vào ô nhập)
+        val chinese = !passthrough && composer?.mode() == InputMode.CHINESE
+        if (!prefs.autoCap || chinese) {
+            if (chinese && kb.shift == KeyboardView.Shift.ONCE) kb.shift = KeyboardView.Shift.OFF
+            return
+        }
         val info = currentInputEditorInfo ?: return
         val caps = currentInputConnection?.getCursorCapsMode(info.inputType) ?: 0
         kb.shift = if (caps != 0 && composer?.currentWord().isNullOrEmpty()) KeyboardView.Shift.ONCE else KeyboardView.Shift.OFF

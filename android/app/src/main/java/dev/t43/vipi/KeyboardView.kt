@@ -65,14 +65,17 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     var shift = Shift.OFF
         set(v) { field = v; invalidate() }
     var mode = InputMode.VIETNAMESE
-        set(v) { field = v; invalidate() }
+        set(v) { field = v; updateStripHeight(); invalidate() }
     /** Chữ trên phím Return khi ô nhập có hành động (go, search, send…); null: biểu tượng xuống dòng. */
     var returnLabel: String? = null
         set(v) { field = v; invalidate() }
     var hapticsEnabled = true
     /** Ô mật khẩu / số: chỉ tiếng Anh, ẩn chọn chế độ. */
     var modeLocked = false
-        set(v) { field = v; invalidate() }
+        set(v) { field = v; updateStripHeight(); invalidate() }
+    /** Pinyin đang gõ (tiếng Trung): hiện trong bàn phím, phía trên ứng viên, không đưa vào ô nhập của app. */
+    var preedit = ""
+        set(v) { if (field != v) { field = v; invalidate() } }
     /** Android 16+: hệ thống giao nút đổi bàn phím cho bộ gõ (thanh điều hướng của bàn phím đã ẩn). */
     var showSystemSwitcher = false
 
@@ -94,7 +97,18 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
 
     private val dp = resources.displayMetrics.density
     private val sp = resources.displayMetrics.scaledDensity
-    private val stripHeight = 46 * dp
+    private val stripBase = 46 * dp
+    private val stripChinese = 68 * dp     // thêm một dòng cho pinyin đang gõ
+    private var stripHeight = stripBase
+
+    private fun updateStripHeight() {
+        val h = if (mode == InputMode.CHINESE && !modeLocked) stripChinese else stripBase
+        if (h == stripHeight) return
+        stripHeight = h
+        layoutKeys()
+        layoutCandidates()
+        requestLayout()
+    }
     private val rowPitch = 54 * dp
     private val keyGapX = 6 * dp
     private val keyGapY = 11 * dp
@@ -425,7 +439,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         var x = 12 * dp
         candidateRects = candidates.map { c ->
             val w = max(text.measureText(c) + 26 * dp, 44 * dp)
-            RectF(x, 4 * dp, x + w, stripHeight - 4 * dp).also { x += w }
+            RectF(x, stripHeight - 44 * dp, x + w, stripHeight - 4 * dp).also { x += w }
         }
         stripContentWidth = x + 12 * dp
     }
@@ -434,6 +448,13 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         val t = rowProgress(rows.size)
         if (t <= 0f) return
         val alpha = (t * 255).toInt()
+        if (preedit.isNotEmpty()) {
+            menuText.color = p.text
+            menuText.alpha = alpha
+            menuText.textSize = 15 * sp
+            menuText.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            canvas.drawText(preedit, 16 * dp, 19 * dp, menuText)
+        }
         if (candidates.isNotEmpty()) {
             canvas.save()
             canvas.clipRect(0f, 0f, width.toFloat(), stripHeight)
@@ -459,7 +480,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         }
         // bánh răng: mở cài đặt
         val gs = 30 * dp
-        gearRect.set(width - gs - 12 * dp, (stripHeight - gs) / 2 + 2 * dp, width - 12 * dp, (stripHeight + gs) / 2 + 2 * dp)
+        val gy = stripHeight - 24 * dp
+        gearRect.set(width - gs - 12 * dp, gy - gs / 2, width - 12 * dp, gy + gs / 2)
         drawGear(canvas, gearRect.centerX(), gearRect.centerY(), p.subtle, alpha)
     }
 
