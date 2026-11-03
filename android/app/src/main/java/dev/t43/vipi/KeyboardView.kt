@@ -36,7 +36,9 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     interface Listener {
         fun onKey(key: KeyInput)
         fun onModeKey()
-        fun onPickMode(mode: InputMode)
+        /** Chạm VI·EN: từ tiếng Trung về Việt/Anh tự nhận diện; đang ở VI·EN thì đổi tay giữa Việt và Anh. */
+        fun onLatinSegment()
+        fun onChineseSegment()
         fun onCandidate(index: Int)
         fun onCursor(delta: Int)
         fun onSettings()
@@ -404,10 +406,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
 
     // MARK: - Thanh trên: chọn chế độ hoặc ứng viên chữ Hán
 
-    private val segmentRects = Array(3) { RectF() }
+    private val segmentRects = Array(2) { RectF() }
     private val gearRect = RectF()
-    private val modes = arrayOf(InputMode.VIETNAMESE, InputMode.CHINESE, InputMode.ENGLISH)
-    private val modeLabels = arrayOf("VI", "拼", "EN")
 
     private fun layoutCandidates() {
         text.textSize = 21 * sp
@@ -447,27 +447,31 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             return
         }
         if (!modeLocked) {
-            // điều khiển phân đoạn VI · 拼 · EN
-            val segW = 52 * dp
+            // hai lựa chọn: VI·EN (tự nhận diện Việt/Anh, chữ đang dùng tô màu) và 拼
+            val widths = floatArrayOf(86 * dp, 56 * dp)
             val h = 32 * dp
             val left = 10 * dp
             val top = (stripHeight - h) / 2 + 2 * dp
             fill.color = p.segment; fill.alpha = alpha * Color.alpha(p.segment) / 255
-            tmp.set(left, top, left + segW * 3, top + h)
+            tmp.set(left, top, left + widths.sum(), top + h)
             canvas.drawRoundRect(tmp, h / 2, h / 2, fill)
-            for (i in 0 until 3) {
-                segmentRects[i].set(left + segW * i, top, left + segW * (i + 1), top + h)
-                val on = modes[i] == mode
-                if (on) {
-                    fill.color = p.segmentOn; fill.alpha = alpha
-                    tmp.set(segmentRects[i]); tmp.inset(2 * dp, 2 * dp)
-                    canvas.drawRoundRect(tmp, tmp.height() / 2, tmp.height() / 2, fill)
-                }
-                text.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-                drawLabel(canvas, modeLabels[i], segmentRects[i].centerX(), segmentRects[i].centerY(), 15f,
-                    if (on) p.accent else p.subtle, alpha)
-                text.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
-            }
+            segmentRects[0].set(left, top, left + widths[0], top + h)
+            segmentRects[1].set(left + widths[0], top, left + widths[0] + widths[1], top + h)
+            val latin = mode != InputMode.CHINESE
+            val on = if (latin) segmentRects[0] else segmentRects[1]
+            fill.color = p.segmentOn; fill.alpha = alpha
+            tmp.set(on); tmp.inset(2 * dp, 2 * dp)
+            canvas.drawRoundRect(tmp, tmp.height() / 2, tmp.height() / 2, fill)
+            text.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            val r0 = segmentRects[0]
+            val vi = latin && mode == InputMode.VIETNAMESE
+            val en = latin && mode == InputMode.ENGLISH
+            drawLabel(canvas, "VI", r0.centerX() - 17 * dp, r0.centerY(), 15f, if (vi) p.accent else p.subtle, alpha)
+            drawLabel(canvas, "·", r0.centerX(), r0.centerY(), 15f, p.subtle, alpha)
+            drawLabel(canvas, "EN", r0.centerX() + 17 * dp, r0.centerY(), 15f, if (en) p.accent else p.subtle, alpha)
+            drawLabel(canvas, "拼", segmentRects[1].centerX(), segmentRects[1].centerY(), 15f,
+                if (!latin) p.accent else p.subtle, alpha)
+            text.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
         }
         // bánh răng: mở cài đặt
         val gs = 30 * dp
@@ -667,9 +671,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         }
         if (gearRect.contains(x, gearRect.centerY())) { listener.onSettings(); return }
         if (modeLocked) return
-        segmentRects.forEachIndexed { i, r ->
-            if (x >= r.left && x <= r.right) { feedback(); listener.onPickMode(modes[i]) }
-        }
+        if (x >= segmentRects[0].left && x <= segmentRects[0].right) { feedback(); listener.onLatinSegment() }
+        else if (x >= segmentRects[1].left && x <= segmentRects[1].right) { feedback(); listener.onChineseSegment() }
     }
 
     private fun tapShift() {

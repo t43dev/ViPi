@@ -55,13 +55,12 @@ class SettingsActivity : Activity() {
         })
 
         section(root, "Vietnamese")
+        root.addView(note("ViPi tells Vietnamese from English as you type: treen becomes trên, server stays server. The keyboard only switches between VI·EN and 拼. Tap VI·EN again to switch between Vietnamese and English by hand. Word lists from Vikey."))
         root.addView(toggle("Check spelling", Prefs.SPELL_CHECK, true,
             "Only add marks where they make a real Vietnamese syllable, so words like \"class\" stay as typed."))
         root.addView(toggle("Restore non-Vietnamese words", Prefs.RESTORE, true,
             "When a word ends and is not Vietnamese, put back the keys you typed: user, data, more."))
         root.addView(toggle("Modern tone placement", Prefs.MODERN_TONE, false, "hoà, khoẻ, thuý instead of hòa, khỏe, thúy."))
-        root.addView(toggle("Switch between Vietnamese and English automatically", Prefs.AUTO_SWITCH, false,
-            "Experimental. Type treen in English and it becomes trên, then ViPi switches to Vietnamese. Common English words typed in Vietnamese come back as typed and ViPi switches to English. Turning this on switches to English. Word lists from Vikey."))
 
         section(root, "Chinese")
         root.addView(toggle("Traditional characters", Prefs.TRADITIONAL, false, "头发 becomes 頭髮."))

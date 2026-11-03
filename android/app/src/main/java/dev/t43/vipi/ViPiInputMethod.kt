@@ -28,18 +28,16 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
     private var enterAction = EditorInfo.IME_ACTION_NONE
     private var lastOwnEdit = 0L
     private var lastSpaceAt = 0L
-    private var autoSwitchWasOn = false
     private val hardwareConsumed = HashSet<Int>()
     // cài đặt đổi khi bàn phím đang mở (màn hình cài đặt cùng tiến trình): áp ngay
     private val prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key != "mode" && key != "recent") { applyPrefs(); keyboard?.hapticsEnabled = prefs.haptics; refreshUi() }
+        if (key != "mode" && key != "latin") { applyPrefs(); keyboard?.hapticsEnabled = prefs.haptics; refreshUi() }
     }
 
     override fun onCreate() {
         super.onCreate()
         prefs = Prefs(this)
         composer = Core.composer(this)
-        autoSwitchWasOn = prefs.autoSwitch
         prefs.sp.registerOnSharedPreferenceChangeListener(prefsListener)
     }
 
@@ -109,12 +107,9 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         c.setFuzzyRules(prefs.fuzzy.toList())
         c.setTraditional(prefs.traditional)
         c.setLearning(prefs.learn, Core.learnedWordsFile(this).absolutePath)
-        val auto = prefs.autoSwitch
-        c.setAutoSwitch(auto)
+        // Android: luôn tự nhận diện Việt/Anh; người dùng chỉ chọn giữa VI·EN và 拼
+        c.setAutoSwitch(true)
         if (c.mode() != prefs.mode) c.setMode(prefs.mode)
-        // bật tự đổi: bắt đầu từ tiếng Anh (như bản macOS)
-        if (auto && !autoSwitchWasOn) setMode(InputMode.ENGLISH, manual = false)
-        autoSwitchWasOn = auto
     }
 
     // MARK: - Phím
@@ -139,7 +134,7 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
             InputMode.CHINESE -> applyChinese(ic, key, r, wasComposingChinese)
         }
         ic.endBatchEdit()
-        r.switchedTo?.let { prefs.mode = it; rememberMode(it) }
+        r.switchedTo?.let { prefs.mode = it }
         refreshUi()
         updateShift()
     }
@@ -242,16 +237,26 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
 
     // MARK: - Chế độ
 
-    /** Phím quả địa cầu: về chế độ dùng trước đó (như ⌃⇧ trên macOS). */
+    /** Phím quả địa cầu: đổi giữa VI·EN (tự nhận diện) và 拼. */
     override fun onModeKey() {
         if (passthrough) return
-        val recent = prefs.recent
-        setMode(recent.getOrElse(1) { InputMode.ENGLISH }, manual = true)
+        if (composer?.mode() == InputMode.CHINESE) setMode(prefs.latin, manual = false) else setMode(InputMode.CHINESE, manual = false)
     }
 
-    override fun onPickMode(mode: InputMode) {
-        if (passthrough || mode == composer?.mode()) return
-        setMode(mode, manual = true)
+    /** Từ 拼 về VI·EN; đang ở VI·EN thì đổi tay Việt ↔ Anh (tự nhận diện nghỉ 5 giây, như Vikey). */
+    override fun onLatinSegment() {
+        val c = composer ?: return
+        if (passthrough) return
+        when (c.mode()) {
+            InputMode.CHINESE -> setMode(prefs.latin, manual = false)
+            InputMode.VIETNAMESE -> setMode(InputMode.ENGLISH, manual = true)
+            InputMode.ENGLISH -> setMode(InputMode.VIETNAMESE, manual = true)
+        }
+    }
+
+    override fun onChineseSegment() {
+        if (passthrough || composer?.mode() == InputMode.CHINESE) return
+        setMode(InputMode.CHINESE, manual = false)
     }
 
     private fun setMode(mode: InputMode, manual: Boolean) {
@@ -260,12 +265,7 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         c.setMode(mode)
         if (manual) c.pauseAutoSwitch()
         prefs.mode = mode
-        rememberMode(mode)
         refreshUi()
-    }
-
-    private fun rememberMode(mode: InputMode) {
-        prefs.recent = listOf(mode) + prefs.recent.filter { it != mode }
     }
 
     /** Bỏ phần đang gõ: chữ Việt đang gõ giữ lại, pinyin chưa chọn thì xoá. */
