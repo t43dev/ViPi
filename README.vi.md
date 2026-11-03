@@ -67,6 +67,7 @@ Nếu bạn viết cả tiếng Việt lẫn tiếng Trung, máy Mac của bạn
 | `vn` + Space | **Việt Nam** | gõ tắt theo danh sách của bạn, `VN` → `VIỆT NAM` |
 
 - Đặt dấu kiểu cũ (`hòa`) hoặc kiểu mới (`hoà`), bật/tắt kiểm tra chính tả.
+- **Thử nghiệm: tự đổi Việt/Anh.** Bật trong Cài đặt → Tiếng Việt rồi cứ để chế độ tiếng Anh: gõ `treen` thành **trên** và ViPi tự sang tiếng Việt, còn từ tiếng Anh thông dụng như `server` được giữ nguyên và ViPi tự sang tiếng Anh.
 - **Nhanh và chắc:** đã thử trên máy Mac thật với đủ 8.329 âm tiết hợp lệ ở tốc độ 8–12 ms mỗi phím, cộng thêm 753 âm tiết trên Chrome ở 3 ms mỗi phím, không mất một phím hay một dấu nào.
 
 ### 🇨🇳 Pinyin có ô gợi ý thật sự
@@ -105,6 +106,7 @@ Khi một ô mật khẩu hay cửa sổ terminal bật Secure Input của macOS
 - **Ngôn ngữ của bạn:** toàn bộ giao diện có tiếng Anh, tiếng Việt và tiếng Trung giản thể.
 - **Sáng hoặc Tối:** theo macOS hoặc tự chọn.
 - **Tự cập nhật:** ViPi kiểm tra GitHub, xác minh bản tải về có chữ ký của nhà phát triển ViPi, cài đặt và khởi động lại khi bạn ngừng gõ.
+- **Nhẹ:** chỉ khoảng 16 MB bộ nhớ. Từ điển đọc thẳng từ ổ đĩa, không nạp hết vào RAM lúc mở.
 - **Tự chạy khi đăng nhập**, nằm gọn trên thanh menu.
 
 <table>
@@ -152,7 +154,7 @@ Có app vừa bật Secure Input (ô mật khẩu, terminal bật "Secure Keyboa
 <details>
 <summary><b>Một từ tiếng Anh bị biến thành tiếng Việt</b></summary>
 
-Những từ trùng với âm tiết tiếng Việt có thật, như `of` → `ò`, thì không thể tự phân biệt. Bấm phím dấu hai lần (`off` → `of`) hoặc chuyển sang tiếng Anh bằng `⌃ Control` + `⇧ Shift`.
+Những từ trùng với âm tiết tiếng Việt có thật, như `of` → `ò`, thì không thể tự phân biệt. Bấm phím dấu hai lần (`off` → `of`) hoặc chuyển sang tiếng Anh bằng `⌃ Control` + `⇧ Shift`. Bạn cũng có thể thử tính năng tự đổi Việt/Anh trong **Cài đặt → Tiếng Việt**.
 </details>
 
 <details>
@@ -179,7 +181,7 @@ Mình gõ tiếng Việt và tiếng Trung hằng ngày, nhưng trên macOS khô
 
 ViPi còn mới. Gặp chỗ nào chưa ổn xin [báo ở Issues](../../issues). Nếu ViPi giúp bạn gõ nhẹ nhàng hơn, một ⭐ sẽ giúp người khác tìm thấy nó.
 
-Muốn tự build? Xem [docs/development.md](docs/development.md).
+Mỗi phiên bản có gì mới: [CHANGELOG.md](CHANGELOG.md) (tiếng Anh). Muốn tự build? Xem [docs/development.md](docs/development.md).
 
 ## 📄 Giấy phép
 

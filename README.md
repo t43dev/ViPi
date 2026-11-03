@@ -67,6 +67,7 @@ If you write in Vietnamese and Chinese, your Mac probably looks like this:
 | `vn` + Space | **Việt Nam** | your own text shortcuts, `VN` → `VIỆT NAM` |
 
 - Classic (`hòa`) or modern (`hoà`) tone placement, spell check on or off.
+- **Experimental: automatic Vietnamese/English.** Turn it on in Settings → Vietnamese and stay in English: `treen` becomes **trên** and ViPi switches to Vietnamese, while a common English word like `server` comes back as typed and ViPi switches to English.
 - **Built for speed:** tested end to end on a real Mac with all 8,329 valid syllables at 8–12 ms per key, plus 753 syllables in Chrome at 3 ms per key, without a single lost key or mark.
 
 ### 🇨🇳 Chinese Pinyin with a real candidate window
@@ -105,6 +106,7 @@ When a password field or a terminal turns on macOS Secure Input, every input too
 - **Your language:** the whole interface comes in English, Tiếng Việt and 简体中文.
 - **Light or Dark:** follow macOS or pick one yourself.
 - **Updates itself:** ViPi checks GitHub, verifies the download is signed by the ViPi developer, installs it and relaunches when you stop typing.
+- **Light:** about 16 MB of memory. Dictionaries are read straight from disk, not loaded at launch.
 - **Launches at login**, lives quietly in the menu bar.
 
 <table>
@@ -152,7 +154,7 @@ Some app has turned on Secure Input (a password field, a terminal with "Secure K
 <details>
 <summary><b>An English word came out as Vietnamese</b></summary>
 
-Words that are also real Vietnamese syllables, such as `of` → `ò`, cannot be told apart automatically. Press the tone key twice (`off` → `of`) or switch to English with `⌃ Control` + `⇧ Shift`.
+Words that are also real Vietnamese syllables, such as `of` → `ò`, cannot be told apart automatically. Press the tone key twice (`off` → `of`) or switch to English with `⌃ Control` + `⇧ Shift`. You can also try the experimental automatic Vietnamese/English switch in **Settings → Vietnamese**.
 </details>
 
 <details>
@@ -179,7 +181,7 @@ I type Vietnamese and Chinese every day, and macOS had no sensible way to do bot
 
 ViPi is new. If something feels off, please [open an issue](../../issues). If it makes your day easier, a ⭐ helps others find it.
 
-Want to build it yourself? See [docs/development.md](docs/development.md).
+What's new in each version: [CHANGELOG.md](CHANGELOG.md). Want to build it yourself? See [docs/development.md](docs/development.md).
 
 ## 📄 License
 
