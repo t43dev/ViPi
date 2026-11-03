@@ -29,6 +29,7 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
     private var lastOwnEdit = 0L
     private var lastSpaceAt = 0L
     private val hardwareConsumed = HashSet<Int>()
+    private var switcherRequested = false
     // cài đặt đổi khi bàn phím đang mở (màn hình cài đặt cùng tiến trình): áp ngay
     private val prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key != "mode" && key != "latin") { applyPrefs(); keyboard?.hapticsEnabled = prefs.haptics; refreshUi() }
@@ -46,7 +47,18 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         super.onDestroy()
     }
 
-    override fun onCreateInputView(): View = KeyboardView(this, this).also { keyboard = it }
+    override fun onCreateInputView(): View =
+        KeyboardView(this, this).also { keyboard = it; it.showSystemSwitcher = switcherRequested }
+
+    /**
+     * Thanh điều hướng của bàn phím (mũi tên ẩn bàn phím ở góc trái, nút đổi bàn phím ở góc phải) do hệ thống vẽ
+     * dưới bàn phím khi dùng cử chỉ. Android 16+ cho bộ gõ ẩn nó; nút đổi bàn phím chuyển vào menu quả địa cầu.
+     */
+    private fun hideImeNavigationBar() {
+        if (android.os.Build.VERSION.SDK_INT >= 36) {
+            window.window?.insetsController?.hide(android.view.WindowInsets.Type.captionBar())
+        }
+    }
 
     override fun onEvaluateFullscreenMode() = false
 
@@ -87,6 +99,7 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         kb.shift = KeyboardView.Shift.OFF
         refreshUi()
         updateShift()
+        hideImeNavigationBar()
         if (!restarting) kb.animateIn()
     }
 
@@ -107,7 +120,7 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         c.setFuzzyRules(prefs.fuzzy.toList())
         c.setTraditional(prefs.traditional)
         c.setLearning(prefs.learn, Core.learnedWordsFile(this).absolutePath)
-        // Android: luôn tự nhận diện Việt/Anh; người dùng chỉ chọn giữa VI·EN và 拼
+        // Android: Việt và Anh là một bộ gõ, luôn tự nhận diện; phím quả địa cầu chỉ đổi giữa Việt·Anh và Trung
         c.setAutoSwitch(true)
         if (c.mode() != prefs.mode) c.setMode(prefs.mode)
     }
@@ -237,26 +250,20 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
 
     // MARK: - Chế độ
 
-    /** Phím quả địa cầu: đổi giữa VI·EN (tự nhận diện) và 拼. */
-    override fun onModeKey() {
-        if (passthrough) return
-        if (composer?.mode() == InputMode.CHINESE) setMode(prefs.latin, manual = false) else setMode(InputMode.CHINESE, manual = false)
-    }
-
-    /** Từ 拼 về VI·EN; đang ở VI·EN thì đổi tay Việt ↔ Anh (tự nhận diện nghỉ 5 giây, như Vikey). */
-    override fun onLatinSegment() {
-        val c = composer ?: return
-        if (passthrough) return
-        when (c.mode()) {
-            InputMode.CHINESE -> setMode(prefs.latin, manual = false)
-            InputMode.VIETNAMESE -> setMode(InputMode.ENGLISH, manual = true)
-            InputMode.ENGLISH -> setMode(InputMode.VIETNAMESE, manual = true)
+    /** Menu của phím quả địa cầu: Việt·Anh (một bộ gõ, tự nhận diện), Trung, hoặc bàn phím khác. */
+    override fun onPickInput(choice: Int) {
+        when (choice) {
+            KeyboardView.PICK_VIEN -> if (composer?.mode() == InputMode.CHINESE) setMode(prefs.latin, manual = false)
+            KeyboardView.PICK_CHINESE -> if (composer?.mode() != InputMode.CHINESE) setMode(InputMode.CHINESE, manual = false)
+            KeyboardView.PICK_OTHER_KEYBOARD ->
+                (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).showInputMethodPicker()
         }
     }
 
-    override fun onChineseSegment() {
-        if (passthrough || composer?.mode() == InputMode.CHINESE) return
-        setMode(InputMode.CHINESE, manual = false)
+    /** Android 16+: hệ thống nhờ bàn phím tự hiện nút đổi bàn phím (vì đã ẩn thanh điều hướng của bàn phím). */
+    override fun onCustomImeSwitcherButtonRequestedVisible(visible: Boolean) {
+        switcherRequested = visible
+        keyboard?.showSystemSwitcher = visible
     }
 
     private fun setMode(mode: InputMode, manual: Boolean) {

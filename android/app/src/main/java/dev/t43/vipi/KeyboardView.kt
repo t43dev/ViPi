@@ -35,13 +35,17 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
 
     interface Listener {
         fun onKey(key: KeyInput)
-        fun onModeKey()
-        /** Chạm VI·EN: từ tiếng Trung về Việt/Anh tự nhận diện; đang ở VI·EN thì đổi tay giữa Việt và Anh. */
-        fun onLatinSegment()
-        fun onChineseSegment()
+        /** Chọn trong menu của phím quả địa cầu: PICK_VIEN, PICK_CHINESE, PICK_OTHER_KEYBOARD. */
+        fun onPickInput(choice: Int)
         fun onCandidate(index: Int)
         fun onCursor(delta: Int)
         fun onSettings()
+    }
+
+    companion object {
+        const val PICK_VIEN = 0
+        const val PICK_CHINESE = 1
+        const val PICK_OTHER_KEYBOARD = 2
     }
 
     enum class Layout { LETTERS, NUMBERS, SYMBOLS }
@@ -69,6 +73,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     /** Ô mật khẩu / số: chỉ tiếng Anh, ẩn chọn chế độ. */
     var modeLocked = false
         set(v) { field = v; invalidate() }
+    /** Android 16+: hệ thống giao nút đổi bàn phím cho bộ gõ (thanh điều hướng của bàn phím đã ẩn). */
+    var showSystemSwitcher = false
 
     private var candidates: List<String> = emptyList()
     private var candidateRects: List<RectF> = emptyList()
@@ -257,9 +263,11 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             val k = pressed.valueAt(i).key
             if (k.kind == Kind.CHAR) drawCallout(canvas, k, p)
         }
+        if (menuOpen) drawMenu(canvas, p)
     }
 
     private fun isPressed(k: Key): Boolean {
+        if (k.kind == Kind.MODE && menuOpen) return true
         for (i in 0 until pressed.size()) if (pressed.valueAt(i).key === k) return true
         return k.kind == Kind.BACKSPACE && repeating
     }
@@ -308,9 +316,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
 
     private fun spaceLabel() = when {
         modeLocked -> "space"
-        mode == InputMode.VIETNAMESE -> "Tiếng Việt"
         mode == InputMode.CHINESE -> "拼音"
-        else -> "English"
+        else -> "Tiếng Việt · English"
     }
 
     private fun drawLabel(canvas: Canvas, s: String, cx: Float, cy: Float, size: Float, color: Int, alpha: Int) {
@@ -375,14 +382,19 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         canvas.drawPath(path, stroke)
     }
 
+    /** Quả địa cầu: viền tròn, kinh tuyến giữa hình bầu dục, xích đạo và hai vĩ tuyến. */
     private fun drawGlobe(canvas: Canvas, cx: Float, cy: Float, color: Int, alpha: Int) {
         val r = 9.5f * dp
-        stroke.color = color; stroke.alpha = alpha; stroke.strokeWidth = 1.4f * dp
+        stroke.color = color; stroke.alpha = alpha; stroke.strokeWidth = 1.5f * dp
         canvas.drawCircle(cx, cy, r, stroke)
-        tmp.set(cx - r * 0.45f, cy - r, cx + r * 0.45f, cy + r)
+        stroke.strokeWidth = 1.2f * dp
+        tmp.set(cx - r * 0.42f, cy - r, cx + r * 0.42f, cy + r)
         canvas.drawOval(tmp, stroke)
         canvas.drawLine(cx - r, cy, cx + r, cy, stroke)
-        canvas.drawLine(cx, cy - r, cx, cy + r, stroke)
+        val dy = r * 0.52f
+        val half = Math.sqrt((r * r - dy * dy).toDouble()).toFloat() - 0.6f * dp
+        canvas.drawLine(cx - half, cy - dy, cx + half, cy - dy, stroke)
+        canvas.drawLine(cx - half, cy + dy, cx + half, cy + dy, stroke)
     }
 
     /** Bóng chữ phóng to phía trên phím đang nhấn. */
@@ -406,7 +418,6 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
 
     // MARK: - Thanh trên: chọn chế độ hoặc ứng viên chữ Hán
 
-    private val segmentRects = Array(2) { RectF() }
     private val gearRect = RectF()
 
     private fun layoutCandidates() {
@@ -445,33 +456,6 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             }
             canvas.restore()
             return
-        }
-        if (!modeLocked) {
-            // hai lựa chọn: VI·EN (tự nhận diện Việt/Anh, chữ đang dùng tô màu) và 拼
-            val widths = floatArrayOf(86 * dp, 56 * dp)
-            val h = 32 * dp
-            val left = 10 * dp
-            val top = (stripHeight - h) / 2 + 2 * dp
-            fill.color = p.segment; fill.alpha = alpha * Color.alpha(p.segment) / 255
-            tmp.set(left, top, left + widths.sum(), top + h)
-            canvas.drawRoundRect(tmp, h / 2, h / 2, fill)
-            segmentRects[0].set(left, top, left + widths[0], top + h)
-            segmentRects[1].set(left + widths[0], top, left + widths[0] + widths[1], top + h)
-            val latin = mode != InputMode.CHINESE
-            val on = if (latin) segmentRects[0] else segmentRects[1]
-            fill.color = p.segmentOn; fill.alpha = alpha
-            tmp.set(on); tmp.inset(2 * dp, 2 * dp)
-            canvas.drawRoundRect(tmp, tmp.height() / 2, tmp.height() / 2, fill)
-            text.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            val r0 = segmentRects[0]
-            val vi = latin && mode == InputMode.VIETNAMESE
-            val en = latin && mode == InputMode.ENGLISH
-            drawLabel(canvas, "VI", r0.centerX() - 17 * dp, r0.centerY(), 15f, if (vi) p.accent else p.subtle, alpha)
-            drawLabel(canvas, "·", r0.centerX(), r0.centerY(), 15f, p.subtle, alpha)
-            drawLabel(canvas, "EN", r0.centerX() + 17 * dp, r0.centerY(), 15f, if (en) p.accent else p.subtle, alpha)
-            drawLabel(canvas, "拼", segmentRects[1].centerX(), segmentRects[1].centerY(), 15f,
-                if (!latin) p.accent else p.subtle, alpha)
-            text.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
         }
         // bánh răng: mở cài đặt
         val gs = 30 * dp
@@ -547,6 +531,13 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                 val x = e.getX(i)
                 val y = e.getY(i)
+                if (menuOpen) {
+                    // menu đang mở (đã chạm phím quả địa cầu): chạm vào mục để chọn, chạm chỗ khác để đóng
+                    val m = menuItemAt(x, y)
+                    if (m >= 0) { menuHighlight = m; menuPointer = id } else closeMenu()
+                    invalidate()
+                    return true
+                }
                 if (y < stripHeight - 6 * dp && pressed.size() == 0) {
                     stripTouch = id
                     stripDownX = x
@@ -570,6 +561,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 feedback()
                 when (k.kind) {
                     Kind.SHIFT -> { tapShift(); return true }
+                    Kind.MODE -> { openMenu(k, id); return true }
                     Kind.BACKSPACE -> {
                         listener.onKey(KeyInput.Backspace)
                         handler.postDelayed(repeatBackspace, 420)
@@ -580,6 +572,15 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 invalidate()
             }
             MotionEvent.ACTION_MOVE -> {
+                if (menuOpen && menuPointer >= 0) {
+                    // giữ phím quả địa cầu rồi trượt lên mục cần chọn
+                    val idx = e.findPointerIndex(menuPointer)
+                    if (idx >= 0) {
+                        val m = menuItemAt(e.getX(idx), e.getY(idx))
+                        if (m != menuHighlight) { menuHighlight = m; if (m >= 0) feedback(); invalidate() }
+                    }
+                    return true
+                }
                 if (stripTouch >= 0) {
                     velocity?.addMovement(e)
                     val idx = e.findPointerIndex(stripTouch)
@@ -614,6 +615,17 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
+                if (menuOpen && id == menuPointer) {
+                    menuPointer = -1
+                    // thả trên một mục: chọn; thả trên phím quả địa cầu (chạm nhanh): menu vẫn mở để chọn tiếp
+                    if (menuHighlight >= 0) {
+                        val choice = menuItems[menuHighlight].choice
+                        closeMenu()
+                        listener.onPickInput(choice)
+                    }
+                    invalidate()
+                    return true
+                }
                 if (id == stripTouch) {
                     velocity?.let {
                         it.addMovement(e)
@@ -640,6 +652,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 }
             }
             MotionEvent.ACTION_CANCEL -> {
+                closeMenu()
                 pressed.clear()
                 stopRepeat()
                 stripTouch = -1
@@ -670,9 +683,6 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             return
         }
         if (gearRect.contains(x, gearRect.centerY())) { listener.onSettings(); return }
-        if (modeLocked) return
-        if (x >= segmentRects[0].left && x <= segmentRects[0].right) { feedback(); listener.onLatinSegment() }
-        else if (x >= segmentRects[1].left && x <= segmentRects[1].right) { feedback(); listener.onChineseSegment() }
     }
 
     private fun tapShift() {
@@ -701,9 +711,99 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             Kind.NUMBERS -> layout = Layout.NUMBERS
             Kind.SYMBOLS -> layout = Layout.SYMBOLS
             Kind.LETTERS -> layout = Layout.LETTERS
-            Kind.MODE -> listener.onModeKey()
             else -> {}
         }
+    }
+
+    // MARK: - Menu đổi bộ gõ (phím quả địa cầu)
+
+    private class MenuItem(val choice: Int, val title: String, val subtitle: String?, val checked: Boolean)
+
+    private var menuOpen = false
+    private var menuItems: List<MenuItem> = emptyList()
+    private val menuRects = mutableListOf<RectF>()
+    private val menuBox = RectF()
+    private var menuHighlight = -1
+    private var menuPointer = -1
+    private val menuText = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.LEFT }
+
+    private fun openMenu(globe: Key, pointer: Int) {
+        val items = mutableListOf<MenuItem>()
+        if (!modeLocked) {
+            items += MenuItem(PICK_VIEN, "Tiếng Việt · English", "Detects the language as you type", mode != InputMode.CHINESE)
+            items += MenuItem(PICK_CHINESE, "中文 · 拼音", "Chinese Pinyin", mode == InputMode.CHINESE)
+        }
+        if (showSystemSwitcher || modeLocked) items += MenuItem(PICK_OTHER_KEYBOARD, "Other keyboards", null, false)
+        if (items.isEmpty()) return
+        menuItems = items
+        val itemH = 58 * dp
+        val pad = 6 * dp
+        val w = min(268 * dp, width - 16 * dp)
+        val left = (globe.rect.left - 4 * dp).coerceIn(8 * dp, width - w - 8 * dp)
+        val bottom = globe.rect.top - 8 * dp
+        val top = max(4 * dp, bottom - items.size * itemH - 2 * pad)
+        menuBox.set(left, top, left + w, bottom)
+        menuRects.clear()
+        items.indices.forEach { i ->
+            menuRects += RectF(left + pad, top + pad + i * itemH, left + w - pad, top + pad + (i + 1) * itemH)
+        }
+        menuHighlight = -1
+        menuPointer = pointer
+        menuOpen = true
+        invalidate()
+    }
+
+    private fun closeMenu() {
+        menuOpen = false
+        menuHighlight = -1
+        menuPointer = -1
+        invalidate()
+    }
+
+    private fun menuItemAt(x: Float, y: Float): Int = menuRects.indexOfFirst { it.contains(x, y) }
+
+    private fun drawMenu(canvas: Canvas, p: Palette) {
+        val r = 16 * dp
+        fill.color = 0x40000000
+        tmp.set(menuBox); tmp.offset(0f, 3 * dp); tmp.inset(-1 * dp, -1 * dp)
+        canvas.drawRoundRect(tmp, r, r, fill)
+        fill.color = if (p === light) 0xFFFFFFFF.toInt() else 0xFF3A3A3D.toInt()
+        canvas.drawRoundRect(menuBox, r, r, fill)
+        menuItems.forEachIndexed { i, item ->
+            val row = menuRects[i]
+            if (i == menuHighlight) {
+                fill.color = p.segment
+                canvas.drawRoundRect(row, 11 * dp, 11 * dp, fill)
+            }
+            if (i > 0 && i != menuHighlight && i - 1 != menuHighlight) {
+                fill.color = p.subtle; fill.alpha = 40
+                canvas.drawRect(row.left + 44 * dp, row.top - 0.5f * dp, row.right - 10 * dp, row.top + 0.5f * dp, fill)
+            }
+            if (item.checked) drawCheck(canvas, row.left + 22 * dp, row.centerY(), p.accent)
+            val x = row.left + 44 * dp
+            menuText.color = p.text
+            menuText.textSize = 17 * sp
+            menuText.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            if (item.subtitle == null) {
+                val fm = menuText.fontMetrics
+                canvas.drawText(item.title, x, row.centerY() - (fm.ascent + fm.descent) / 2, menuText)
+            } else {
+                canvas.drawText(item.title, x, row.centerY() - 2 * dp, menuText)
+                menuText.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+                menuText.textSize = 12.5f * sp
+                menuText.color = p.subtle
+                canvas.drawText(item.subtitle, x, row.centerY() + 15 * dp, menuText)
+            }
+        }
+    }
+
+    private fun drawCheck(canvas: Canvas, cx: Float, cy: Float, color: Int) {
+        stroke.color = color; stroke.alpha = 255; stroke.strokeWidth = 2.2f * dp
+        path.reset()
+        path.moveTo(cx - 6 * dp, cy)
+        path.lineTo(cx - 1.5f * dp, cy + 4.5f * dp)
+        path.lineTo(cx + 7 * dp, cy - 5 * dp)
+        canvas.drawPath(path, stroke)
     }
 
     /** Vị trí giữa các phím (cho kiểm thử tự động): "nhãn x y" mỗi phím. */
@@ -716,6 +816,6 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         }
         append("strip ${loc[1] + (stripHeight / 2).toInt()}\n")
         candidateRects.forEachIndexed { i, r -> append("cand$i ${(loc[0] + r.centerX() - stripScroll).toInt()}\n") }
-        segmentRects.forEachIndexed { i, r -> append("seg$i ${(loc[0] + r.centerX()).toInt()}\n") }
+        menuRects.forEachIndexed { i, r -> append("menu$i ${(loc[0] + r.centerX()).toInt()} ${(loc[1] + r.centerY()).toInt()}\n") }
     }
 }
