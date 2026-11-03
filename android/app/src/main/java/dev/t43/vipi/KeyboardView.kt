@@ -555,10 +555,11 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                     return true
                 }
                 val k = hit(x, y) ?: return true
-                // ngón thứ hai chạm: phím của ngón trước được gõ luôn (gõ nhanh hai tay)
+                // ngón thứ hai chạm: phím của ngón trước được gõ luôn (gõ nhanh hai tay). Cả phím quả địa cầu:
+                // chạm quả địa cầu rồi gõ ngay "n" thì đổi bộ gõ trước, "n" mới vào bộ gõ mới
                 for (j in pressed.size() - 1 downTo 0) {
                     val t = pressed.valueAt(j)
-                    if (t.key.kind == Kind.CHAR || t.key.kind == Kind.SPACE) {
+                    if (t.key.kind == Kind.CHAR || t.key.kind == Kind.SPACE || t.key.kind == Kind.MODE) {
                         if (!t.trackpad) fire(t.key)
                         pressed.removeAt(j)
                     }
