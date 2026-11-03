@@ -106,7 +106,7 @@ When a password field or a terminal turns on macOS Secure Input, every input too
 - **Your language:** the whole interface comes in English, Tiếng Việt and 简体中文.
 - **Light or Dark:** follow macOS or pick one yourself.
 - **Updates itself:** ViPi checks GitHub, verifies the download is signed by the ViPi developer, installs it and relaunches when you stop typing.
-- **Light:** about 16 MB of memory. Dictionaries are read straight from disk, not loaded at launch.
+- **Lightweight:** about 16 MB of memory. Dictionaries are read straight from disk, not loaded at launch.
 - **Launches at login**, lives quietly in the menu bar.
 
 <table>
@@ -130,7 +130,7 @@ When a password field or a terminal turns on macOS Secure Input, every input too
   </tr>
   <tr>
     <td align="center"><sub>Language, appearance, shortcut</sub></td>
-    <td align="center"><sub>Spelling and tone placement</sub></td>
+    <td align="center"><sub>Spelling, tone placement, auto switch</sub></td>
     <td align="center"><sub>Traditional, learning, fuzzy pinyin</sub></td>
     <td align="center"><sub>Text shortcuts</sub></td>
   </tr>

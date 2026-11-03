@@ -36,7 +36,7 @@
   const shot = $('#shot');
   const shotAlt = {
     general: 'ViPi General settings: language, appearance and switching shortcut',
-    vietnamese: 'ViPi Vietnamese settings: spell checking and tone placement',
+    vietnamese: 'ViPi Vietnamese settings: spell checking, automatic Vietnamese and English switching, and tone placement',
     chinese: 'ViPi Chinese settings: Traditional characters, learning and fuzzy pinyin',
     shortcuts: 'ViPi Text shortcuts settings',
   };

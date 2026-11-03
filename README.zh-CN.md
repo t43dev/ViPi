@@ -130,7 +130,7 @@
   </tr>
   <tr>
     <td align="center"><sub>语言、外观、快捷键</sub></td>
-    <td align="center"><sub>拼写检查与声调位置</sub></td>
+    <td align="center"><sub>拼写检查、声调位置、自动切换</sub></td>
     <td align="center"><sub>繁体、记忆选词、模糊音</sub></td>
     <td align="center"><sub>快捷短语</sub></td>
   </tr>

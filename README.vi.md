@@ -130,7 +130,7 @@ Khi một ô mật khẩu hay cửa sổ terminal bật Secure Input của macOS
   </tr>
   <tr>
     <td align="center"><sub>Ngôn ngữ, giao diện, phím tắt</sub></td>
-    <td align="center"><sub>Chính tả và kiểu đặt dấu</sub></td>
+    <td align="center"><sub>Chính tả, kiểu đặt dấu, tự đổi Việt/Anh</sub></td>
     <td align="center"><sub>Phồn thể, học từ, âm mờ</sub></td>
     <td align="center"><sub>Gõ tắt</sub></td>
   </tr>

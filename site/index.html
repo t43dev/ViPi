@@ -89,6 +89,7 @@
     <ul class="facts">
       <li>Classic <em>hòa</em> or modern <em>hoà</em> tone placement.</li>
       <li>Spell checking on or off.</li>
+      <li><strong>New, experimental:</strong> switch between Vietnamese and English automatically. Stay in English and type <kbd>treen</kbd> to get trên, and ViPi moves to Vietnamese. Type a common English word such as <kbd>server</kbd> in Vietnamese and it comes back as typed while ViPi moves to English. Turn it on in Settings, Vietnamese.</li>
       <li>Tested on a real Mac with all 8,329 valid syllables at 8 to 12 ms per key, and in Chrome at 3 ms per key, without losing a key or a mark.</li>
     </ul>
   </div>
@@ -174,6 +175,7 @@
       <li>The interface speaks English, Tiếng Việt and <span lang="zh">简体中文</span>.</li>
       <li>Light or dark, following macOS or your choice.</li>
       <li>Updates itself: it checks GitHub, verifies the download is signed by the ViPi developer, and relaunches when you stop typing.</li>
+      <li>Lightweight: about 16 MB of memory. Dictionaries are read straight from disk instead of loading at launch.</li>
       <li>Starts at login and stays in the menu bar.</li>
     </ul>
   </div>
@@ -230,7 +232,7 @@
     </details>
     <details>
       <summary>An English word came out as Vietnamese</summary>
-      <p>Words that are also real Vietnamese syllables, such as <kbd>of</kbd> becoming ò, cannot be told apart automatically. Press the tone key twice (<kbd>off</kbd> gives of) or switch to English with <kbd>⌃</kbd>&#8239;<kbd>⇧</kbd>.</p>
+      <p>Words that are also real Vietnamese syllables, such as <kbd>of</kbd> becoming ò, cannot be told apart automatically. Press the tone key twice (<kbd>off</kbd> gives of) or switch to English with <kbd>⌃</kbd>&#8239;<kbd>⇧</kbd>. You can also try the experimental automatic Vietnamese and English switch in Settings, Vietnamese.</p>
     </details>
     <details>
       <summary>Do I have to uninstall UniKey, EVKey or GoNhanh?</summary>
@@ -254,9 +256,10 @@
 
 <footer class="foot">
   <div class="foot-brand"><img src="img/logo.svg" alt="" width="40" height="40"><p>ViPi is free software under GPL-3.0.<br>Found a problem? <a href="https://github.com/t43dev/ViPi/issues">Open an issue</a>.</p></div>
-  <p class="credits">Telex rules follow <a href="https://www.unikey.org">UniKey</a>. The Pinyin dictionary comes from <a href="https://github.com/iDvel/rime-ice">rime-ice</a>, the word model from <a href="https://github.com/libpinyin/libpinyin">libpinyin</a>, Traditional tables from <a href="https://github.com/BYVoid/OpenCC">OpenCC</a>, and the syllable list from <a href="https://github.com/duyet/vietnamese-wordlist">Hồ Ngọc Đức's word list</a>. Set in Be Vietnam Pro.</p>
+  <p class="credits">Telex rules follow <a href="https://www.unikey.org">UniKey</a>. The Pinyin dictionary comes from <a href="https://github.com/iDvel/rime-ice">rime-ice</a>, the word model from <a href="https://github.com/libpinyin/libpinyin">libpinyin</a>, Traditional tables from <a href="https://github.com/BYVoid/OpenCC">OpenCC</a>, and the syllable list from <a href="https://github.com/duyet/vietnamese-wordlist">Hồ Ngọc Đức's word list</a>. The automatic Vietnamese and English switch follows <a href="https://github.com/tonyminibot/Vikey">Vikey</a>, with word frequencies from <a href="https://github.com/hermitdave/FrequencyWords">FrequencyWords</a>. Set in Be Vietnam Pro.</p>
   <nav class="foot-links" aria-label="Project">
     <a href="https://github.com/t43dev/ViPi">Source code</a>
+    <a href="https://github.com/t43dev/ViPi/blob/main/CHANGELOG.md">What's new</a>
     <a href="https://github.com/t43dev/ViPi/releases">All releases</a>
     <a href="https://github.com/t43dev/ViPi/blob/main/LICENSE">License</a>
   </nav>
