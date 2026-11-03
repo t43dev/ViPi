@@ -1,0 +1,5 @@
+[bindings.kotlin]
+package_name = "dev.t43.vipi.core"
+
+[bindings.swift]
+module_name = "ViPiCoreFFI"

@@ -37,6 +37,18 @@ cargo run --features bindgen --bin uniffi-bindgen -- generate --library target/d
 ANDROID_NDK_HOME=<ndk> cargo ndk -t arm64-v8a -t x86_64 -o <jniLibs> build --release --features uniffi
 ```
 
+## Android
+
+`android/` is the Android keyboard (`InputMethodService`) on top of the Rust core. Gradle builds the core for arm64-v8a, armeabi-v7a and x86_64 with `cargo ndk`, generates the Kotlin bindings with uniffi and copies the data files from `Resources/` into the APK, so it needs Rust with those Android targets, `cargo-ndk` and the NDK named in `app/build.gradle.kts`. Set `sdk.dir` in `android/local.properties`.
+
+```sh
+cd android && ./gradlew assembleDebug    # → app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb shell ime enable dev.t43.vipi/.ViPiInputMethod && adb shell ime set dev.t43.vipi/.ViPiInputMethod
+```
+
+On first launch the data files are copied from the APK to the app's files directory, where the core maps them into memory. A hardware keyboard goes through the same path as the on-screen keys, so `adb shell input text "tieengs%sVieetj%s"` types into the focused field; debug builds log every key's screen position under the logcat tag `ViPiKeys` for `adb shell input tap`.
+
 ## Website
 
 `site/` is the static page served at [vipi.t43.app](https://vipi.t43.app) (Cloudflare Pages project `vipi`). `scripts/site.sh` assembles `build/site` from it, the README screenshots, the syllable list and a cut-down Pinyin dictionary (`scripts/site-pinyin.py`); `scripts/site.sh deploy` also uploads it, using `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` from `.env`. The typing demo in `site/app.js` ports the Telex rules of `TelexEngine.swift`; keep them in step when the engine changes.

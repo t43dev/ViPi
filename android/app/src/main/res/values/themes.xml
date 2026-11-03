@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.ViPi" parent="android:Theme.Material.Light">
+        <item name="android:colorAccent">#C8102E</item>
+        <item name="android:colorPrimary">#C8102E</item>
+    </style>
+</resources>
