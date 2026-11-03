@@ -52,7 +52,7 @@
 2. 打开 ViPi，在 **系统设置 → 隐私与安全性 → 辅助功能** 中允许它。授权后 2 秒内即可使用。
 3. 按下 **`⌃ Control` + `⇧ Shift`**，开始打字。🎉
 
-📱 **Android（测试版）：** [下载 ViPi-android-0.1.3.apk](https://github.com/t43dev/ViPi/releases/download/android-v0.1.3/ViPi-android-0.1.3.apk)，打开安装后在应用的设置页中启用 ViPi。越南语和英语合为一个输入法，输入时自动区分；点按或长按地球键切换到 中文 · 拼音。
+📱 **Android（测试版）：** [下载 ViPi-android-0.1.4.apk](https://github.com/t43dev/ViPi/releases/download/android-v0.1.4/ViPi-android-0.1.4.apk)，打开安装后在应用的设置页中启用 ViPi。越南语和英语合为一个输入法，输入时自动区分；点按或长按地球键切换到 中文 · 拼音。
 
 > **提示：** 请关闭其他越南语输入法（UniKey、EVKey、GoNhanh…），只保留 **ABC** 输入源，让 ViPi 独自处理按键。
 
@@ -187,4 +187,4 @@ ViPi 刚刚发布，如有不顺手的地方，欢迎在 [Issues](../../issues) 
 
 ## 📄 许可证
 
-GPL-3.0。Telex 规则和元音表参照 [UniKey](https://www.unikey.org)（GPL）；拼音词库来自 [rime-ice](https://github.com/iDvel/rime-ice)（GPL-3.0）；越南语音节表源自 [胡玉德（Hồ Ngọc Đức）的词表](https://github.com/duyet/vietnamese-wordlist)（GPL）；简繁转换表来自 [OpenCC](https://github.com/BYVoid/OpenCC)（Apache-2.0）；词语二元模型源自 [libpinyin](https://github.com/libpinyin/libpinyin) 的语言模型（GPL-3.0）。Logo 的红金配色、V–P 连笔和星星的含义见 [assets/logo-meaning.md](assets/logo-meaning.md)。
+GPL-3.0。Telex 规则和元音表参照 [UniKey](https://www.unikey.org)（GPL）；拼音词库来自 [rime-ice](https://github.com/iDvel/rime-ice)（GPL-3.0）；越南语音节表源自 [胡玉德（Hồ Ngọc Đức）的词表](https://github.com/duyet/vietnamese-wordlist)（GPL）；简繁转换表来自 [OpenCC](https://github.com/BYVoid/OpenCC)（Apache-2.0）；词语二元模型源自 [libpinyin](https://github.com/libpinyin/libpinyin) 的语言模型（GPL-3.0）；越南语/英语自动识别参照 [Vikey](https://github.com/tonyminibot/Vikey)（GPL-3.0），使用 Hermit Dave 的 [FrequencyWords](https://github.com/hermitdave/FrequencyWords) 词频表（OpenSubtitles 2018，CC BY-SA 4.0），以及统计自 FineWeb-2、FineWeb（ODC-By）、HPLT 2（CC0）、MADLAD-400（ODC-By）和 Reddit 的词对表。Logo 的红金配色、V–P 连笔和星星的含义见 [assets/logo-meaning.md](assets/logo-meaning.md)。

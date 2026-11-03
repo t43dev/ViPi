@@ -97,6 +97,15 @@ pub struct Panel {
 
 const WORD_END_FOR_AUTO_SWITCH: &str = " \r\t,.;!?)'\"";
 
+/// Ngay sau một lần tự đổi: Backspace xoá chữ đã sửa cùng phím kết thúc từ (`remove`), gõ lại `text`
+/// (chữ trước khi sửa) và về chế độ cũ, như Vikey.
+struct Undo {
+    remove: usize,
+    text: String,
+    keys: Vec<char>,
+    mode: Mode,
+}
+
 pub struct Composer {
     mode: Mode,
     pub full_width_punctuation: bool,
@@ -105,8 +114,10 @@ pub struct Composer {
     auto_switch_tables: Option<AutoSwitch>,
     auto_switch_enabled: bool,
     auto_switch_paused_until: Option<Instant>,
-    english_word: Vec<char>, // chữ cái của từ đang gõ ở chế độ tiếng Anh
-    at_word_start: bool,     // từ đang gõ đứng sau dấu cách/đầu dòng (không dính sau số, @, ...)
+    english_word: Vec<char>,        // chữ cái của từ đang gõ ở chế độ tiếng Anh
+    undo: Option<Undo>,             // ngay sau một lần tự đổi: Backspace trả lại chữ trước đó
+    undone_keys: Option<Vec<char>>, // từ vừa được trả lại bằng Backspace: kết thúc lại nó thì không tự đổi nữa
+    at_word_start: bool,            // từ đang gõ đứng sau dấu cách/đầu dòng (không dính sau số, @, ...)
     telex: TelexEngine,
     lexicon: Option<Arc<VietnameseLexicon>>,
     restore_non_vietnamese: bool,
@@ -139,6 +150,8 @@ impl Composer {
             auto_switch_enabled: false,
             auto_switch_paused_until: None,
             english_word: vec![],
+            undo: None,
+            undone_keys: None,
             at_word_start: true,
             telex: TelexEngine::new(),
             lexicon: None,
@@ -247,7 +260,7 @@ impl Composer {
         self.auto_switch_enabled = on && self.auto_switch_tables.is_some();
         if !self.auto_switch_enabled {
             if let Some(a) = &mut self.auto_switch_tables {
-                a.remember(None);
+                a.remember(None, false);
             }
         }
     }
@@ -302,8 +315,10 @@ impl Composer {
     /// Bỏ phần đang gõ dở (click chuột, phím tắt có Command/Control, đổi ô nhập).
     pub fn cancel(&mut self) {
         self.at_word_start = true;
+        self.undo = None;
+        self.undone_keys = None;
         if let Some(a) = &mut self.auto_switch_tables {
-            a.remember(None);
+            a.remember(None, false);
         }
         self.english_word.clear();
         self.telex.reset();
@@ -317,6 +332,12 @@ impl Composer {
     // MARK: - Phím
 
     pub fn handle_key(&mut self, key: Key) -> KeyResult {
+        if key == Key::Backspace {
+            if let Some(u) = self.undo.take() {
+                return self.undo_auto_switch(u);
+            }
+        }
+        self.undo = None;
         match self.mode {
             Mode::English => self.handle_english(key),
             Mode::Vietnamese => self.handle_vietnamese(key),
@@ -330,11 +351,28 @@ impl Composer {
             && typed.is_some_and(|c| WORD_END_FOR_AUTO_SWITCH.contains(c))
     }
 
-    fn remember(&mut self, word: Option<Vec<char>>) {
+    fn remember(&mut self, word: Option<Vec<char>>, vietnamese: bool) {
         if self.auto_switch_enabled {
             if let Some(a) = &mut self.auto_switch_tables {
-                a.remember(word);
+                a.remember(word, vietnamese);
             }
+        }
+    }
+
+    /// Backspace ngay sau một lần tự đổi: bỏ chữ đã sửa và phím kết thúc từ, gõ lại chữ trước đó, về chế độ cũ.
+    /// Về tiếng Anh thì các phím đó lại là từ đang gõ ("vaay" ⌫ rồi "j" → "vậy"); kết thúc lại y nguyên thì giữ.
+    fn undo_auto_switch(&mut self, u: Undo) -> KeyResult {
+        self.set_mode(u.mode);
+        if u.mode == Mode::English {
+            self.english_word = u.keys.clone();
+            self.at_word_start = true;
+            self.undone_keys = Some(u.keys);
+        }
+        KeyResult {
+            handled: true,
+            edit: Some(TextEdit::new(u.remove, u.text)),
+            switched_to: Some(u.mode),
+            ..Default::default()
         }
     }
 
@@ -375,10 +413,11 @@ impl Composer {
                         }
                     }
                 }
-                self.remember((a == ' ' && !word.is_empty()).then_some(word));
+                self.remember((a == ' ' && !word.is_empty()).then_some(word.clone()), true);
                 if let Some(edit) = edit {
                     self.telex.reset();
-                    return self.word_end_result(edit, switch_to);
+                    let undo = (a != '\r').then(|| (shown, word, Mode::Vietnamese));
+                    return self.word_end_result(edit, switch_to, undo);
                 }
             }
             self.telex.reset();
@@ -394,9 +433,18 @@ impl Composer {
     }
 
     /// Kết thúc từ có sửa đổi: thay cả từ, gửi lại phím kết thúc từ, đổi chế độ nếu tự đổi.
-    fn word_end_result(&mut self, edit: TextEdit, switch_to: Option<Mode>) -> KeyResult {
+    /// `undo`: chữ trước khi sửa, các phím và chế độ lúc đó, để Backspace ngay sau trả lại (chỉ khi tự đổi).
+    fn word_end_result(
+        &mut self,
+        edit: TextEdit,
+        switch_to: Option<Mode>,
+        undo: Option<(String, Vec<char>, Mode)>,
+    ) -> KeyResult {
         if let Some(m) = switch_to {
             self.set_mode(m);
+            if let Some((text, keys, mode)) = undo {
+                self.undo = Some(Undo { remove: edit.insert.chars().count() + 1, text, keys, mode });
+            }
         }
         KeyResult {
             handled: true,
@@ -432,8 +480,10 @@ impl Composer {
         let mut text =
             if is_space && started { self.english_macros.as_ref().and_then(|m| m.expansion(&word_str)) } else { None };
         let mut switch_to = None;
+        // từ vừa được trả lại bằng Backspace thì giữ như đã gõ
+        let undone = self.undone_keys.take().is_some_and(|k| k == word);
         // tự đổi: chữ Telex gõ ở chế độ tiếng Anh ("treen") → chữ tiếng Việt, sang tiếng Việt
-        if text.is_none() && started && self.active_auto_switch(typed) {
+        if text.is_none() && started && !undone && self.active_auto_switch(typed) {
             if let Some(v) =
                 self.auto_switch_tables.as_ref().and_then(|t| t.vietnamese_for(&word, self.telex.modern_tone_style))
             {
@@ -442,9 +492,10 @@ impl Composer {
             }
         }
         let backspaces = word.len();
-        self.remember((ascii == Some(' ') && !word.is_empty()).then_some(word));
+        self.remember((ascii == Some(' ') && !word.is_empty()).then_some(word.clone()), false);
+        let undo = (ascii != Some('\r')).then(|| (word_str, word, Mode::English));
         match text {
-            Some(text) => self.word_end_result(TextEdit::new(backspaces, text), switch_to),
+            Some(text) => self.word_end_result(TextEdit::new(backspaces, text), switch_to, undo),
             None => KeyResult::pass(),
         }
     }

@@ -35,6 +35,10 @@ final class InputController {
     var autoSwitch: AutoSwitch?        // tự đổi Anh/Việt khi kết thúc từ (thử nghiệm), nil: tắt
     var onAutoSwitch: ((InputMode) -> Void)?
     private var autoSwitchPausedUntil = Date.distantPast
+    /// Ngay sau một lần tự đổi: Backspace xoá chữ đã sửa cùng phím kết thúc từ, trả lại đúng chữ trước đó và
+    /// chế độ cũ (như Vikey). Phím nào khác thì quên.
+    private var undo: (remove: Int, text: String, keys: [Character], mode: InputMode)?
+    private var undoneKeys: [Character]?   // từ vừa được trả lại bằng Backspace: kết thúc lại nó thì không tự đổi nữa
     private var englishWord = ""       // chữ cái của từ đang gõ ở chế độ tiếng Anh
     private var atWordStart = true      // từ đang gõ đứng sau dấu cách/đầu dòng (không dính sau số, @, ...)
     var isRecordingShortcut = false     // đang ghi phím tắt trong Settings: để mọi phím đi qua
@@ -144,6 +148,11 @@ final class InputController {
         // Enter/Space/phím điều khiển: không mượn mã của chúng (app có thể hiểu là Enter thật)
         let printable = typed.count == 1 && typed.unicodeScalars.allSatisfy { (0x21...0x7E).contains($0.value) }
         self.keyCode = printable ? CGKeyCode(keyCode) : 0
+        if keyCode == kVK_Delete, let u = undo {
+            undoAutoSwitch(u)
+            return true
+        }
+        undo = nil
         switch mode {
         case .english: return handleEnglish(keyCode, typed, event)
         case .vietnamese: return handleVietnamese(keyCode, typed, event)
@@ -176,13 +185,16 @@ final class InputController {
                     edit = restored
                     if auto?.isForeign(keys: word, shown: shown) == true { switchTo = .english }
                 }
-                autoSwitch?.remember(ascii == 0x20 && !word.isEmpty ? word : nil)
+                autoSwitch?.remember(ascii == 0x20 && !word.isEmpty ? word : nil, vietnamese: true)
                 if let edit {
                     // gõ nhanh thì phím chữ cuối có thể còn đang giữ: mượn mã của chính phím Space (app chưa thấy nó)
                     KeySender.send(edit, wholeWord: true, keyCode: ascii == 0x20 ? CGKeyCode(kVK_Space) : self.keyCode, proxy: proxy)
                     KeySender.repost(event, proxy: proxy)
                     telex.reset()
-                    if let switchTo { onAutoSwitch?(switchTo) }
+                    if let switchTo {
+                        onAutoSwitch?(switchTo)
+                        if ascii != 0x0D { undo = (edit.insert.count + 1, shown, word, .vietnamese) }
+                    }
                     return true
                 }
             }
@@ -217,18 +229,37 @@ final class InputController {
         var text = isSpace && started ? englishMacros?.expansion(for: word) : nil
         var switchTo: InputMode?
         // tự đổi: chữ Telex gõ ở chế độ tiếng Anh ("treen") → chữ tiếng Việt, sang tiếng Việt
-        if text == nil, started, let auto = activeAutoSwitch(typed),
+        // từ vừa được trả lại bằng Backspace thì giữ như đã gõ
+        let undone = undoneKeys == Array(word)
+        undoneKeys = nil
+        if text == nil, started, !undone, let auto = activeAutoSwitch(typed),
            let vietnamese = auto.vietnamese(for: Array(word), modern: telex.modernToneStyle) {
             text = vietnamese
             switchTo = .vietnamese
         }
-        autoSwitch?.remember(ascii == 0x20 && !word.isEmpty ? Array(word) : nil)
+        autoSwitch?.remember(ascii == 0x20 && !word.isEmpty ? Array(word) : nil, vietnamese: false)
         guard let text else { return false }
         KeySender.send(TextEdit(backspaces: word.count, insert: text), wholeWord: true,
                        keyCode: ascii == 0x20 ? CGKeyCode(kVK_Space) : self.keyCode, proxy: proxy)
         KeySender.repost(event, proxy: proxy)
-        if let switchTo { onAutoSwitch?(switchTo) }
+        if let switchTo {
+            onAutoSwitch?(switchTo)
+            if ascii != 0x0D { undo = (text.count + 1, word, Array(word), .english) }
+        }
         return true
+    }
+
+    /// Backspace ngay sau một lần tự đổi: bỏ chữ đã sửa và phím kết thúc từ, gõ lại chữ trước đó, về chế độ cũ.
+    /// Về tiếng Anh thì các phím đó lại là từ đang gõ ("vaay" ⌫ rồi "j" → "vậy"); kết thúc lại y nguyên thì giữ.
+    private func undoAutoSwitch(_ u: (remove: Int, text: String, keys: [Character], mode: InputMode)) {
+        undo = nil
+        KeySender.send(TextEdit(backspaces: u.remove, insert: u.text), wholeWord: false, keyCode: keyCode, proxy: proxy)
+        onAutoSwitch?(u.mode)
+        if u.mode == .english {
+            englishWord = String(u.keys)
+            atWordStart = true
+            undoneKeys = u.keys
+        }
     }
 
     /// Tự đổi đang bật, không trong 5 giây sau một lần đổi tay, và phím kết thúc từ là Space/Enter/Tab
@@ -331,6 +362,8 @@ final class InputController {
     }
 
     func cancelComposition() {
+        undo = nil
+        undoneKeys = nil
         atWordStart = true
         autoSwitch?.remember(nil)
         englishWord = ""

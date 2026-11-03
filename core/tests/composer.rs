@@ -117,6 +117,12 @@ fn auto_switch_from_vietnamese() {
             ("tooi thicsh lanwm ", "tôi thích lanwm ", true),
             ("video call this ", "video call this ", false),
             ("deploy leen server nhes ", "deploy lên server nhé ", true),
+            // cặp từ (Vikey D30): cách đọc nào hay đứng sau từ trước hơn trong văn bản thật
+            ("cho con bus ", "cho con bú ", true),
+            ("ddi xe bus ", "đi xe bus ", false),
+            ("owr been ", "ở bên ", true),
+            ("sang mix ", "sang mĩ ", true),
+            ("cachs mix ddoof ", "cách mix đồ ", true),
         ],
         Mode::Vietnamese,
     );
@@ -143,6 +149,9 @@ fn auto_switch_from_english() {
             ("Hey guys, cos ai ddi khoong ", "Hey guys, có ai đi không ", true),
             ("video call cos ", "video call cos ", false),
             ("ok vaayj thi mai gaawpj nhes ", "ok vậy thi mai gặp nhé ", true),
+            ("the bus ", "the bus ", false),
+            // cặp từ rõ là tiếng Việt thắng luật "ngay sau từ tiếng Anh" (D34)
+            ("test cos work ", "test có work ", false),
         ],
         Mode::English,
     );
@@ -216,4 +225,42 @@ fn english_mode_passes_keys_through() {
         let r = c.handle_key(key_for(ch));
         assert!(!r.handled && r.edit.is_none());
     }
+}
+
+/// Backspace ngay sau một lần tự đổi trả lại chữ trước đó và chế độ cũ (Vikey); phím khác thì không.
+#[test]
+fn backspace_undoes_auto_switch() {
+    let mut c = composer();
+    c.set_vietnamese_options(true, true, true);
+    c.set_auto_switch(true);
+    c.set_mode(Mode::English);
+    // tiếng Anh → tiếng Việt: "treen " → "trên ", Backspace → "treen", lại tiếng Anh
+    assert_eq!(type_all(&mut c, "treen ⌫"), "treen");
+    assert_eq!(c.mode(), Mode::English);
+    // kết thúc lại đúng từ đó: giữ như đã gõ
+    let mut c2 = composer();
+    c2.set_auto_switch(true);
+    c2.set_mode(Mode::English);
+    assert_eq!(type_all(&mut c2, "treen ⌫ "), "treen ");
+    assert_eq!(c2.mode(), Mode::English);
+    // gõ tiếp cho thành từ khác: lại được xét ("vaay" ⌫ … "j" → "vậy")
+    let mut c3 = composer();
+    c3.set_auto_switch(true);
+    c3.set_mode(Mode::English);
+    assert_eq!(type_all(&mut c3, "vaay ⌫j "), "vậy ");
+    // tiếng Việt → tiếng Anh: "server " → giữ "server", sang tiếng Anh; Backspace → về tiếng Việt
+    let mut c4 = composer();
+    c4.set_auto_switch(true);
+    c4.set_mode(Mode::Vietnamese);
+    assert_eq!(type_all(&mut c4, "server "), "server ");
+    assert_eq!(c4.mode(), Mode::English);
+    let r = c4.handle_key(Key::Backspace);
+    assert_eq!(r.switched_to, Some(Mode::Vietnamese));
+    assert_eq!(c4.mode(), Mode::Vietnamese);
+    // phím khác chen vào: Backspace chỉ xoá một ký tự như thường
+    let mut c5 = composer();
+    c5.set_auto_switch(true);
+    c5.set_mode(Mode::English);
+    assert_eq!(type_all(&mut c5, "treen a⌫"), "trên ");
+    assert_eq!(c5.mode(), Mode::Vietnamese);
 }

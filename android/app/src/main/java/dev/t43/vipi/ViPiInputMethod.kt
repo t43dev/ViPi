@@ -141,7 +141,13 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         val wasComposingChinese = c.isComposingChinese()
         val r = c.handleKey(key)
         ic.beginBatchEdit()
-        when (before) {
+        val undo = r.edit
+        if (key is KeyInput.Backspace && undo != null) {
+            // Backspace ngay sau một lần tự đổi: trả lại chữ trước đó (lõi đã về chế độ cũ)
+            ic.finishComposingText()
+            ic.deleteSurroundingText(undo.backspaces.toInt(), 0)
+            ic.commitText(undo.insert, 1)
+        } else when (before) {
             InputMode.VIETNAMESE -> applyVietnamese(ic, key, r, hadWord)
             InputMode.ENGLISH -> applyEnglish(ic, key, r)
             InputMode.CHINESE -> applyChinese(ic, key, r, wasComposingChinese)

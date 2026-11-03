@@ -112,20 +112,17 @@ fn auto_switch_matches_swift() {
     let mut r = Report::new("autoswitch");
     for line in golden("autoswitch.txt") {
         let f: Vec<&str> = line.split('\t').collect();
-        auto.remember(if f[0] == "-" { None } else { Some(f[0].chars().collect()) });
+        let prev: Option<Vec<char>> = if f[0] == "-" { None } else { Some(f[0].chars().collect()) };
         let keys: Vec<char> = f[1].chars().collect();
         let shown = render(&keys, false, true);
         let b = |v: bool| if v { "1" } else { "0" };
-        let got = [
-            f[0],
-            f[1],
-            &shown,
-            b(auto.prefers_english(&keys, &shown)),
-            b(auto.is_foreign(&keys, &shown)),
-            &auto.vietnamese_for(&keys, false).unwrap_or_else(|| "-".into()),
-            &auto.vietnamese_for(&keys, true).unwrap_or_else(|| "-".into()),
-        ]
-        .join("\t");
+        auto.remember(prev.clone(), true); // đang gõ tiếng Việt
+        let pe = b(auto.prefers_english(&keys, &shown));
+        let fo = b(auto.is_foreign(&keys, &shown));
+        auto.remember(prev, false); // đang gõ tiếng Anh
+        let vn = auto.vietnamese_for(&keys, false).unwrap_or_else(|| "-".into());
+        let vnm = auto.vietnamese_for(&keys, true).unwrap_or_else(|| "-".into());
+        let got = [f[0], f[1], &shown, pe, fo, &vn, &vnm].join("\t");
         r.check(&line, &got, &format!("prev={} {}", f[0], f[1]));
     }
     r.finish();

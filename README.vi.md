@@ -52,7 +52,7 @@ Nếu bạn viết cả tiếng Việt lẫn tiếng Trung, máy Mac của bạn
 2. Mở ViPi và cho phép trong **System Settings → Privacy & Security → Accessibility**. ViPi chạy ngay trong vòng 2 giây.
 3. Bấm **`⌃ Control` + `⇧ Shift`** và gõ thôi. 🎉
 
-📱 **Android (beta):** [tải ViPi-android-0.1.3.apk](https://github.com/t43dev/ViPi/releases/download/android-v0.1.3/ViPi-android-0.1.3.apk), mở để cài, rồi bật ViPi trong màn hình cài đặt của app. Tiếng Việt và tiếng Anh là một bộ gõ, tự nhận diện khi gõ; chạm hoặc giữ phím quả địa cầu để sang 中文 · 拼音.
+📱 **Android (beta):** [tải ViPi-android-0.1.4.apk](https://github.com/t43dev/ViPi/releases/download/android-v0.1.4/ViPi-android-0.1.4.apk), mở để cài, rồi bật ViPi trong màn hình cài đặt của app. Tiếng Việt và tiếng Anh là một bộ gõ, tự nhận diện khi gõ; chạm hoặc giữ phím quả địa cầu để sang 中文 · 拼音.
 
 > **Mẹo:** tắt các bộ gõ tiếng Việt khác (UniKey, EVKey, GoNhanh…) và chỉ giữ nguồn nhập **ABC**, để chỉ một mình ViPi xử lý phím gõ.
 
@@ -187,4 +187,4 @@ Mỗi phiên bản có gì mới: [CHANGELOG.md](CHANGELOG.md) (tiếng Anh). Mu
 
 ## 📄 Giấy phép
 
-GPL-3.0. Quy tắc Telex và bảng nguyên âm theo [UniKey](https://www.unikey.org) (GPL); từ điển Pinyin lấy từ [rime-ice](https://github.com/iDvel/rime-ice) (GPL-3.0); danh sách âm tiết tiếng Việt lấy từ [danh sách từ của Hồ Ngọc Đức](https://github.com/duyet/vietnamese-wordlist) (GPL); bảng chuyển giản→phồn thể lấy từ [OpenCC](https://github.com/BYVoid/OpenCC) (Apache-2.0); mô hình bigram từ rút từ mô hình ngôn ngữ của [libpinyin](https://github.com/libpinyin/libpinyin) (GPL-3.0). Ý nghĩa màu đỏ vàng, chữ V–P lồng nhau và ngôi sao trên logo xem ở [assets/logo-meaning.md](assets/logo-meaning.md).
+GPL-3.0. Quy tắc Telex và bảng nguyên âm theo [UniKey](https://www.unikey.org) (GPL); từ điển Pinyin lấy từ [rime-ice](https://github.com/iDvel/rime-ice) (GPL-3.0); danh sách âm tiết tiếng Việt lấy từ [danh sách từ của Hồ Ngọc Đức](https://github.com/duyet/vietnamese-wordlist) (GPL); bảng chuyển giản→phồn thể lấy từ [OpenCC](https://github.com/BYVoid/OpenCC) (Apache-2.0); mô hình bigram từ rút từ mô hình ngôn ngữ của [libpinyin](https://github.com/libpinyin/libpinyin) (GPL-3.0); tính năng tự nhận diện tiếng Việt/tiếng Anh theo [Vikey](https://github.com/tonyminibot/Vikey) (GPL-3.0), dùng bảng tần suất từ [FrequencyWords](https://github.com/hermitdave/FrequencyWords) của Hermit Dave (OpenSubtitles 2018, CC BY-SA 4.0) và bảng cặp từ đếm từ FineWeb-2, FineWeb (ODC-By), HPLT 2 (CC0), MADLAD-400 (ODC-By) và Reddit. Ý nghĩa màu đỏ vàng, chữ V–P lồng nhau và ngôi sao trên logo xem ở [assets/logo-meaning.md](assets/logo-meaning.md).

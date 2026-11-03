@@ -139,11 +139,14 @@ final class GoldenTests: XCTestCase {
         var lines: [String] = []
         for (i, w) in words.enumerated() {
             let keys = Array(w)
-            for prev in i % 5 == 0 ? ["-", "video", "tooi", "the"] : ["-"] {
-                auto.remember(prev == "-" ? nil : Array(prev))
+            // từ trước: vài từ thường gặp, để cặp từ (bus/bú, been/bên) có ngữ cảnh
+            for prev in i % 5 == 0 ? ["-", "video", "tooi", "the", "a", "con", "xe", "test", "owr", "cachs"] : ["-"] {
+                let p: [Character]? = prev == "-" ? nil : Array(prev)
                 let shown = TelexEngine.render(keys, modern: false)
+                auto.remember(p, vietnamese: true)      // đang gõ tiếng Việt
                 let pe = auto.prefersEnglish(keys: keys, shown: shown)
                 let fo = auto.isForeign(keys: keys, shown: shown)
+                auto.remember(p, vietnamese: false)     // đang gõ tiếng Anh
                 let vn = auto.vietnamese(for: keys, modern: false) ?? "-"
                 let vnm = auto.vietnamese(for: keys, modern: true) ?? "-"
                 lines.append([prev, w, shown, pe ? "1" : "0", fo ? "1" : "0", vn, vnm].joined(separator: "\t"))

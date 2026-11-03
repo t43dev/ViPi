@@ -9,6 +9,7 @@ Dùng: python3 -I scripts/build-tables.py      (chạy lại mỗi khi sửa m�
   s2t.tsv             → s2t.bin            giản thể → phồn thể (OpenCC)
   autoswitch-vi.tsv   → autoswitch-vi.bin  khoá Telex → điểm tần suất (1 byte có dấu)
   autoswitch-en.tsv   → autoswitch-en.bin
+  autoswitch-pairs.tsv → autoswitch-pairs.bin "từ trước<TAB>từ sau" → 8·log2(số lần) (1 byte)
 """
 import pathlib
 import struct
@@ -86,6 +87,12 @@ def autoswitch():
             if len(cols) == 2:
                 table[cols[0]] = struct.pack("<b", int(cols[1]))
         write_table(f"autoswitch-{lang}.bin", table)
+    table = {}
+    for line in (RES / "autoswitch-pairs.tsv").read_text(encoding="utf-8").split("\n"):
+        cols = line.split("\t")
+        if len(cols) == 3:
+            table[cols[0] + "\t" + cols[1]] = bytes([int(cols[2])])
+    write_table("autoswitch-pairs.bin", table)
 
 
 pinyin()

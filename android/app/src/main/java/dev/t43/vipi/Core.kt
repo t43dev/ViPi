@@ -13,7 +13,7 @@ object Core {
     private const val TAG = "ViPi"
     private val FILES = listOf(
         "vietnamese-syllables.txt", "pinyin-words.bin", "pinyin-abbrev.bin", "bigram.bin", "s2t.bin",
-        "autoswitch-vi.bin", "autoswitch-en.bin",
+        "autoswitch-vi.bin", "autoswitch-en.bin", "autoswitch-pairs.bin",
     )
 
     @Volatile

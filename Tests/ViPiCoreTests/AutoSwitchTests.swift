@@ -27,6 +27,7 @@ final class AutoSwitchTests: XCTestCase {
                 continue
             }
             let word = vi ? telex.keys : english
+            let wasVi = vi
             if vi {
                 let shown = telex.output
                 if atWordStart, auto.prefersEnglish(keys: word, shown: shown) {
@@ -44,7 +45,9 @@ final class AutoSwitchTests: XCTestCase {
                 }
                 english = []
             }
-            auto.remember(ch == " " && !word.isEmpty ? word : nil)
+            // như InputController: nhớ từ vừa gõ; đổi chế độ thì bắt đầu lại từ đầu (quên từ trước)
+            auto.remember(ch == " " && !word.isEmpty ? word : nil, vietnamese: wasVi)
+            if vi != wasVi { auto.remember(nil) }
             atWordStart = ch == " "
             text.append(ch)
         }
@@ -78,6 +81,12 @@ final class AutoSwitchTests: XCTestCase {
             ("tooi thicsh lanwm ", "tôi thích lanwm ", true),
             ("video call this ", "video call this ", false),
             ("deploy leen server nhes ", "deploy lên server nhé ", true),
+            // cặp từ (Vikey D30): cách đọc nào hay đứng sau từ trước hơn trong văn bản thật
+            ("cho con bus ", "cho con bú ", true),
+            ("ddi xe bus ", "đi xe bus ", false),
+            ("owr been ", "ở bên ", true),
+            ("sang mix ", "sang mĩ ", true),
+            ("cachs mix ddoof ", "cách mix đồ ", true),
         ], vietnamese: true)
     }
 
@@ -100,6 +109,9 @@ final class AutoSwitchTests: XCTestCase {
             ("Hey guys, cos ai ddi khoong ", "Hey guys, có ai đi không ", true),
             ("video call cos ", "video call cos ", false),
             ("ok vaayj thi mai gaawpj nhes ", "ok vậy thi mai gặp nhé ", true),
+            ("the bus ", "the bus ", false),
+            // cặp từ rõ là tiếng Việt thắng luật "ngay sau từ tiếng Anh" (D34)
+            ("test cos work ", "test có work ", false),
         ], vietnamese: false)
     }
 }

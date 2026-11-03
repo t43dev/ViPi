@@ -2,6 +2,14 @@
 
 What changed in each ViPi release. Download the latest from [Releases](../../releases/latest).
 
+## Unreleased
+
+### Improved
+- **Vietnamese/English auto switch reads the word before.** Words that are real both ways (`car`/cả, `bus`/bú, `been`/bên, `mix`/mĩ) follow the reading that comes after the previous word more often in real text: `cho con bus` → cho con **bú**, `ddi xe bus` → đi xe **bus**, `owr been` → ở **bên**, `test cos work` → test **có** work. Word pairs from Vikey.
+- **Backspace right after an automatic switch undoes it:** the word comes back as it was and ViPi returns to the language before. Typing the same word again keeps it as typed.
+- Known English words that Telex cannot spell, such as `work`, now switch to English like other English words.
+- Pinyin candidates with the same weight always come in the same order.
+
 ## 0.4.0 · 2026-11-02
 
 ### New

@@ -14,8 +14,8 @@ android {
         applicationId = "dev.t43.vipi"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.1.3"
+        versionCode = 5
+        versionName = "0.1.4"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
     }
 
@@ -114,7 +114,7 @@ val uniffiBindgen = tasks.register<UniffiBindgenTask>("uniffiBindgen") {
 val vipiAssets = tasks.register<Sync>("vipiAssets") {
     from(rootProject.file("../Resources")) {
         include("vietnamese-syllables.txt", "pinyin-words.bin", "pinyin-abbrev.bin", "bigram.bin", "s2t.bin",
-            "autoswitch-vi.bin", "autoswitch-en.bin")
+            "autoswitch-vi.bin", "autoswitch-en.bin", "autoswitch-pairs.bin")
     }
     into(layout.buildDirectory.dir("generated/vipiAssets/vipi"))
 }
