@@ -52,6 +52,8 @@ Nếu bạn viết cả tiếng Việt lẫn tiếng Trung, máy Mac của bạn
 2. Mở ViPi và cho phép trong **System Settings → Privacy & Security → Accessibility**. ViPi chạy ngay trong vòng 2 giây.
 3. Bấm **`⌃ Control` + `⇧ Shift`** và gõ thôi. 🎉
 
+📱 **Android (beta):** [tải ViPi-android-0.1.1.apk](https://github.com/t43dev/ViPi/releases/download/android-v0.1.1/ViPi-android-0.1.1.apk), mở để cài, rồi bật ViPi trong màn hình cài đặt của app. Tiếng Việt và tiếng Anh được tự nhận diện khi gõ; bàn phím chỉ chuyển giữa VI·EN và 拼.
+
 > **Mẹo:** tắt các bộ gõ tiếng Việt khác (UniKey, EVKey, GoNhanh…) và chỉ giữ nguồn nhập **ABC**, để chỉ một mình ViPi xử lý phím gõ.
 
 ## ✨ Tính năng

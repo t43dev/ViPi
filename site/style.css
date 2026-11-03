@@ -337,6 +337,8 @@ kbd.cap small { margin-top: 10px; font-size: 14px; font-weight: 600; color: var(
 .tabs button:hover { color: var(--ink); }
 .tabs button[aria-selected="true"] { background: var(--ink); color: var(--paper); }
 .shot { margin: 0; max-width: 562px; }
+.android-shot { margin: 0 0 28px; max-width: 540px; }
+.android-shot img { width: 100%; height: auto; border-radius: 22px 22px 14px 14px; box-shadow: 0 0 0 1px var(--rule); }
 .shot img { border-radius: 12px; }
 
 /* Promise */
