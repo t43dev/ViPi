@@ -31,7 +31,8 @@ public final class PinyinDictionary {
             for n in 1..<s.count { byPrefix[String(s.prefix(n)), default: []].append(s) }
         }
         self.syllables = syllables
-        self.byPrefix = byPrefix
+        // thứ tự cố định (không theo thứ tự duyệt Set) để ứng viên cùng weight luôn ra cùng một thứ tự
+        self.byPrefix = byPrefix.mapValues { $0.sorted() }
     }
 
     func lookup(_ key: String) -> [PinyinEntry] {

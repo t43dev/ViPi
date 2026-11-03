@@ -1,0 +1,37 @@
+[package]
+name = "vipi-core"
+version = "0.4.0"
+edition = "2021"
+license = "GPL-3.0-only"
+description = "ViPi input engine: Vietnamese Telex, Chinese Pinyin and the Vietnamese/English auto switch, shared by every ViPi platform"
+repository = "https://github.com/t43dev/ViPi"
+publish = false
+
+[lib]
+name = "vipi_core"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "uniffi-bindgen.rs"
+required-features = ["bindgen"]
+
+[features]
+default = []
+# Swift/Kotlin bindings (uniffi). `cargo test` stays pure Rust without it.
+uniffi = ["dep:uniffi"]
+bindgen = ["uniffi", "uniffi/cli"]
+
+[dependencies]
+memmap2 = "0.9"
+serde_json = "1"
+uniffi = { version = "=0.29.5", optional = true }
+
+[dev-dependencies]
+flate2 = "1"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

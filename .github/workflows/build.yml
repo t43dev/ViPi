@@ -26,3 +26,12 @@ jobs:
         with:
           name: ViPi
           path: build/ViPi-*.zip
+
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo --version
+      - name: Test the shared Rust core
+        working-directory: core
+        run: cargo test --release

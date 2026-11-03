@@ -40,6 +40,6 @@ public struct FuzzyRule: Identifiable, Hashable {
                 if let v, v != s, !(out[v]?.contains(s) ?? false) { out[v, default: []].append(s) }
             }
         }
-        return out
+        return out.mapValues { $0.sorted() }   // thứ tự cố định, không theo thứ tự duyệt Set
     }
 }
