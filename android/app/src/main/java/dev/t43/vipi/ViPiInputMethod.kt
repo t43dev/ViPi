@@ -255,11 +255,15 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
 
     // MARK: - Chế độ
 
-    /** Menu của phím quả địa cầu: Việt·Anh (một bộ gõ, tự nhận diện), Trung, hoặc bàn phím khác. */
+    /** Phím quả địa cầu: chạm đổi Việt·Anh ↔ Trung; giữ lâu: menu (hai bộ gõ, bàn phím khác, cài đặt). */
     override fun onPickInput(choice: Int) {
         when (choice) {
             KeyboardView.PICK_VIEN -> if (composer?.mode() == InputMode.CHINESE) setMode(prefs.latin, manual = false)
             KeyboardView.PICK_CHINESE -> if (composer?.mode() != InputMode.CHINESE) setMode(InputMode.CHINESE, manual = false)
+            KeyboardView.PICK_TOGGLE -> if (!passthrough) {
+                if (composer?.mode() == InputMode.CHINESE) setMode(prefs.latin, manual = false) else setMode(InputMode.CHINESE, manual = false)
+            }
+            KeyboardView.PICK_SETTINGS -> onSettings()
             KeyboardView.PICK_OTHER_KEYBOARD ->
                 (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).showInputMethodPicker()
         }

@@ -55,7 +55,7 @@ class SettingsActivity : Activity() {
         })
 
         section(root, "Vietnamese")
-        root.addView(note("Vietnamese and English are one keyboard: ViPi tells them apart as you type, so treen becomes trên and server stays server. Tap or hold the globe key to switch to Chinese and back. Word lists from Vikey."))
+        root.addView(note("Vietnamese and English are one keyboard: ViPi tells them apart as you type, so treen becomes trên and server stays server. Tap the globe key to switch to Chinese and back; hold it for more choices and these settings. Word lists from Vikey."))
         root.addView(toggle("Check spelling", Prefs.SPELL_CHECK, true,
             "Only add marks where they make a real Vietnamese syllable, so words like \"class\" stay as typed."))
         root.addView(toggle("Restore non-Vietnamese words", Prefs.RESTORE, true,

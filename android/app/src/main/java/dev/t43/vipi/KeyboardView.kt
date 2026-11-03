@@ -35,7 +35,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
 
     interface Listener {
         fun onKey(key: KeyInput)
-        /** Chọn trong menu của phím quả địa cầu: PICK_VIEN, PICK_CHINESE, PICK_OTHER_KEYBOARD. */
+        /** Phím quả địa cầu: chạm = PICK_TOGGLE; giữ lâu rồi chọn trong menu = các PICK_ còn lại. */
         fun onPickInput(choice: Int)
         fun onCandidate(index: Int)
         fun onCursor(delta: Int)
@@ -46,6 +46,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         const val PICK_VIEN = 0
         const val PICK_CHINESE = 1
         const val PICK_OTHER_KEYBOARD = 2
+        const val PICK_SETTINGS = 3
+        const val PICK_TOGGLE = 4
     }
 
     enum class Layout { LETTERS, NUMBERS, SYMBOLS }
@@ -97,8 +99,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
 
     private val dp = resources.displayMetrics.density
     private val sp = resources.displayMetrics.scaledDensity
-    private val stripBase = 46 * dp
-    private val stripChinese = 68 * dp     // thêm một dòng cho pinyin đang gõ
+    private val stripBase = 34 * dp        // chỗ cho bóng chữ của hàng phím trên cùng
+    private val stripChinese = 60 * dp     // dòng pinyin đang gõ + ứng viên
     private var stripHeight = stripBase
 
     private fun updateStripHeight() {
@@ -414,9 +416,9 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     /** Bóng chữ phóng to phía trên phím đang nhấn. */
     private fun drawCallout(canvas: Canvas, k: Key, p: Palette) {
         val w = k.rect.width() * 1.45f
-        val h = k.rect.height() * 1.25f
+        val h = k.rect.height() * 1.15f
         val left = (k.rect.centerX() - w / 2).coerceIn(2 * dp, width - w - 2 * dp)
-        val top = k.rect.top - h - 6 * dp
+        val top = max(0f, k.rect.top - h + 10 * dp)   // phủ một phần đầu phím, như bóng chữ của iOS
         fill.color = p.shadow
         tmp.set(left, top + 2 * dp, left + w, top + h + 2 * dp)
         canvas.drawRoundRect(tmp, keyRadius * 1.3f, keyRadius * 1.3f, fill)
@@ -432,14 +434,13 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
 
     // MARK: - Thanh trên: chọn chế độ hoặc ứng viên chữ Hán
 
-    private val gearRect = RectF()
 
     private fun layoutCandidates() {
         text.textSize = 21 * sp
         var x = 12 * dp
         candidateRects = candidates.map { c ->
             val w = max(text.measureText(c) + 26 * dp, 44 * dp)
-            RectF(x, stripHeight - 44 * dp, x + w, stripHeight - 4 * dp).also { x += w }
+            RectF(x, stripHeight - 40 * dp, x + w, stripHeight - 3 * dp).also { x += w }
         }
         stripContentWidth = x + 12 * dp
     }
@@ -453,7 +454,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             menuText.alpha = alpha
             menuText.textSize = 15 * sp
             menuText.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            canvas.drawText(preedit, 16 * dp, 19 * dp, menuText)
+            canvas.drawText(preedit, 16 * dp, 16 * dp, menuText)
         }
         if (candidates.isNotEmpty()) {
             canvas.save()
@@ -477,24 +478,6 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             }
             canvas.restore()
             return
-        }
-        // bánh răng: mở cài đặt
-        val gs = 30 * dp
-        val gy = stripHeight - 24 * dp
-        gearRect.set(width - gs - 12 * dp, gy - gs / 2, width - 12 * dp, gy + gs / 2)
-        drawGear(canvas, gearRect.centerX(), gearRect.centerY(), p.subtle, alpha)
-    }
-
-    private fun drawGear(canvas: Canvas, cx: Float, cy: Float, color: Int, alpha: Int) {
-        stroke.color = color; stroke.alpha = alpha; stroke.strokeWidth = 1.6f * dp
-        val r = 6.5f * dp
-        canvas.drawCircle(cx, cy, r, stroke)
-        canvas.drawCircle(cx, cy, 2.4f * dp, stroke)
-        for (i in 0 until 8) {
-            val a = Math.toRadians(i * 45.0)
-            val c = Math.cos(a).toFloat()
-            val s = Math.sin(a).toFloat()
-            canvas.drawLine(cx + c * r, cy + s * r, cx + c * (r + 2.6f * dp), cy + s * (r + 2.6f * dp), stroke)
         }
     }
 
@@ -583,7 +566,10 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 feedback()
                 when (k.kind) {
                     Kind.SHIFT -> { tapShift(); return true }
-                    Kind.MODE -> { openMenu(k, id); return true }
+                    Kind.MODE -> {
+                        // chạm: đổi Việt·Anh ↔ Trung; giữ lâu: menu
+                        handler.postDelayed(Runnable { holdGlobe(k, id) }.also { globeHold = it }, 380)
+                    }
                     Kind.BACKSPACE -> {
                         listener.onKey(KeyInput.Backspace)
                         handler.postDelayed(repeatBackspace, 420)
@@ -674,6 +660,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 }
             }
             MotionEvent.ACTION_CANCEL -> {
+                cancelGlobeHold()
                 closeMenu()
                 pressed.clear()
                 stopRepeat()
@@ -702,9 +689,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         if (candidates.isNotEmpty()) {
             val i = candidateAt(x)
             if (i >= 0) { feedback(); listener.onCandidate(i) }
-            return
         }
-        if (gearRect.contains(x, gearRect.centerY())) { listener.onSettings(); return }
     }
 
     private fun tapShift() {
@@ -733,8 +718,25 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             Kind.NUMBERS -> layout = Layout.NUMBERS
             Kind.SYMBOLS -> layout = Layout.SYMBOLS
             Kind.LETTERS -> layout = Layout.LETTERS
+            Kind.MODE -> { cancelGlobeHold(); listener.onPickInput(PICK_TOGGLE) }
             else -> {}
         }
+    }
+
+    private var globeHold: Runnable? = null
+
+    private fun cancelGlobeHold() {
+        globeHold?.let { handler.removeCallbacks(it) }
+        globeHold = null
+    }
+
+    /** Giữ phím quả địa cầu đủ lâu: thay cho lần chạm, mở menu (vẫn trượt ngón lên để chọn được). */
+    private fun holdGlobe(globe: Key, pointer: Int) {
+        globeHold = null
+        if (pressed.get(pointer)?.key !== globe) return
+        pressed.remove(pointer)
+        feedback()
+        openMenu(globe, pointer)
     }
 
     // MARK: - Menu đổi bộ gõ (phím quả địa cầu)
@@ -756,19 +758,19 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             items += MenuItem(PICK_CHINESE, "中文 · 拼音", "Chinese Pinyin", mode == InputMode.CHINESE)
         }
         if (showSystemSwitcher || modeLocked) items += MenuItem(PICK_OTHER_KEYBOARD, "Other keyboards", null, false)
-        if (items.isEmpty()) return
+        items += MenuItem(PICK_SETTINGS, "ViPi Settings", null, false)
         menuItems = items
-        val itemH = 58 * dp
+        // bên phải phím quả địa cầu, đáy ngang đáy phím: không bao giờ che phím (thả tay tại chỗ không chọn nhầm)
         val pad = 6 * dp
-        val w = min(268 * dp, width - 16 * dp)
-        val left = (globe.rect.left - 4 * dp).coerceIn(8 * dp, width - w - 8 * dp)
-        val bottom = globe.rect.top - 8 * dp
-        val top = max(4 * dp, bottom - items.size * itemH - 2 * pad)
-        menuBox.set(left, top, left + w, bottom)
+        val heights = items.map { if (it.subtitle != null) 52 * dp else 44 * dp }
+        val w = min(268 * dp, width - globe.rect.right - 14 * dp)
+        val left = globe.rect.right + 6 * dp
+        val bottom = globe.rect.bottom
+        val top = max(4 * dp, bottom - heights.sum() - 2 * pad)
+        menuBox.set(left, top, left + w, top + heights.sum() + 2 * pad)
         menuRects.clear()
-        items.indices.forEach { i ->
-            menuRects += RectF(left + pad, top + pad + i * itemH, left + w - pad, top + pad + (i + 1) * itemH)
-        }
+        var y = top + pad
+        heights.forEach { h -> menuRects += RectF(left + pad, y, left + w - pad, y + h); y += h }
         menuHighlight = -1
         menuPointer = pointer
         menuOpen = true
@@ -810,7 +812,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 val fm = menuText.fontMetrics
                 canvas.drawText(item.title, x, row.centerY() - (fm.ascent + fm.descent) / 2, menuText)
             } else {
-                canvas.drawText(item.title, x, row.centerY() - 2 * dp, menuText)
+                canvas.drawText(item.title, x, row.centerY() - 1 * dp, menuText)
                 menuText.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
                 menuText.textSize = 12.5f * sp
                 menuText.color = p.subtle
