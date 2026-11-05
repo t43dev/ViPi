@@ -173,8 +173,10 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         topGap = (if (short) 4 else 6) * dp
         gapY = (if (short) 6 else 8) * dp
         bottomPad = (if (short) 6 else 8) * dp
-        overlay = ((if (short) 96 else 124) * dp).toInt()
+        overlayMax = ((if (short) 96 else 124) * dp).toInt()
+        overlay = overlayMax
     }
+    private var overlayMax = 0
     private val radius = 8 * dp
     private val sideIcon = 44 * dp
     private var navInset = 0
@@ -538,7 +540,12 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             setMeasuredDimension(w, h)
             return
         }
-        setMeasuredDimension(w, (overlay + barH + topGap + rows.size * keyH + (rows.size - 1) * gapY + bottomPad + navInset).toInt())
+        val keys = (barH + topGap + rows.size * keyH + (rows.size - 1) * gapY + bottomPad + navInset).toInt()
+        // cửa sổ bàn phím không cao quá một phần màn hình (điện thoại 20:9 xoay ngang chỉ ~377 dp): bớt khoảng menu
+        // phía trên trước khi hàng phím dưới cùng bị cắt
+        val room = if (MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED) Int.MAX_VALUE else MeasureSpec.getSize(heightMeasureSpec)
+        overlay = overlayMax.coerceAtMost(room - keys).coerceAtLeast(0)
+        setMeasuredDimension(w, overlay + keys)
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
