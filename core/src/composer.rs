@@ -285,6 +285,11 @@ impl Composer {
         self.telex.output()
     }
 
+    /// Phím đã gõ của từ tiếng Việt đang gõ ("vieetj"), để thanh gợi ý cho chọn lại đúng chữ đã gõ.
+    pub fn current_keys(&self) -> String {
+        self.telex.keys().iter().collect()
+    }
+
     pub fn is_composing_chinese(&self) -> bool {
         self.pinyin.as_ref().is_some_and(|p| p.is_composing())
     }

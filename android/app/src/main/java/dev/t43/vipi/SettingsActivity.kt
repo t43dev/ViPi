@@ -14,6 +14,8 @@ import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.RadioGroup
 import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
@@ -55,7 +57,7 @@ class SettingsActivity : Activity() {
         })
 
         section(root, "Vietnamese")
-        root.addView(note("Vietnamese and English are one keyboard: ViPi tells them apart as you type, so treen becomes trên and server stays server. Tap the globe key to switch to Chinese and back; hold it for more choices and these settings. Word lists from Vikey."))
+        root.addView(note("Vietnamese and English are one keyboard: ViPi tells them apart as you type, so treen becomes trên and server stays server. Tap the globe key to switch to Chinese and back; hold it for more choices and these settings. Hold a key on the top row for its number. Word lists from Vikey."))
         root.addView(toggle("Check spelling", Prefs.SPELL_CHECK, true,
             "Only add marks where they make a real Vietnamese syllable, so words like \"class\" stay as typed."))
         root.addView(toggle("Restore non-Vietnamese words", Prefs.RESTORE, true,
@@ -83,6 +85,23 @@ class SettingsActivity : Activity() {
                 }
             })
         }
+
+        section(root, "Appearance")
+        root.addView(RadioGroup(this).apply {
+            orientation = RadioGroup.HORIZONTAL
+            val current = prefs.theme
+            for ((label, theme) in listOf("System" to KeyboardView.Theme.SYSTEM, "Light" to KeyboardView.Theme.LIGHT, "Dark" to KeyboardView.Theme.DARK)) {
+                addView(RadioButton(this@SettingsActivity).apply {
+                    text = label
+                    id = View.generateViewId()
+                    isChecked = theme == current
+                    setOnCheckedChangeListener { _, on -> if (on) prefs.theme = theme }
+                })
+            }
+        })
+        if (android.os.Build.VERSION.SDK_INT >= 31) root.addView(toggle("Material You colors", Prefs.MATERIAL_YOU, false,
+            "Use your wallpaper's accent color for the Enter key and highlights instead of ViPi red."))
+        root.addView(toggle("Show key popup", Prefs.KEY_POPUP, true, "Show a larger letter above the key you press."))
 
         section(root, "Keyboard")
         root.addView(toggle("Vibrate on key press", Prefs.HAPTICS, true, null))

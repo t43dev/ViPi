@@ -191,6 +191,10 @@ impl ViPiComposer {
         self.lock().current_word()
     }
 
+    pub fn current_keys(&self) -> String {
+        self.lock().current_keys()
+    }
+
     pub fn preedit(&self) -> String {
         self.lock().preedit()
     }

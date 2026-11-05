@@ -1,7 +1,9 @@
 package dev.t43.vipi
 
+import android.content.ClipboardManager
 import android.content.Intent
 import android.inputmethodservice.InputMethodService
+import android.inputmethodservice.InputMethodService.Insets
 import android.os.SystemClock
 import android.text.InputType
 import android.util.Log
@@ -9,6 +11,7 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
+import android.widget.Toast
 import dev.t43.vipi.core.InputMode
 import dev.t43.vipi.core.KeyInput
 import dev.t43.vipi.core.KeyOutcome
@@ -18,7 +21,8 @@ import dev.t43.vipi.core.ViPiComposer
  * Bàn phím ViPi cho Android. Lõi Rust (Composer) quyết định chữ; ở đây chỉ đổi kết quả thành thao tác trên ô nhập:
  * - Tiếng Việt: từ đang gõ là "composing text" (có thể gạch chân), thay bằng chữ của lõi sau mỗi phím.
  * - Tiếng Anh: chữ đi thẳng vào ô nhập; gõ tắt / tự đổi thì xoá lùi rồi chèn.
- * - Tiếng Trung: pinyin đang gõ là composing text, ứng viên ở thanh trên, chọn thì commit chữ Hán.
+ * - Tiếng Trung: pinyin đang gõ là composing text (gạch chân trong ô nhập), ứng viên ở thanh gợi ý, chọn thì
+ *   commit chữ Hán đè lên pinyin.
  */
 class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
     private lateinit var prefs: Prefs
@@ -32,7 +36,7 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
     private var switcherRequested = false
     // cài đặt đổi khi bàn phím đang mở (màn hình cài đặt cùng tiến trình): áp ngay
     private val prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key != "mode" && key != "latin") { applyPrefs(); keyboard?.hapticsEnabled = prefs.haptics; refreshUi() }
+        if (key != "mode" && key != "latin") { applyPrefs(); applyKeyboardPrefs(); refreshUi() }
     }
 
     override fun onCreate() {
@@ -48,7 +52,33 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
     }
 
     override fun onCreateInputView(): View =
-        KeyboardView(this, this).also { keyboard = it; it.showSystemSwitcher = switcherRequested }
+        KeyboardView(this, this).also { keyboard = it; it.showSystemSwitcher = switcherRequested; applyKeyboardPrefs() }
+
+    private fun applyKeyboardPrefs() {
+        val kb = keyboard ?: return
+        kb.hapticsEnabled = prefs.haptics
+        kb.keyPopup = prefs.keyPopup
+        kb.fullWidth = prefs.fullWidth
+        kb.traditional = prefs.traditional
+        kb.setAppearance(prefs.theme, prefs.materialYou)
+    }
+
+    /**
+     * Phía trên bàn phím là khoảng trong suốt để vẽ menu quả địa cầu: app không bị đẩy lên vì nó, và chạm vào đó
+     * đi xuống app, trừ khi menu đang mở.
+     */
+    override fun onComputeInsets(outInsets: Insets) {
+        super.onComputeInsets(outInsets)
+        val kb = keyboard ?: return
+        if (!kb.isShown) return
+        val loc = IntArray(2)
+        kb.getLocationInWindow(loc)
+        val top = loc[1] + kb.overlay
+        outInsets.contentTopInsets = top
+        outInsets.visibleTopInsets = top
+        outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_REGION
+        outInsets.touchableRegion.set(loc[0], if (kb.menuOpen) loc[1] else top, loc[0] + kb.width, loc[1] + kb.height)
+    }
 
     /**
      * Thanh điều hướng của bàn phím (mũi tên ẩn bàn phím ở góc trái, nút đổi bàn phím ở góc phải) do hệ thống vẽ
@@ -86,21 +116,20 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         val cls = info.inputType and InputType.TYPE_MASK_CLASS
         kb.layout = if (cls == InputType.TYPE_CLASS_NUMBER || cls == InputType.TYPE_CLASS_PHONE || cls == InputType.TYPE_CLASS_DATETIME)
             KeyboardView.Layout.NUMBERS else KeyboardView.Layout.LETTERS
-        kb.returnLabel = when (enterAction) {
-            EditorInfo.IME_ACTION_GO -> "go"
-            EditorInfo.IME_ACTION_SEARCH -> "search"
-            EditorInfo.IME_ACTION_SEND -> "send"
-            EditorInfo.IME_ACTION_NEXT -> "next"
-            EditorInfo.IME_ACTION_DONE -> "done"
-            else -> null
+        kb.action = when (enterAction) {
+            EditorInfo.IME_ACTION_GO -> KeyboardView.Action.GO
+            EditorInfo.IME_ACTION_SEARCH -> KeyboardView.Action.SEARCH
+            EditorInfo.IME_ACTION_SEND -> KeyboardView.Action.SEND
+            EditorInfo.IME_ACTION_NEXT -> KeyboardView.Action.NEXT
+            EditorInfo.IME_ACTION_DONE -> KeyboardView.Action.DONE
+            else -> KeyboardView.Action.RETURN
         }
         kb.modeLocked = passthrough
-        kb.hapticsEnabled = prefs.haptics
+        applyKeyboardPrefs()
         kb.shift = KeyboardView.Shift.OFF
         refreshUi()
         updateShift()
         hideImeNavigationBar()
-        if (!restarting) kb.animateIn()
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
@@ -192,8 +221,10 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
     private fun applyChinese(ic: InputConnection, key: KeyInput?, r: KeyOutcome, wasComposing: Boolean) {
         val c = composer ?: return
         if (!r.handled) { if (key != null) deliver(ic, key); return }
-        // pinyin đang gõ chỉ hiện trong bàn phím (refreshUi); app chỉ nhận chữ Hán đã chọn
+        // chữ Hán đã chọn thay chỗ pinyin đang gạch chân; còn pinyin chưa chọn (chọn từng phần) thì gạch chân tiếp
         r.edit?.let { ic.commitText(it.insert, 1) }
+        if (c.isComposingChinese()) ic.setComposingText(c.preedit(), 1)
+        else if (wasComposing && r.edit == null) { ic.setComposingText("", 1); ic.finishComposingText() }
         if (r.repostKey && key != null) deliver(ic, key)
     }
 
@@ -244,12 +275,44 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         refreshUi()
     }
 
+    /** Thanh gợi ý tiếng Việt: giữ đúng các phím đã gõ (0) hoặc chữ đang hiện (1), rồi một dấu cách. */
+    override fun onSuggestion(index: Int) {
+        val c = composer ?: return
+        val ic = currentInputConnection ?: return
+        lastOwnEdit = SystemClock.uptimeMillis()
+        val text = if (index == 0) c.currentKeys() else c.currentWord()
+        ic.beginBatchEdit()
+        ic.setComposingText(text, 1)
+        ic.finishComposingText()
+        ic.commitText(" ", 1)
+        ic.endBatchEdit()
+        c.cancel()
+        refreshUi()
+        updateShift()
+    }
+
+    /** Biểu tượng bảng tạm (beta): dán mục mới nhất. Bảng tạm đầy đủ (ghim, tự xoá sau 1 giờ) làm sau. */
+    override fun onClipboard() {
+        val ic = currentInputConnection ?: return
+        val clip = (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager).primaryClip
+        val text = clip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(this)?.toString()
+        if (text.isNullOrEmpty()) { Toast.makeText(this, "Clipboard is empty", Toast.LENGTH_SHORT).show(); return }
+        endComposition()
+        lastOwnEdit = SystemClock.uptimeMillis()
+        ic.commitText(text, 1)
+        updateShift()
+    }
+
+    override fun onVoice() {
+        Toast.makeText(this, "Voice typing is coming soon", Toast.LENGTH_SHORT).show()
+    }
+
     override fun onCursor(delta: Int) {
         endComposition()
         sendDownUpKeyEvents(if (delta > 0) KeyEvent.KEYCODE_DPAD_RIGHT else KeyEvent.KEYCODE_DPAD_LEFT)
     }
 
-    override fun onSettings() {
+    private fun openSettings() {
         startActivity(Intent(this, SettingsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
@@ -263,7 +326,8 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
             KeyboardView.PICK_TOGGLE -> if (!passthrough) {
                 if (composer?.mode() == InputMode.CHINESE) setMode(prefs.latin, manual = false) else setMode(InputMode.CHINESE, manual = false)
             }
-            KeyboardView.PICK_SETTINGS -> onSettings()
+            KeyboardView.PICK_SETTINGS -> openSettings()
+            KeyboardView.PICK_TRADITIONAL -> prefs.set(Prefs.TRADITIONAL, !prefs.traditional)
             KeyboardView.PICK_OTHER_KEYBOARD ->
                 (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).showInputMethodPicker()
         }
@@ -289,6 +353,7 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
     private fun endComposition() {
         val c = composer ?: return
         val ic = currentInputConnection
+        if (c.isComposingChinese() && !passthrough) ic?.setComposingText("", 1)
         ic?.finishComposingText()
         c.cancel()
         refreshUi()
@@ -299,8 +364,9 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         val c = composer
         kb.mode = if (passthrough || c == null) InputMode.ENGLISH else c.mode()
         val chinese = c != null && !passthrough && c.isComposingChinese()
-        kb.preedit = if (chinese) c!!.preedit() else ""
         kb.setCandidates(if (chinese) c!!.candidates().map { it.text } else emptyList())
+        val viet = c != null && !passthrough && c.mode() == InputMode.VIETNAMESE
+        kb.setSuggestions(if (viet) c!!.currentKeys() else "", if (viet) c!!.currentWord() else "")
     }
 
     private fun updateShift() {

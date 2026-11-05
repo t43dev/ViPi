@@ -33,6 +33,11 @@ class Prefs(context: Context) {
     val haptics get() = bool(HAPTICS, true)
     val autoCap get() = bool(AUTO_CAP, true)
     val doubleSpacePeriod get() = bool(DOUBLE_SPACE, true)
+    val keyPopup get() = bool(KEY_POPUP, true)
+    val materialYou get() = bool(MATERIAL_YOU, false)
+    var theme: KeyboardView.Theme
+        get() = runCatching { KeyboardView.Theme.valueOf(sp.getString(THEME, null) ?: "") }.getOrDefault(KeyboardView.Theme.SYSTEM)
+        set(v) = sp.edit().putString(THEME, v.name).apply()
 
     var fuzzy: Set<String>
         get() = sp.getStringSet(FUZZY, emptySet()) ?: emptySet()
@@ -49,5 +54,8 @@ class Prefs(context: Context) {
         const val AUTO_CAP = "autoCapitalize"
         const val DOUBLE_SPACE = "doubleSpacePeriod"
         const val FUZZY = "fuzzy"
+        const val KEY_POPUP = "keyPopup"
+        const val MATERIAL_YOU = "materialYou"
+        const val THEME = "theme"
     }
 }

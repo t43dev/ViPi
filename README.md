@@ -52,7 +52,7 @@ If you write in Vietnamese and Chinese, your Mac probably looks like this:
 2. Open ViPi and allow it in **System Settings → Privacy & Security → Accessibility**. It starts working within 2 seconds.
 3. Press **`⌃ Control` + `⇧ Shift`** and start typing. 🎉
 
-📱 **Android (beta):** [download ViPi-android-0.1.6.apk](https://github.com/t43dev/ViPi/releases/download/android-v0.1.6/ViPi-android-0.1.6.apk), open it, then turn on ViPi in its Settings screen. Vietnamese and English are one keyboard, told apart as you type; tap the globe key for 中文 · 拼音, hold it for more.
+📱 **Android (beta):** [download ViPi-android-0.2.0.apk](https://github.com/t43dev/ViPi/releases/download/android-v0.2.0/ViPi-android-0.2.0.apk), open it, then turn on ViPi in its Settings screen. Vietnamese and English are one keyboard, told apart as you type; tap the globe key for 中文 · 拼音, hold it for more.
 
 > **Tip:** turn off other Vietnamese input tools (UniKey, EVKey, GoNhanh…) and keep the plain **ABC** input source, so only ViPi changes what you type.
 

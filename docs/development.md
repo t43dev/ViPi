@@ -49,6 +49,8 @@ adb shell ime enable dev.t43.vipi/.ViPiInputMethod && adb shell ime set dev.t43.
 
 On first launch the data files are copied from the APK to the app's files directory, where the core maps them into memory. A hardware keyboard goes through the same path as the on-screen keys, so `adb shell input text "tieengs%sVieetj%s"` types into the focused field; debug builds log every key's screen position under the logcat tag `ViPiKeys` for `adb shell input tap`.
 
+`KeyboardView.kt` draws the whole keyboard on a canvas, following the Material 3 design (colours and sizes in dp from the design spec). The unpressed keys are recorded once into a `RenderNode`; each frame only adds the pressed keys, the key popup and the suggestion bar. The view is 112 dp taller than the keyboard: that transparent strip on top is where the globe key menu opens. `ViPiInputMethod.onComputeInsets` keeps apps laid out against the real keyboard top and passes touches on the strip through to the app unless the menu is open.
+
 ## Website
 
 `site/` is the static page served at [vipi.t43.app](https://vipi.t43.app) (Cloudflare Pages project `vipi`). `scripts/site.sh` assembles `build/site` from it, the README screenshots, the syllable list and a cut-down Pinyin dictionary (`scripts/site-pinyin.py`); `scripts/site.sh deploy` also uploads it, using `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` from `.env`. The typing demo in `site/app.js` ports the Telex rules of `TelexEngine.swift`; keep them in step when the engine changes.
