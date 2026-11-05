@@ -787,10 +787,12 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         }
         val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 14 * sp; typeface = regular }
         val inner = max(1, (w - 24 * dp).toInt())
+        // hai dòng chữ cần ô cao ~70 dp (cùng dòng thời gian); điện thoại xoay ngang chỉ đủ một dòng
+        val lines = if (h >= 68 * dp) 2 else 1
         clipLayouts = (0 until n).map { i ->
             val t = clips[i].text.replace(Regex("\\s+"), " ").trim()
             StaticLayout.Builder.obtain(t, 0, t.length, paint, inner)
-                .setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END).setIncludePad(false)
+                .setMaxLines(lines).setEllipsize(TextUtils.TruncateAt.END).setIncludePad(false)
                 .setAlignment(TextLayout.Alignment.ALIGN_NORMAL).build()
         }
     }
