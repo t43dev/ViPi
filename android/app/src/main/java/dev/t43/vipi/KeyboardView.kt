@@ -60,6 +60,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         fun onClipDelete(text: String)
         fun onClipClear()
         fun onVoice()
+        /** Bàn phím nổi: nút gắn lại xuống đáy. */
+        fun onDock()
     }
 
     companion object {
@@ -75,11 +77,15 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     enum class Shift { OFF, ONCE, LOCK }
     enum class Action { RETURN, SEND, SEARCH, GO, NEXT, DONE }
     enum class Theme { SYSTEM, LIGHT, DARK }
-    private enum class Kind { CHAR, SHIFT, BACKSPACE, NUMBERS, LETTERS, SYMBOLS, MODE, SPACE, RETURN, SPACER }
+    /** Màn ≥ 600 dp (máy gập mở, tablet): tách đôi hai bên bản lề, một khối rộng ở giữa, hay bàn phím nổi. */
+    enum class LargeLayout { SPLIT, WIDE, FLOATING }
+    private enum class Form { PHONE, SPLIT, WIDE, FLOATING }
+    private enum class Kind { CHAR, SHIFT, BACKSPACE, NUMBERS, LETTERS, SYMBOLS, MODE, SPACE, RETURN, SPACER, GAP }
 
     private class Key(val kind: Kind, val label: String = "", val units: Float = 1f, val hint: String? = null, val punct: Boolean = false) {
         val rect = RectF()
-        val isFunction get() = kind != Kind.CHAR && kind != Kind.SPACE && kind != Kind.SPACER
+        val isFunction get() = kind != Kind.CHAR && kind != Kind.SPACE && kind != Kind.SPACER && kind != Kind.GAP
+        val isKey get() = kind != Kind.SPACER && kind != Kind.GAP
     }
 
     // MARK: - Trạng thái do bộ gõ đặt
@@ -102,6 +108,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     var keyPopup = true
     var fullWidth = true
         set(v) { if (field != v) { field = v; dirty() } }
+    var largeLayout = LargeLayout.SPLIT
+        set(v) { if (field != v) { field = v; requestLayout(); invalidate() } }
 
     fun setAppearance(theme: Theme, materialYou: Boolean) {
         this.theme = theme
@@ -171,11 +179,37 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     private val sideIcon = 44 * dp
     private var navInset = 0
 
-    private val kbTop get() = overlay.toFloat()
+    private var form = Form.PHONE
+    /** Hàng số 1–5 | 6–0 khi tách đôi trên màn cao ≥ 760 dp (Find N6 mở, Fold8 Ultra). */
+    private var numberRow = false
+    private val handleH = 20 * dp
+    /** Bàn phím nổi: thẻ 390 dp, kéo bằng thanh trên cùng. */
+    private val card = RectF()
+
+    private val kbTop get() = if (form == Form.FLOATING) card.top + handleH else overlay.toFloat()
     private val rowsTop get() = kbTop + barH + topGap
-    private val rowsBottom get() = rowsTop + 4 * keyH + 3 * gapY
+    private val rowsBottom get() = rowsTop + rows.size * keyH + (rows.size - 1) * gapY
     private var blockL = 0f
     private var blockR = 0f
+    private var splitGapL = 0f
+    private var splitGapR = 0f
+
+    /** Chọn kiểu bàn phím theo bề rộng cửa sổ; đổi kiểu thì dựng lại các hàng phím. */
+    private fun configure(w: Int) {
+        val wide = w / dp >= 600
+        val f = when {
+            !wide -> Form.PHONE
+            largeLayout == LargeLayout.SPLIT -> Form.SPLIT
+            largeLayout == LargeLayout.FLOATING -> Form.FLOATING
+            else -> Form.WIDE
+        }
+        val nr = f == Form.SPLIT && resources.configuration.screenHeightDp >= 760
+        if (f != form || nr != numberRow) {
+            form = f
+            numberRow = nr
+            buildRows()
+        }
+    }
 
     // MARK: - Màu (mục 3.1)
 
@@ -284,6 +318,10 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             moveTo(4f, 7f); lineTo(20f, 7f); moveTo(9f, 7f); lineTo(9f, 4f); lineTo(15f, 4f); lineTo(15f, 7f)
             moveTo(6f, 7f); lineTo(7f, 20f); lineTo(17f, 20f); lineTo(18f, 7f); moveTo(10f, 11f); lineTo(10f, 16f); moveTo(14f, 11f); lineTo(14f, 16f)
         }
+        val dock = Path().apply {
+            addRoundRect(3f, 13f, 21f, 21f, 2f, 2f, Path.Direction.CW)
+            moveTo(12f, 3f); lineTo(12f, 10f); moveTo(8.5f, 7f); lineTo(12f, 10.5f); lineTo(15.5f, 7f)
+        }
         val keyboard = Path().apply {
             addRoundRect(2.5f, 5.5f, 21.5f, 18.5f, 2f, 2f, Path.Direction.CW)
             for (x in listOf(6.5f, 10.5f, 14.5f, 18.5f)) { moveTo(x - 0.5f, 10f); lineTo(x + 0.5f, 10f) }
@@ -311,6 +349,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     private fun chars(s: String, units: Float = 1f) = s.map { Key(Kind.CHAR, it.toString(), units) }
 
     private fun buildRows() {
+        if (form == Form.SPLIT) { rows = splitRows(); layoutKeys(); return }
         val bottom = listOf(
             if (layout == Layout.LETTERS) Key(Kind.NUMBERS, "?123", 1.5f) else Key(Kind.LETTERS, "ABC", 1.5f),
             Key(Kind.MODE),
@@ -322,7 +361,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         val third = { left: Key -> listOf(left) + chars(".,?!'", 1.4f) + Key(Kind.BACKSPACE, units = 1.5f) }
         rows = when (layout) {
             Layout.LETTERS -> listOf(
-                "qwertyuiop".mapIndexed { i, c -> Key(Kind.CHAR, c.toString(), hint = ((i + 1) % 10).toString()) },
+                "qwertyuiop".mapIndexed { i, c -> Key(Kind.CHAR, c.toString(), hint = (i + 1).mod(10).toString()) },
                 listOf(Key(Kind.SPACER, units = 0.5f)) + chars("asdfghjkl") + Key(Kind.SPACER, units = 0.5f),
                 listOf(Key(Kind.SHIFT, units = 1.5f)) + chars("zxcvbnm") + Key(Kind.BACKSPACE, units = 1.5f),
                 bottom,
@@ -333,15 +372,89 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         layoutKeys()
     }
 
+    /**
+     * Tách đôi (spec 4.2): mỗi nửa 5 đơn vị. Trái: 1–5 / q w e r t / a s d f g / Shift z x c v / ?123 Globe , Space.
+     * Phải: 6–0 / y u i o p / h j k l / b n m ⌫ / Space . Enter. Khoảng giữa (GAP) nằm trên bản lề.
+     */
+    private fun splitRows(): List<List<Key>> {
+        val gap = Key(Kind.GAP)
+        val bottom = listOf(
+            if (layout == Layout.LETTERS) Key(Kind.NUMBERS, "?123", 1.5f) else Key(Kind.LETTERS, "ABC", 1.5f),
+            Key(Kind.MODE), Key(Kind.CHAR, ",", punct = true), Key(Kind.SPACE, units = 1.5f),
+            gap,
+            Key(Kind.SPACE, units = 2f), Key(Kind.CHAR, ".", punct = true), Key(Kind.RETURN, units = 2f),
+        )
+        val digits = chars("12345") + gap + chars("67890")
+        fun third(left: Key) = listOf(left) + chars(".,?", 1.2f) + gap + chars("!'", 1.2f) + Key(Kind.SPACER, units = 0.6f) + Key(Kind.BACKSPACE, units = 2f)
+        val sym1 = chars("-/:;(") + gap + chars(")$&@\"")
+        val sym2 = chars("_\\|~<") + gap + chars(">€£¥•")
+        val brackets = chars("[]{}#") + gap + chars("%^*+=")
+        return when (layout) {
+            Layout.LETTERS -> (if (numberRow) listOf(digits) else emptyList()) + listOf(
+                "qwert".mapIndexed { i, c -> Key(Kind.CHAR, c.toString(), hint = if (numberRow) null else "${i + 1}") } + gap +
+                    "yuiop".mapIndexed { i, c -> Key(Kind.CHAR, c.toString(), hint = if (numberRow) null else "${(i + 6) % 10}") },
+                chars("asdfg") + gap + Key(Kind.SPACER, units = 0.5f) + chars("hjkl") + Key(Kind.SPACER, units = 0.5f),
+                listOf(Key(Kind.SHIFT)) + chars("zxcv") + gap + chars("bnm") + Key(Kind.BACKSPACE, units = 2f),
+                bottom,
+            )
+            // cùng số hàng với lớp chữ để chiều cao bàn phím không đổi khi chuyển lớp
+            Layout.NUMBERS -> if (numberRow) listOf(digits, sym1, brackets, third(Key(Kind.SYMBOLS, "#+=", 1.4f)), bottom)
+                else listOf(digits, sym1, third(Key(Kind.SYMBOLS, "#+=", 1.4f)), bottom)
+            Layout.SYMBOLS -> if (numberRow) listOf(digits, brackets, sym2, third(Key(Kind.NUMBERS, "123", 1.4f)), bottom)
+                else listOf(brackets, sym2, third(Key(Kind.NUMBERS, "123", 1.4f)), bottom)
+        }
+    }
+
     private fun layoutKeys() {
         if (width == 0) return
-        // điện thoại: lề 4, phím (W − 8 − 54)/10; màn ≥ 600 dp (máy gập mở, tablet): một khối, phím tối đa 64 dp, canh giữa
-        val wide = width / dp >= 600
-        val side = (if (wide) 12 else 4) * dp
-        var unit = (width - 2 * side + gapX) / 10f
-        if (wide) unit = min(unit, 64 * dp + gapX)
-        blockL = (width - (10 * unit - gapX)) / 2
-        blockR = width - blockL
+        val side = (if (form == Form.PHONE) 4 else 12) * dp
+        when (form) {
+            Form.SPLIT -> {
+                // phím rộng clamp((W/2 − 44)/5, 56, 64) dp; hai nửa sát hai mép, khoảng hở giữa canh bản lề
+                val key = ((width / 2f - 44 * dp) / 5).coerceIn(56 * dp, 64 * dp)
+                val unit = key + gapX
+                val half = 5 * unit - gapX
+                blockL = side
+                blockR = width - side
+                splitGapL = blockL + half
+                splitGapR = blockR - half
+                rows.forEachIndexed { r, row ->
+                    val top = rowsTop + r * (keyH + gapY)
+                    val g = row.indexOfFirst { it.kind == Kind.GAP }
+                    var x = blockL - gapX / 2
+                    row.forEachIndexed { i, k ->
+                        if (i == g) { k.rect.set(splitGapL, top, splitGapR, top + keyH); x = splitGapR - gapX / 2; return@forEachIndexed }
+                        val w = k.units * unit
+                        k.rect.set(x + gapX / 2, top, x + w - gapX / 2, top + keyH)
+                        x += w
+                    }
+                }
+            }
+            Form.FLOATING -> {
+                if (!cardPlaced) placeCard()
+                card.bottom = card.top + cardHeight
+                if (card.bottom > height - navInset) card.offset(0f, max(-card.top, height - navInset - card.bottom))
+                val inner = 4 * dp
+                val unit = (card.width() - 2 * inner + gapX) / 10f
+                blockL = card.left + inner
+                blockR = card.right - inner
+                layoutRows(unit)
+            }
+            else -> {
+                // điện thoại: lề 4, phím (W − 8 − 54)/10; màn rộng: một khối, phím tối đa 64 dp, canh giữa
+                var unit = (width - 2 * side + gapX) / 10f
+                if (form == Form.WIDE) unit = min(unit, 64 * dp + gapX)
+                blockL = (width - (10 * unit - gapX)) / 2
+                blockR = width - blockL
+                layoutRows(unit)
+            }
+        }
+        layoutCandidates()
+        layoutClips()
+        dirty()
+    }
+
+    private fun layoutRows(unit: Float) {
         rows.forEachIndexed { r, row ->
             var x = blockL - gapX / 2
             val top = rowsTop + r * (keyH + gapY)
@@ -351,8 +464,51 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 x += w
             }
         }
-        layoutCandidates()
-        dirty()
+    }
+
+    // MARK: - Bàn phím nổi (spec 4.3): thẻ 390 dp, thanh kéo ở trên, nhớ vị trí riêng cho màn dọc / ngang
+
+    private val prefs by lazy { context.getSharedPreferences("vipi", Context.MODE_PRIVATE) }
+    private val floatKey get() = "float_" +
+        if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) "land" else "port"
+    private val cardHeight get() = handleH + barH + topGap + rows.size * keyH + (rows.size - 1) * gapY + bottomPad
+
+    private var cardPlaced = false
+
+    private fun placeCard() {
+        cardPlaced = width > 0 && height > 0
+        val w = min(390 * dp, width - 16 * dp)
+        val h = cardHeight
+        val saved = prefs.getString(floatKey, null)?.split(",")?.mapNotNull { it.toFloatOrNull() }
+        var x = saved?.getOrNull(0)?.let { it * width } ?: ((width - w) / 2)
+        var y = saved?.getOrNull(1)?.let { it * height } ?: (height - h - 24 * dp - navInset)
+        x = x.coerceIn(0f, max(0f, width - w))
+        y = y.coerceIn(0f, max(0f, height - h - navInset))
+        card.set(x, y, x + w, y + h)
+    }
+
+    private fun moveCard(dx: Float, dy: Float) {
+        val w = card.width()
+        val h = card.height()
+        val x = (card.left + dx).coerceIn(0f, max(0f, width - w))
+        val y = (card.top + dy).coerceIn(0f, max(0f, height - h - navInset))
+        card.offsetTo(x, y)
+        layoutKeys()
+        requestLayout()   // vùng nhận chạm đi theo thẻ (onComputeInsets)
+    }
+
+    private fun saveCard() {
+        prefs.edit().putString(floatKey, "${card.left / width},${card.top / height}").apply()
+    }
+
+    /** Cho ViPiInputMethod.onComputeInsets: mép trên app được xếp tới, và vùng nhận chạm (toạ độ trong view). */
+    val contentTop: Int get() = if (form == Form.FLOATING) height else overlay
+    fun touchRect(out: android.graphics.Rect) {
+        when {
+            menuOpen -> out.set(0, 0, width, height)
+            form == Form.FLOATING -> out.set(card.left.toInt(), card.top.toInt(), card.right.toInt(), card.bottom.toInt())
+            else -> out.set(0, overlay, width, height)
+        }
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -371,10 +527,19 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val w = MeasureSpec.getSize(widthMeasureSpec)
-        setMeasuredDimension(w, (rowsBottom + bottomPad + navInset).toInt())
+        configure(w)
+        if (form == Form.FLOATING) {
+            // nổi: chiếm cả cửa sổ bàn phím (trong suốt), chỉ thẻ nhận chạm; app phía sau không bị đẩy lên
+            val h = if (MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED) resources.displayMetrics.heightPixels
+                else MeasureSpec.getSize(heightMeasureSpec)
+            setMeasuredDimension(w, h)
+            return
+        }
+        setMeasuredDimension(w, (overlay + barH + topGap + rows.size * keyH + (rows.size - 1) * gapY + bottomPad + navInset).toInt())
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        cardPlaced = false
         layoutKeys()
         fade = null
     }
@@ -404,10 +569,28 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
 
     private fun drawKeys(canvas: Canvas) {
         val p = palette
-        fill.color = p.bg
-        canvas.drawRect(0f, kbTop, width.toFloat(), height.toFloat(), fill)
+        if (form == Form.FLOATING) drawCard(canvas, p)
+        else {
+            fill.color = p.bg
+            canvas.drawRect(0f, kbTop, width.toFloat(), height.toFloat(), fill)
+        }
         if (gridOpen || clipOpen) return
-        for (row in rows) for (k in row) if (k.kind != Kind.SPACER) drawKey(canvas, k, p, 0f)
+        for (row in rows) for (k in row) if (k.isKey) drawKey(canvas, k, p, 0f)
+    }
+
+    /** Thẻ bàn phím nổi: bo 16, viền 1 dp, bóng; thanh kéo (viên 36 × 4) và nút gắn lại xuống đáy. */
+    private fun drawCard(canvas: Canvas, p: Palette) {
+        val r = 16 * dp
+        shadowPaint.color = p.bg
+        shadowPaint.setShadowLayer(15 * dp, 0f, 10 * dp, 0x80000000.toInt())
+        canvas.drawRoundRect(card, r, r, shadowPaint)
+        icon.style = Paint.Style.STROKE; icon.strokeWidth = 1 * dp; icon.color = p.divider
+        canvas.drawRoundRect(card, r, r, icon)
+        fill.color = p.hint
+        val cx = card.centerX()
+        val cy = card.top + handleH / 2 + 1 * dp
+        canvas.drawRoundRect(cx - 18 * dp, cy - 2 * dp, cx + 18 * dp, cy + 2 * dp, 2 * dp, 2 * dp, fill)
+        drawIcon(canvas, Icons.dock, card.right - 22 * dp, cy, 18f, p.icon)
     }
 
     // MARK: - Đổi chế độ: nhãn quả địa cầu và phím cách mờ dần trong 120 ms, bố cục không đổi
@@ -697,14 +880,18 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         else -> listOf(suggestKeys, suggestWord, "")
     }
 
+    /** Cụm gợi ý: tối đa 420 dp ở giữa (màn rộng). */
+    private val sugL get() = max(midL, (midL + midR) / 2 - 210 * dp)
+    private val sugR get() = min(midR, (midL + midR) / 2 + 210 * dp)
+
     private fun drawSuggestions(canvas: Canvas, p: Palette) {
         val cells = suggestionCells()
         if (cells.isEmpty()) return
-        val w = (midR - midL) / 3
+        val w = (sugR - sugL) / 3
         val cy = barTop + barH / 2
         cells.forEachIndexed { i, s ->
             if (s.isEmpty()) return@forEachIndexed
-            val l = midL + i * w
+            val l = sugL + i * w
             if (i == pressedSuggestion) {
                 fill.color = p.text; fill.alpha = 0x1F
                 canvas.drawRoundRect(l + 2 * dp, cy - 18 * dp, l + w - 2 * dp, cy + 18 * dp, radius, radius, fill)
@@ -855,6 +1042,12 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     private var pressedCandidate = -1
     private var pressedSuggestion = -1
     private var velocity: VelocityTracker? = null
+    private var dragPointer = -1      // ngón đang kéo thanh trên của bàn phím nổi
+    private var dragLastX = 0f
+    private var dragLastY = 0f
+    private var dragStartX = 0f
+    private var dragStartY = 0f
+    private var dragMoved = false
 
     private val repeatBackspace = object : Runnable {
         override fun run() {
@@ -869,8 +1062,10 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         val r = ((y - rowsTop + gapY / 2) / (keyH + gapY)).toInt().coerceIn(0, rows.size - 1)
         var best: Key? = null
         var bestD = Float.MAX_VALUE
+        if (form == Form.SPLIT && x > splitGapL && x < splitGapR) return null   // khoảng trên bản lề: không phải phím
+        if (form == Form.FLOATING && !card.contains(x, y)) return null
         for (k in rows[r]) {
-            if (k.kind == Kind.SPACER) continue
+            if (!k.isKey) continue
             val d = if (x < k.rect.left) k.rect.left - x else if (x > k.rect.right) x - k.rect.right else 0f
             if (d < bestD) { bestD = d; best = k }
         }
@@ -906,6 +1101,12 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                     val m = menuItemAt(x, y)
                     if (m >= 0) { menuHighlight = m; menuPointer = id } else closeMenu()
                     invalidate()
+                    return true
+                }
+                if (form == Form.FLOATING && pressed.size() == 0 && barTouch < 0 && dragPointer < 0 &&
+                    x >= card.left && x <= card.right && y >= card.top && y < card.top + handleH) {
+                    dragPointer = id; dragLastX = x; dragLastY = y; dragStartX = x; dragStartY = y
+                    dragMoved = false
                     return true
                 }
                 if (pressed.size() == 0 && barTouch < 0 && (y < rowsTop - topGap || (gridOpen || clipOpen) && y < gridBottom)) {
@@ -991,6 +1192,15 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                     }
                     return true
                 }
+                if (dragPointer >= 0) {
+                    val idx = e.findPointerIndex(dragPointer)
+                    if (idx >= 0) {
+                        val x = e.getX(idx); val y = e.getY(idx)
+                        if (abs(x - dragStartX) > 6 * dp || abs(y - dragStartY) > 6 * dp) dragMoved = true
+                        if (dragMoved) { moveCard(x - dragLastX, y - dragLastY); dragLastX = x; dragLastY = y }
+                    }
+                    return true
+                }
                 if (barTouch >= 0) {
                     velocity?.addMovement(e)
                     val idx = e.findPointerIndex(barTouch)
@@ -1054,6 +1264,11 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                     invalidate()
                     return true
                 }
+                if (id == dragPointer) {
+                    dragPointer = -1
+                    if (dragMoved) saveCard() else if (e.getX(i) > card.right - 44 * dp) { feedback(); listener.onDock() }
+                    return true
+                }
                 if (id == barTouch) {
                     finishBarTouch(e, i)
                     return true
@@ -1070,6 +1285,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 }
             }
             MotionEvent.ACTION_CANCEL -> {
+                if (dragPointer >= 0 && dragMoved) saveCard()
+                dragPointer = -1
                 cancelGlobeHold()
                 closeMenu()
                 for (j in 0 until pressed.size()) pressed.valueAt(j).longPress?.let { handler.removeCallbacks(it) }
@@ -1158,8 +1375,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
 
     private fun suggestionAt(x: Float): Int {
         val cells = suggestionCells()
-        if (cells.isEmpty() || x < midL || x > midR) return -1
-        val i = ((x - midL) / ((midR - midL) / 3)).toInt().coerceIn(0, 2)
+        if (cells.isEmpty() || x < sugL || x > sugR) return -1
+        val i = ((x - sugL) / ((sugR - sugL) / 3)).toInt().coerceIn(0, 2)
         return if (cells[i].isNotEmpty()) i else -1
     }
 
@@ -1366,13 +1583,15 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         val loc = IntArray(2)
         getLocationOnScreen(loc)
         fun put(name: String, x: Float, y: Float) = append("$name ${(loc[0] + x).toInt()} ${(loc[1] + y).toInt()}\n")
-        if (!gridOpen && !clipOpen) for (row in rows) for (k in row) if (k.kind != Kind.SPACER) put(if (k.kind == Kind.CHAR) k.label else k.kind.name.lowercase(), k.rect.centerX(), k.rect.centerY())
+        if (!gridOpen && !clipOpen) for (row in rows) for (k in row) if (k.isKey) put(if (k.kind == Kind.CHAR) k.label else k.kind.name.lowercase(), k.rect.centerX(), k.rect.centerY())
         val cy = barTop + barH / 2
         put("nav", navInset.toFloat(), height.toFloat())
         put("clip", blockL + sideIcon / 2, cy)
         put("right", blockR - sideIcon / 2, cy)
-        put("sug0", midL + (midR - midL) / 6, cy)
-        put("sug1", midL + (midR - midL) / 2, cy)
+        put("sug0", sugL + (sugR - sugL) / 6, cy)
+        put("sug1", sugL + (sugR - sugL) / 2, cy)
+        if (form == Form.FLOATING) { put("handle", card.centerX(), card.top + handleH / 2); put("dock", card.right - 22 * dp, card.top + handleH / 2) }
+        put("form_" + form.name.lowercase(), 0f, 0f)
         candidateRects.forEachIndexed { i, r -> put("cand$i", r.centerX() - stripScroll, cy) }
         if (gridOpen) gridRects.forEachIndexed { i, r -> put("grid$i", r.centerX(), r.centerY() - gridScroll) }
         val names = mapOf(PICK_VIEN to "vien", PICK_CHINESE to "chinese", PICK_TRADITIONAL to "traditional",

@@ -104,6 +104,23 @@ class SettingsActivity : Activity() {
         root.addView(toggle("Show key popup", Prefs.KEY_POPUP, true, "Show a larger letter above the key you press."))
 
         section(root, "Keyboard")
+        root.addView(note("On large screens (an unfolded phone or a tablet)"), LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(6) })
+        root.addView(RadioGroup(this).apply {
+            orientation = RadioGroup.VERTICAL
+            val current = prefs.largeLayout
+            for ((label, l) in listOf(
+                "Split: one half on each side of the fold" to KeyboardView.LargeLayout.SPLIT,
+                "Wide: one keyboard in the middle" to KeyboardView.LargeLayout.WIDE,
+                "Floating: drag it anywhere by the bar on top" to KeyboardView.LargeLayout.FLOATING,
+            )) {
+                addView(RadioButton(this@SettingsActivity).apply {
+                    text = label
+                    id = View.generateViewId()
+                    isChecked = l == current
+                    setOnCheckedChangeListener { _, on -> if (on) prefs.largeLayout = l }
+                })
+            }
+        })
         root.addView(toggle("Vibrate on key press", Prefs.HAPTICS, true, null))
         root.addView(toggle("Auto-capitalize", Prefs.AUTO_CAP, true, "Start sentences with a capital letter."))
         root.addView(toggle("\".\" shortcut", Prefs.DOUBLE_SPACE, true, "Double-tap the space bar for a period and a space."))

@@ -52,7 +52,7 @@
 2. 打开 ViPi，在 **系统设置 → 隐私与安全性 → 辅助功能** 中允许它。授权后 2 秒内即可使用。
 3. 按下 **`⌃ Control` + `⇧ Shift`**，开始打字。🎉
 
-📱 **Android（测试版）：** [下载 ViPi-android-0.2.1.apk](https://github.com/t43dev/ViPi/releases/download/android-v0.2.1/ViPi-android-0.2.1.apk)，打开安装后在应用的设置页中启用 ViPi。越南语和英语合为一个输入法，输入时自动区分；点按地球键切换到 中文 · 拼音，长按查看更多选项。
+📱 **Android（测试版）：** [下载 ViPi-android-0.3.0.apk](https://github.com/t43dev/ViPi/releases/download/android-v0.3.0/ViPi-android-0.3.0.apk)，打开安装后在应用的设置页中启用 ViPi。越南语和英语合为一个输入法，输入时自动区分；点按地球键切换到 中文 · 拼音，长按查看更多选项。
 
 > **提示：** 请关闭其他越南语输入法（UniKey、EVKey、GoNhanh…），只保留 **ABC** 输入源，让 ViPi 独自处理按键。
 

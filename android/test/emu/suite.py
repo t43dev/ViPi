@@ -38,8 +38,12 @@ tap("shift", delay=0.05); tap("shift"); typ("ab"); tap("shift")
 check("caps lock (double tap)", field(), "AB|")
 # --- hold top row for digits
 fresh()
-hold("q", 700); hold("p", 700)
-check("hold q/p → 1/0", field(), "10|")
+if "1" in K:   # split keyboard with a number row: digits have their own keys
+    tap("1"); tap("0")
+    check("number row 1/0", field(), "10|")
+else:
+    hold("q", 700); hold("p", 700)
+    check("hold q/p → 1/0", field(), "10|")
 # --- backspace repeat
 fresh()
 typ("abcdefghij"); hold("backspace", 1800)

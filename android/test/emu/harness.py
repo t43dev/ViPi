@@ -130,6 +130,15 @@ def summary():
         print(f"  FAIL {r[1]}: got={r[2]!r} want={r[3]!r}")
 
 
+def field_center():
+    """Centre of the "Try it here" field in ViPi's settings screen (falls back to a phone's position)."""
+    sh("uiautomator dump /sdcard/u.xml >/dev/null")
+    m = re.search(r'package="dev.t43.vipi"[^>]*class="android.widget.EditText"|class="android.widget.EditText" package="dev.t43.vipi"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', sh("cat /sdcard/u.xml"))
+    if m and m.group(1):
+        return (int(m[1]) + int(m[3])) // 2, (int(m[2]) + int(m[4])) // 2
+    return 540, 760
+
+
 def ensure_shown():
     """Make sure ViPi is the IME and its keyboard is showing over the settings test field."""
     if "dev.t43.vipi" not in sh("settings get secure default_input_method"):
@@ -141,7 +150,8 @@ def ensure_shown():
         time.sleep(0.4)
         sh("am start -n dev.t43.vipi/.SettingsActivity")
         time.sleep(1.5)
-        sh("input tap 540 760")
+        x, y = field_center()
+        sh(f"input tap {x} {y}")
         time.sleep(1.5)
         if "mInputShown=true" in sh("dumpsys input_method | grep mInputShown"):
             return

@@ -44,7 +44,7 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
     private var debugReceiver: BroadcastReceiver? = null
     // cài đặt đổi khi bàn phím đang mở (màn hình cài đặt cùng tiến trình): áp ngay
     private val prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key != "mode" && key != "latin") { applyPrefs(); applyKeyboardPrefs(); refreshUi() }
+        if (key != "mode" && key != "latin" && key?.startsWith("float_") != true) { applyPrefs(); applyKeyboardPrefs(); refreshUi() }
     }
 
     override fun onCreate() {
@@ -74,6 +74,12 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         kb.fullWidth = prefs.fullWidth
         kb.traditional = prefs.traditional
         kb.setAppearance(prefs.theme, prefs.materialYou)
+        kb.largeLayout = prefs.largeLayout
+    }
+
+    /** Bàn phím nổi: gắn lại xuống đáy (kiểu tách đôi). */
+    override fun onDock() {
+        prefs.largeLayout = KeyboardView.LargeLayout.SPLIT
     }
 
     /**
@@ -86,11 +92,14 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         if (!kb.isShown) return
         val loc = IntArray(2)
         kb.getLocationInWindow(loc)
-        val top = loc[1] + kb.overlay
+        val top = loc[1] + kb.contentTop
         outInsets.contentTopInsets = top
         outInsets.visibleTopInsets = top
         outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_REGION
-        outInsets.touchableRegion.set(loc[0], if (kb.menuOpen) loc[1] else top, loc[0] + kb.width, loc[1] + kb.height)
+        val r = android.graphics.Rect()
+        kb.touchRect(r)
+        r.offset(loc[0], loc[1])
+        outInsets.touchableRegion.set(r)
     }
 
     /**
