@@ -199,6 +199,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         val wide = w / dp >= 600
         val f = when {
             !wide -> Form.PHONE
+            // điện thoại xoay ngang (thấp < 500 dp): luôn một khối rộng, tách đôi chỉ dành cho màn gập mở / tablet
+            resources.configuration.screenHeightDp in 1 until 500 -> Form.WIDE
             largeLayout == LargeLayout.SPLIT -> Form.SPLIT
             largeLayout == LargeLayout.FLOATING -> Form.FLOATING
             else -> Form.WIDE
@@ -263,6 +265,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         super.onConfigurationChanged(newConfig)
         palette = makePalette()
         applyMetrics()
+        if (width > 0) configure(width)
         layoutKeys()
         requestLayout()
         dirty()
