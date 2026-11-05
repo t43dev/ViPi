@@ -165,7 +165,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         topGap = (if (short) 4 else 6) * dp
         gapY = (if (short) 6 else 8) * dp
         bottomPad = (if (short) 6 else 8) * dp
-        overlay = ((if (short) 96 else 112) * dp).toInt()
+        overlay = ((if (short) 96 else 124) * dp).toInt()
     }
     private val radius = 8 * dp
     private val sideIcon = 44 * dp
@@ -1373,7 +1373,9 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         put("sug1", midL + (midR - midL) / 2, cy)
         candidateRects.forEachIndexed { i, r -> put("cand$i", r.centerX() - stripScroll, cy) }
         if (gridOpen) gridRects.forEachIndexed { i, r -> put("grid$i", r.centerX(), r.centerY() - gridScroll) }
-        if (menuOpen) menuRects.forEachIndexed { i, r -> put("menu$i", r.centerX(), r.centerY()) }
+        val names = mapOf(PICK_VIEN to "vien", PICK_CHINESE to "chinese", PICK_TRADITIONAL to "traditional",
+            PICK_OTHER_KEYBOARD to "other", PICK_SETTINGS to "settings")
+        if (menuOpen) menuRects.forEachIndexed { i, r -> names[menuItems[i].choice]?.let { put("menu_$it", r.centerX(), r.centerY()) } }
         if (clipOpen) clipRects.forEachIndexed { i, r -> put("clip$i", r.centerX(), r.centerY()) }
     }
 }
