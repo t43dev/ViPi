@@ -1,6 +1,10 @@
 package dev.t43.vipi
 
+import android.content.BroadcastReceiver
+import android.content.ClipDescription
 import android.content.ClipboardManager
+import android.content.Context
+import android.content.IntentFilter
 import android.content.Intent
 import android.inputmethodservice.InputMethodService
 import android.inputmethodservice.InputMethodService.Insets
@@ -34,6 +38,10 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
     private var lastSpaceAt = 0L
     private val hardwareConsumed = HashSet<Int>()
     private var switcherRequested = false
+    private lateinit var clipHistory: ClipHistory
+    private val clipboard by lazy { getSystemService(CLIPBOARD_SERVICE) as ClipboardManager }
+    private val clipListener = ClipboardManager.OnPrimaryClipChangedListener { captureClip() }
+    private var debugReceiver: BroadcastReceiver? = null
     // cài đặt đổi khi bàn phím đang mở (màn hình cài đặt cùng tiến trình): áp ngay
     private val prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key != "mode" && key != "latin") { applyPrefs(); applyKeyboardPrefs(); refreshUi() }
@@ -44,10 +52,15 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         prefs = Prefs(this)
         composer = Core.composer(this)
         prefs.sp.registerOnSharedPreferenceChangeListener(prefsListener)
+        clipHistory = ClipHistory(this)
+        clipboard.addPrimaryClipChangedListener(clipListener)
+        if (BuildConfigCompat.debuggable(this)) registerDebugDump()
     }
 
     override fun onDestroy() {
         prefs.sp.unregisterOnSharedPreferenceChangeListener(prefsListener)
+        clipboard.removePrimaryClipChangedListener(clipListener)
+        debugReceiver?.let { unregisterReceiver(it) }
         super.onDestroy()
     }
 
@@ -133,6 +146,7 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
+        keyboard?.reset()
         endComposition()
         super.onFinishInputView(finishingInput)
     }
@@ -291,16 +305,47 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         updateShift()
     }
 
-    /** Biểu tượng bảng tạm (beta): dán mục mới nhất. Bảng tạm đầy đủ (ghim, tự xoá sau 1 giờ) làm sau. */
-    override fun onClipboard() {
+    // MARK: - Bảng tạm (beta): 6 mục chép gần nhất, mỗi mục giữ 1 giờ, chỉ trên máy
+
+    /**
+     * Đọc mục vừa chép. Android 10+ chỉ cho bộ gõ mặc định đọc bảng tạm, nên chép khi ViPi không phải bàn phím
+     * đang dùng thì không vào lịch sử. Mục được app đánh dấu nhạy cảm (mật khẩu) thì bỏ qua.
+     */
+    private fun captureClip() {
+        val clip = runCatching { clipboard.primaryClip }.getOrNull() ?: return
+        if (clip.itemCount == 0) return
+        val sensitive = android.os.Build.VERSION.SDK_INT >= 33 &&
+            clip.description.extras?.getBoolean(ClipDescription.EXTRA_IS_SENSITIVE) == true
+        if (sensitive) return
+        val text = clip.getItemAt(0).coerceToText(this)?.toString() ?: return
+        if (clipHistory.add(text)) showClips()
+    }
+
+    private fun showClips() {
+        keyboard?.clips = clipHistory.recent().map { KeyboardView.Clip(it.text, it.at) }
+    }
+
+    override fun onClipboardOpen() {
+        captureClip()
+        showClips()
+    }
+
+    override fun onClipPaste(text: String) {
         val ic = currentInputConnection ?: return
-        val clip = (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager).primaryClip
-        val text = clip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(this)?.toString()
-        if (text.isNullOrEmpty()) { Toast.makeText(this, "Clipboard is empty", Toast.LENGTH_SHORT).show(); return }
         endComposition()
         lastOwnEdit = SystemClock.uptimeMillis()
         ic.commitText(text, 1)
         updateShift()
+    }
+
+    override fun onClipDelete(text: String) {
+        clipHistory.remove(text)
+        showClips()
+    }
+
+    override fun onClipClear() {
+        clipHistory.clear()
+        showClips()
     }
 
     override fun onVoice() {
@@ -443,6 +488,26 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
     }
 
     // MARK: - Kiểm thử tự động (chỉ bản debug): vị trí các phím ghi vào logcat, thẻ ViPiKeys
+
+    /** Bản debug: `adb shell am broadcast -a dev.t43.vipi.DUMP` ghi vị trí phím và chữ trong ô nhập vào logcat. */
+    private fun registerDebugDump() {
+        val r = object : BroadcastReceiver() {
+            override fun onReceive(c: Context, i: Intent) {
+                val ic = currentInputConnection
+                val text = (ic?.getTextBeforeCursor(2000, 0)?.toString() ?: "") + "|" + (ic?.getTextAfterCursor(2000, 0)?.toString() ?: "")
+                val wi = keyboard?.rootWindowInsets
+                val ins = if (wi != null && android.os.Build.VERSION.SDK_INT >= 30) listOf(
+                    "nav=" + wi.getInsets(android.view.WindowInsets.Type.navigationBars()),
+                    "gest=" + wi.getInsets(android.view.WindowInsets.Type.mandatorySystemGestures()),
+                    "tap=" + wi.getInsets(android.view.WindowInsets.Type.tappableElement()),
+                ).joinToString(" ") else ""
+                Log.i("ViPiKeys", "begin " + i.getStringExtra("id") + "\ninsets " + ins + "\n" + (keyboard?.describeKeys() ?: "") + "field " + text.replace("\n", "⏎") + "\nmode " + composer?.mode())
+            }
+        }
+        val filter = IntentFilter("dev.t43.vipi.DUMP")
+        if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(r, filter, Context.RECEIVER_EXPORTED) else registerReceiver(r, filter)
+        debugReceiver = r
+    }
 
     override fun onWindowShown() {
         super.onWindowShown()

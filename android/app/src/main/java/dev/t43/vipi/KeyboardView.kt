@@ -19,6 +19,8 @@ import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.text.Layout as TextLayout
+import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.TextUtils
 import android.view.HapticFeedbackConstants
@@ -52,7 +54,11 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         /** Thanh gợi ý tiếng Việt: 0 = đúng các phím đã gõ, 1 = chữ đang hiện. */
         fun onSuggestion(index: Int)
         fun onCursor(delta: Int)
-        fun onClipboard()
+        /** Bảng tạm vừa mở: bộ gõ đọc mục mới chép rồi đặt [clips]. */
+        fun onClipboardOpen()
+        fun onClipPaste(text: String)
+        fun onClipDelete(text: String)
+        fun onClipClear()
         fun onVoice()
     }
 
@@ -104,6 +110,12 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         dirty()
     }
 
+    class Clip(val text: String, val at: Long)
+
+    /** Các mục bảng tạm, mới nhất trước (tối đa 6). */
+    var clips: List<Clip> = emptyList()
+        set(v) { field = v; layoutClips(); invalidate() }
+
     private var candidates: List<String> = emptyList()
     private var suggestKeys = ""
     private var suggestWord = ""
@@ -132,13 +144,29 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     private val dp = resources.displayMetrics.density
     private val sp = resources.displayMetrics.scaledDensity
     /** Khoảng trong suốt phía trên bàn phím cho menu quả địa cầu. */
-    val overlay = (112 * dp).toInt()
-    private val barH = 48 * dp
-    private val topGap = 6 * dp
-    private val keyH = 48 * dp
+    var overlay = 0
+        private set
+    private var barH = 0f
+    private var topGap = 0f
+    private var keyH = 0f
     private val gapX = 6 * dp
-    private val gapY = 8 * dp
-    private val bottomPad = 8 * dp
+    private var gapY = 0f
+    private var bottomPad = 0f
+
+    /**
+     * Cỡ theo chiều cao màn hình: điện thoại dọc phím 48 dp; màn thấp < 760 dp (máy gập mở ngang) 46 dp;
+     * điện thoại xoay ngang (< 500 dp) gọn hẳn để app phía sau còn chỗ và cửa sổ bàn phím không cắt mất hàng dưới.
+     */
+    private fun applyMetrics() {
+        val h = resources.configuration.screenHeightDp
+        val short = h in 1 until 500
+        keyH = (if (short) 38 else if (h in 1 until 760) 46 else 48) * dp
+        barH = (if (short) 40 else 48) * dp
+        topGap = (if (short) 4 else 6) * dp
+        gapY = (if (short) 6 else 8) * dp
+        bottomPad = (if (short) 6 else 8) * dp
+        overlay = ((if (short) 96 else 112) * dp).toInt()
+    }
     private val radius = 8 * dp
     private val sideIcon = 44 * dp
     private var navInset = 0
@@ -200,6 +228,9 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         palette = makePalette()
+        applyMetrics()
+        layoutKeys()
+        requestLayout()
         dirty()
     }
 
@@ -248,6 +279,10 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         val sliders = Path().apply {
             moveTo(4f, 7f); lineTo(12f, 7f); moveTo(18f, 7f); lineTo(20f, 7f); moveTo(4f, 17f); lineTo(6f, 17f); moveTo(12f, 17f); lineTo(20f, 17f)
             addCircle(15f, 7f, 2.5f, Path.Direction.CW); addCircle(9f, 17f, 2.5f, Path.Direction.CW)
+        }
+        val trash = Path().apply {
+            moveTo(4f, 7f); lineTo(20f, 7f); moveTo(9f, 7f); lineTo(9f, 4f); lineTo(15f, 4f); lineTo(15f, 7f)
+            moveTo(6f, 7f); lineTo(7f, 20f); lineTo(17f, 20f); lineTo(18f, 7f); moveTo(10f, 11f); lineTo(10f, 16f); moveTo(14f, 11f); lineTo(14f, 16f)
         }
         val keyboard = Path().apply {
             addRoundRect(2.5f, 5.5f, 21.5f, 18.5f, 2f, 2f, Path.Direction.CW)
@@ -323,6 +358,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     private val handler = Handler(Looper.getMainLooper())
 
     init {
+        applyMetrics()
         buildRows()
         isHapticFeedbackEnabled = true
         setOnApplyWindowInsetsListener { _, insets ->
@@ -370,7 +406,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         val p = palette
         fill.color = p.bg
         canvas.drawRect(0f, kbTop, width.toFloat(), height.toFloat(), fill)
-        if (gridOpen) return
+        if (gridOpen || clipOpen) return
         for (row in rows) for (k in row) if (k.kind != Kind.SPACER) drawKey(canvas, k, p, 0f)
     }
 
@@ -398,7 +434,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         val p = palette
         drawKeysLayer(canvas)
         drawBar(canvas, p)
-        if (gridOpen) drawGrid(canvas, p)
+        if (clipOpen) drawClips(canvas, p)
+        else if (gridOpen) drawGrid(canvas, p)
         else {
             val now = SystemClock.uptimeMillis()
             var fading = false
@@ -575,6 +612,26 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         val cy = barTop + barH / 2
         val l = blockL + sideIcon / 2
         val r = blockR - sideIcon / 2
+        if (clipOpen) {
+            // tiêu đề bảng tạm: [về bàn phím] Clipboard BETA [xoá hết]
+            if (barPressed == BAR_CLIP) pressedCircle(canvas, l, cy, p)
+            drawIcon(canvas, Icons.keyboard, l, cy, 22f, p.icon)
+            if (barPressed == BAR_RIGHT) pressedCircle(canvas, r, cy, p)
+            drawIcon(canvas, Icons.trash, r, cy, 22f, p.icon, alpha = if (clips.isEmpty()) 97 else 255)
+            leftText.textSize = 16 * sp; leftText.typeface = medium; leftText.color = p.text
+            val fm = leftText.fontMetrics
+            val x = midL + 8 * dp
+            canvas.drawText("Clipboard", x, cy - (fm.ascent + fm.descent) / 2, leftText)
+            val bx = x + leftText.measureText("Clipboard") + 8 * dp
+            leftText.textSize = 10 * sp; leftText.typeface = bold
+            val bw = leftText.measureText("BETA") + 12 * dp
+            fill.color = p.container
+            canvas.drawRoundRect(bx, cy - 10 * dp, bx + bw, cy + 10 * dp, 10 * dp, 10 * dp, fill)
+            leftText.color = p.onContainer
+            val bfm = leftText.fontMetrics
+            canvas.drawText("BETA", bx + 6 * dp, cy - (bfm.ascent + bfm.descent) / 2, leftText)
+            return
+        }
         if (barPressed == BAR_CLIP) pressedCircle(canvas, l, cy, p)
         drawIcon(canvas, Icons.clipboard, l, cy, 22f, p.icon)
         if (candidates.isNotEmpty()) {
@@ -709,6 +766,66 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         canvas.restore()
     }
 
+    // MARK: - Bảng tạm: thay chỗ các hàng phím, lưới 2 × 3, chạm = dán, giữ = xoá
+
+    private var clipOpen = false
+        set(v) { if (field != v) { field = v; if (v) gridOpen = false; layoutClips(); dirty() } }
+    private var clipRects: List<RectF> = emptyList()
+    private var clipLayouts: List<StaticLayout> = emptyList()
+    private var pressedClip = -1
+    private var clipHold: Runnable? = null
+
+    private fun layoutClips() {
+        val gap = 6 * dp
+        val n = min(clips.size, ClipHistory.MAX)
+        val w = (blockR - blockL - gap) / 2
+        val h = (gridBottom - gridTop - 2 * gap) / 3
+        clipRects = (0 until n).map { i ->
+            val x = blockL + (i % 2) * (w + gap)
+            val y = gridTop + (i / 2) * (h + gap)
+            RectF(x, y, x + w, y + h)
+        }
+        val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 14 * sp; typeface = regular }
+        val inner = max(1, (w - 24 * dp).toInt())
+        clipLayouts = (0 until n).map { i ->
+            val t = clips[i].text.replace(Regex("\\s+"), " ").trim()
+            StaticLayout.Builder.obtain(t, 0, t.length, paint, inner)
+                .setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END).setIncludePad(false)
+                .setAlignment(TextLayout.Alignment.ALIGN_NORMAL).build()
+        }
+    }
+
+    private fun ago(at: Long): String {
+        val m = ((System.currentTimeMillis() - at) / 60_000).toInt()
+        return if (m < 1) "Just now" else "$m min ago"
+    }
+
+    private fun drawClips(canvas: Canvas, p: Palette) {
+        if (clipRects.isEmpty()) {
+            val cy = (gridTop + gridBottom) / 2
+            drawText(canvas, "Copied text shows up here", width / 2f, cy - 12 * dp, 15f, p.text, medium)
+            drawText(canvas, "Tap to paste · Hold to delete · Kept for 1 hour on this phone", width / 2f, cy + 14 * dp, 12f, p.hint, regular)
+            return
+        }
+        clipRects.forEachIndexed { i, r ->
+            fill.color = p.shadow
+            tmp.set(r.left, r.top + 1 * dp, r.right, r.bottom + 1 * dp)
+            canvas.drawRoundRect(tmp, 12 * dp, 12 * dp, fill)
+            fill.color = if (i == pressedClip) p.container else p.key
+            canvas.drawRoundRect(r, 12 * dp, 12 * dp, fill)
+            val layout = clipLayouts[i]
+            layout.paint.color = if (i == pressedClip) p.onContainer else p.text
+            canvas.save()
+            canvas.translate(r.left + 12 * dp, r.top + 9 * dp)
+            layout.draw(canvas)
+            canvas.restore()
+            leftText.textSize = 11 * sp; leftText.typeface = regular; leftText.color = p.hint
+            canvas.drawText(ago(clips[i].at), r.left + 12 * dp, r.bottom - 8 * dp, leftText)
+        }
+    }
+
+    private fun clipAt(x: Float, y: Float) = clipRects.indexOfFirst { it.contains(x, y) }
+
     // MARK: - Chạm
 
     private class Touch(var key: Key, val startX: Float, var lastX: Float) {
@@ -725,6 +842,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     private val BAR_MID = 1
     private val BAR_RIGHT = 2
     private val BAR_GRID = 3
+    private val BAR_CLIPS = 4
     private var barTouch = -1          // ngón đang chạm thanh gợi ý / lưới ứng viên
     private var barRegion = -1
     private var barPressed = -1
@@ -788,19 +906,31 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                     invalidate()
                     return true
                 }
-                if (pressed.size() == 0 && barTouch < 0 && (y < rowsTop - topGap || gridOpen && y < gridBottom)) {
+                if (pressed.size() == 0 && barTouch < 0 && (y < rowsTop - topGap || (gridOpen || clipOpen) && y < gridBottom)) {
                     if (y < barTop) return true
                     barTouch = id
                     barDownX = x; barDownY = y
                     barDragged = false
                     barRegion = when {
-                        y >= barTop + barH -> BAR_GRID
+                        y >= barTop + barH -> if (clipOpen) BAR_CLIPS else BAR_GRID
                         x < blockL + sideIcon -> BAR_CLIP
                         x > blockR - sideIcon -> BAR_RIGHT
                         else -> BAR_MID
                     }
-                    barPressed = if (barRegion == BAR_CLIP || barRegion == BAR_RIGHT && candidates.isNotEmpty()) barRegion else -1
-                    if (barRegion == BAR_GRID) { barDownScroll = gridScroll; pressedCandidate = gridAt(x, y) }
+                    barPressed = if (barRegion == BAR_CLIP || barRegion == BAR_RIGHT && (candidates.isNotEmpty() || clipOpen)) barRegion else -1
+                    if (barRegion == BAR_CLIPS) {
+                        pressedClip = clipAt(x, y)
+                        if (pressedClip >= 0) {
+                            val text = clips[pressedClip].text
+                            clipHold = Runnable {
+                                clipHold = null
+                                barDragged = true   // giữ: xoá, không dán khi nhả
+                                pressedClip = -1
+                                feedback()
+                                listener.onClipDelete(text)
+                            }.also { handler.postDelayed(it, 500) }
+                        }
+                    } else if (barRegion == BAR_GRID) { barDownScroll = gridScroll; pressedCandidate = gridAt(x, y) }
                     else if (barRegion == BAR_MID) {
                         barDownScroll = stripScroll
                         scroller.forceFinished(true)
@@ -811,7 +941,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                     invalidate()
                     return true
                 }
-                if (gridOpen) return true
+                if (gridOpen || clipOpen) return true
                 val k = hit(x, y) ?: return true
                 // ngón thứ hai chạm: phím của ngón trước được gõ luôn (gõ nhanh hai tay). Cả phím quả địa cầu:
                 // chạm quả địa cầu rồi gõ ngay "n" thì đổi bộ gõ trước, "n" mới vào bộ gõ mới
@@ -869,6 +999,11 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                         if (barDragged) {
                             stripScroll = (barDownScroll - dx).coerceIn(0f, max(0f, stripContentWidth - (midR - midL)))
                             invalidate()
+                        }
+                    } else if (barRegion == BAR_CLIPS) {
+                        if (abs(e.getX(idx) - barDownX) > 12 * dp || abs(e.getY(idx) - barDownY) > 12 * dp) {
+                            clipHold?.let { handler.removeCallbacks(it) }; clipHold = null
+                            barDragged = true; pressedClip = -1; invalidate()
                         }
                     } else if (barRegion == BAR_GRID) {
                         val dy = e.getY(idx) - barDownY
@@ -939,7 +1074,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 pressed.clear()
                 handler.removeCallbacks(repeatBackspace)
                 velocity?.recycle(); velocity = null
-                barTouch = -1; barPressed = -1; pressedCandidate = -1; pressedSuggestion = -1
+                clipHold?.let { handler.removeCallbacks(it) }; clipHold = null
+                barTouch = -1; barPressed = -1; pressedCandidate = -1; pressedSuggestion = -1; pressedClip = -1
                 invalidate()
             }
         }
@@ -960,11 +1096,25 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             it.recycle()
         }
         velocity = null
+        clipHold?.let { handler.removeCallbacks(it) }
+        clipHold = null
         if (!barDragged) when (barRegion) {
-            BAR_CLIP -> if (x < blockL + sideIcon) { feedback(); listener.onClipboard() }
+            BAR_CLIP -> if (x < blockL + sideIcon) {
+                feedback()
+                if (!clipOpen) listener.onClipboardOpen()
+                clipOpen = !clipOpen
+            }
             BAR_RIGHT -> if (x > blockR - sideIcon) {
                 feedback()
-                if (candidates.isNotEmpty()) gridOpen = !gridOpen else listener.onVoice()
+                when {
+                    clipOpen -> if (clips.isNotEmpty()) listener.onClipClear()
+                    candidates.isNotEmpty() -> gridOpen = !gridOpen
+                    else -> listener.onVoice()
+                }
+            }
+            BAR_CLIPS -> {
+                val c = clipAt(x, y)
+                if (c >= 0 && c == pressedClip) { feedback(); val t = clips[c].text; clipOpen = false; listener.onClipPaste(t) }
             }
             BAR_MID -> if (candidates.isNotEmpty()) {
                 val c = candidateAt(x)
@@ -982,6 +1132,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         barPressed = -1
         pressedCandidate = -1
         pressedSuggestion = -1
+        pressedClip = -1
         invalidate()
     }
 
@@ -1088,16 +1239,33 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         }
         if (showSystemSwitcher || modeLocked) items += MenuItem(Row.ACTION, PICK_OTHER_KEYBOARD, "Other keyboards", icon = Icons.keyboard)
         items += MenuItem(Row.ACTION, PICK_SETTINGS, "ViPi Settings", icon = Icons.sliders)
-        menuItems = items
-        val heights = items.map {
-            when (it.row) { Row.HEADER -> 30 * dp; Row.ITEM -> 56 * dp; Row.DIVIDER -> 17 * dp; else -> 48 * dp }
-        }
         val pad = 8 * dp
+        var bottom = globe.rect.top - 14 * dp   // trên hàng dưới cùng: thả tay tại phím quả địa cầu không chọn nhầm
+        fun heightsOf(list: List<MenuItem>, compact: Boolean) = list.map {
+            when (it.row) {
+                Row.HEADER -> 30 * dp
+                Row.ITEM -> (if (compact) 48 else 56) * dp
+                Row.DIVIDER -> (if (compact) 9 else 17) * dp
+                else -> (if (compact) 40 else 48) * dp
+            }
+        }
+        var heights = heightsOf(items, false)
+        // không đủ chỗ phía trên (điện thoại xoay ngang): bỏ tiêu đề, thu gọn các dòng
+        if (heights.sum() + 2 * pad > bottom - 2 * dp) {
+            items.removeAll { it.row == Row.HEADER }
+            heights = heightsOf(items, true)
+        }
+        menuItems = items
+        val h = heights.sum() + 2 * pad
         val w = min(292 * dp, blockR - blockL - 16 * dp)
-        val left = blockL + 8 * dp
-        val bottom = globe.rect.top - 14 * dp   // trên hàng dưới cùng: thả tay tại phím quả địa cầu không chọn nhầm
-        val top = max(2 * dp, bottom - heights.sum() - 2 * pad)
-        menuBox.set(left, top, left + w, top + heights.sum() + 2 * pad)
+        var left = blockL + 8 * dp
+        if (h > bottom - 2 * dp) {
+            // vẫn không vừa: đặt bên phải phím quả địa cầu, đáy ngang đáy phím, không bao giờ che phím
+            left = globe.rect.right + 8 * dp
+            bottom = globe.rect.bottom
+        }
+        val top = max(2 * dp, bottom - h)
+        menuBox.set(left, top, left + w, top + h)
         menuRects.clear()
         var y = top + pad
         heights.forEach { h -> menuRects += RectF(left, y, left + w, y + h); y += h }
@@ -1184,19 +1352,28 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         }
     }
 
+    /** Bàn phím ẩn đi: đóng bảng tạm, lưới ứng viên và menu. */
+    fun reset() {
+        clipOpen = false
+        gridOpen = false
+        closeMenu()
+    }
+
     /** Vị trí giữa các phím (cho kiểm thử tự động): "nhãn x y" mỗi phím. */
     fun describeKeys(): String = buildString {
         val loc = IntArray(2)
         getLocationOnScreen(loc)
         fun put(name: String, x: Float, y: Float) = append("$name ${(loc[0] + x).toInt()} ${(loc[1] + y).toInt()}\n")
-        for (row in rows) for (k in row) if (k.kind != Kind.SPACER) put(if (k.kind == Kind.CHAR) k.label else k.kind.name.lowercase(), k.rect.centerX(), k.rect.centerY())
+        if (!gridOpen && !clipOpen) for (row in rows) for (k in row) if (k.kind != Kind.SPACER) put(if (k.kind == Kind.CHAR) k.label else k.kind.name.lowercase(), k.rect.centerX(), k.rect.centerY())
         val cy = barTop + barH / 2
+        put("nav", navInset.toFloat(), height.toFloat())
         put("clip", blockL + sideIcon / 2, cy)
         put("right", blockR - sideIcon / 2, cy)
         put("sug0", midL + (midR - midL) / 6, cy)
         put("sug1", midL + (midR - midL) / 2, cy)
         candidateRects.forEachIndexed { i, r -> put("cand$i", r.centerX() - stripScroll, cy) }
-        gridRects.forEachIndexed { i, r -> put("grid$i", r.centerX(), r.centerY() - gridScroll) }
-        menuRects.forEachIndexed { i, r -> put("menu$i", r.centerX(), r.centerY()) }
+        if (gridOpen) gridRects.forEachIndexed { i, r -> put("grid$i", r.centerX(), r.centerY() - gridScroll) }
+        if (menuOpen) menuRects.forEachIndexed { i, r -> put("menu$i", r.centerX(), r.centerY()) }
+        if (clipOpen) clipRects.forEachIndexed { i, r -> put("clip$i", r.centerX(), r.centerY()) }
     }
 }
