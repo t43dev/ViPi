@@ -2,6 +2,12 @@
 
 What changed in each ViPi release. Download the latest from [Releases](../../releases/latest).
 
+## 0.5.1 · 2026-11-06
+
+### Changed
+- **ViPi's interface now starts in Vietnamese** instead of following the macOS language. Choose English or 简体中文 in **Settings → General**, and ViPi remembers your choice. If you never chose a language, the interface turns Vietnamese after this update.
+- The language setting is now labelled in all three languages, Ngôn ngữ · Language · 语言, so you can find it whichever language is showing. The list runs Tiếng Việt, English, 简体中文.
+
 ## 0.5.0 · 2026-11-06
 
 ### Changed

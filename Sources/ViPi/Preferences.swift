@@ -113,7 +113,7 @@ final class Preferences: ObservableObject {
         learnWords = defaults.bool(forKey: "learnWords")
         fuzzyRules = Self.loadJSON(defaults, "fuzzyRules") ?? []
         appearance = defaults.string(forKey: "appearance").flatMap(Appearance.init(rawValue:)) ?? .system
-        language = defaults.string(forKey: "uiLanguage").flatMap(UILanguage.init(rawValue:)) ?? .system
+        language = defaults.string(forKey: "uiLanguage").flatMap(UILanguage.init(rawValue:)) ?? .vietnamese
         UILanguage.current = language
     }
 

@@ -86,8 +86,8 @@ struct SettingsView: View {
 
     @ViewBuilder private var general: some View {
         card {
-            SettingRow(title: tr("Language")) {
-                CapsulePicker(title: tr("Language"), options: UILanguage.allCases.map { ($0, $0.name) }, selection: $prefs.language)
+            SettingRow(title: UILanguage.settingTitle) {
+                CapsulePicker(title: UILanguage.settingTitle, options: UILanguage.allCases.map { ($0, $0.name) }, selection: $prefs.language)
             }
             CardDivider()
             SettingRow(title: tr("Appearance")) {

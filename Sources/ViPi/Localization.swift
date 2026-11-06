@@ -2,7 +2,10 @@ import Foundation
 
 /// Ngôn ngữ giao diện. Chuỗi gốc tiếng Anh là khoá tra bảng dịch; thiếu bản dịch thì hiện tiếng Anh.
 enum UILanguage: String, CaseIterable, Identifiable {
-    case english = "en", vietnamese = "vi", chinese = "zh-Hans"
+    case vietnamese = "vi", english = "en", chinese = "zh-Hans"
+
+    /// Nhãn chọn ngôn ngữ luôn đủ cả ba thứ tiếng: ai không đọc được ngôn ngữ đang chọn vẫn tìm ra.
+    static let settingTitle = "Ngôn ngữ · Language · 语言"
 
     var id: String { rawValue }
 
@@ -15,15 +18,7 @@ enum UILanguage: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Theo ngôn ngữ macOS lúc chưa chọn.
-    static var system: UILanguage {
-        let first = Locale.preferredLanguages.first ?? "en"
-        if first.hasPrefix("vi") { return .vietnamese }
-        if first.hasPrefix("zh") { return .chinese }
-        return .english
-    }
-
-    static var current: UILanguage = .english
+    static var current: UILanguage = .vietnamese
 }
 
 /// Dịch chuỗi giao diện; `%@` lần lượt thay bằng `args`.
@@ -64,7 +59,6 @@ private let translations: [String: (vi: String, zh: String)] = [
     "General": ("Cài đặt", "设置"),
     "Vietnamese": ("Tiếng Việt", "越南语"),
     "Chinese": ("Tiếng Trung", "中文"),
-    "Language": ("Ngôn ngữ", "语言"),
     "Appearance": ("Giao diện", "外观"),
     "System": ("Theo hệ thống", "跟随系统"),
     "Light": ("Sáng", "浅色"),
