@@ -108,7 +108,7 @@ struct SettingsView: View {
             }
             Section {
                 Toggle(tr("Switch between Vietnamese and English automatically"), isOn: $prefs.autoSwitch)
-                caption(tr("Experimental. Type Telex in English and treen becomes trên, then ViPi switches to Vietnamese. English words typed in Vietnamese, such as server or this makes, come back as typed and ViPi switches to English. Turning this on switches to English. Word lists from Vikey."))
+                caption(tr("Type Telex in English and treen becomes trên, then ViPi switches to Vietnamese. English words typed in Vietnamese, such as server or this makes, come back as typed and ViPi switches to English. The menu bar shows VE while this is on. Word lists from Vikey."))
             }
             Section {
                 Picker(tr("Tone placement"), selection: $prefs.modernToneStyle) {

@@ -43,6 +43,7 @@ private let translations: [String: (vi: String, zh: String)] = [
     "Vietnamese (Telex)": ("Tiếng Việt (Telex)", "越南语 (Telex)"),
     "Chinese (Pinyin)": ("Tiếng Trung (Pinyin)", "中文 (拼音)"),
     "English": ("Tiếng Anh", "英文"),
+    "Vietnamese + English": ("Tiếng Việt + Tiếng Anh", "越南语 + 英文"),
     "%@: previous · twice: next": ("%@: bộ gõ trước · hai lần: bộ gõ tiếp", "%@：上一个 · 按两次：下一个"),
     "Secure Input held by %@ — typing blocked": ("Secure Input đang bị %@ giữ — không gõ được", "安全输入被 %@ 占用 — 无法输入"),
     "Waiting for Accessibility permission": ("Đang chờ quyền Trợ năng (Accessibility)", "正在等待辅助功能权限"),
@@ -84,9 +85,9 @@ private let translations: [String: (vi: String, zh: String)] = [
          "仅在能构成有效越南语音节时才加声调和元音符号，因此 “class”、“window” 等英文单词会保持原样。关闭后每个 Telex 键都会生效，与关闭拼写检查的 UniKey 相同。"),
     "Restore non-Vietnamese words": ("Khôi phục từ không phải tiếng Việt", "还原非越南语单词"),
     "Switch between Vietnamese and English automatically": ("Tự động chuyển tiếng Việt và tiếng Anh", "自动切换越南语和英语"),
-    "Experimental. Type Telex in English and treen becomes trên, then ViPi switches to Vietnamese. English words typed in Vietnamese, such as server or this makes, come back as typed and ViPi switches to English. Turning this on switches to English. Word lists from Vikey.":
-        ("Thử nghiệm. Gõ Telex khi đang ở tiếng Anh thì treen thành trên và ViPi chuyển sang tiếng Việt. Từ tiếng Anh gõ khi đang ở tiếng Việt, như server hay this makes, được giữ nguyên như đã gõ và ViPi chuyển sang tiếng Anh. Bật tuỳ chọn này sẽ chuyển sang tiếng Anh. Danh sách từ lấy từ Vikey.",
-         "实验功能。在英语模式下输入 Telex，treen 会变成 trên，ViPi 随即切换到越南语。在越南语模式下输入的英文单词（如 server、this makes）会保持原样，ViPi 随即切换到英语。开启此选项会切换到英语。词表来自 Vikey。"),
+    "Type Telex in English and treen becomes trên, then ViPi switches to Vietnamese. English words typed in Vietnamese, such as server or this makes, come back as typed and ViPi switches to English. The menu bar shows VE while this is on. Word lists from Vikey.":
+        ("Gõ Telex khi đang ở tiếng Anh thì treen thành trên và ViPi chuyển sang tiếng Việt. Từ tiếng Anh gõ khi đang ở tiếng Việt, như server hay this makes, được trả lại như đã gõ và ViPi chuyển sang tiếng Anh. Thanh menu hiện VE khi tính năng này bật. Danh sách từ lấy từ Vikey.",
+         "在英语模式下输入 Telex，treen 会变成 trên，ViPi 随即切换到越南语。在越南语模式下输入的英语单词（如 server、this makes）会恢复原样，ViPi 随即切换到英语。开启后菜单栏显示 VE。词表来自 Vikey。"),
     "When a word ends and the result is not a real Vietnamese syllable, retype the keys you pressed: user, data, more.":
         ("Khi gõ xong một từ mà kết quả không phải âm tiết tiếng Việt có thật, ViPi gõ lại đúng các phím đã bấm: user, data, more.",
          "单词结束时，如果结果不是真实的越南语音节，就还原为实际按下的键：user、data、more。"),

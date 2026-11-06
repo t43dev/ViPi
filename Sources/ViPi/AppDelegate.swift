@@ -40,6 +40,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         set { defaults.set(newValue.map(\.rawValue), forKey: "recentModes") }
     }
+    /// Các bộ gõ người dùng chọn được, gần nhất trước: tự đổi Anh/Việt đang bật thì hai bộ đó gộp làm một (VE).
+    private var inputs: [InputMode] {
+        guard prefs.autoSwitch else { return recent }
+        let mixed = recent.first { $0 != .chinese }!
+        return recent.filter { $0 == mixed || $0 == .chinese }
+    }
     /// Chuỗi Ctrl+Shift liên tiếp: thứ tự lúc bắt đầu, số lần bấm, thời điểm bấm cuối.
     private var switchRun: (order: [InputMode], step: Int, at: Date)?
 
@@ -50,16 +56,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Bấm 1 lần: về bộ gõ trước đó. Bấm liên tiếp (< 0.8 s): đi tiếp các bộ còn lại theo thứ tự dùng gần nhất.
     private func switchMode() {
-        controller.pauseAutoSwitch()
         let now = Date()
-        var run = switchRun.flatMap { now.timeIntervalSince($0.at) < 0.8 ? $0 : nil } ?? (order: recent, step: 0, at: now)
+        var run = switchRun.flatMap { now.timeIntervalSince($0.at) < 0.8 ? $0 : nil } ?? (order: inputs, step: 0, at: now)
         run.step += 1
         run.at = now
         switchRun = run
         let target = run.order[run.step % run.order.count]
         recent = [target] + run.order.filter { $0 != target }
         mode = target
-        hud.show(target)
+        hud.show(target, autoSwitch: prefs.autoSwitch)
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -142,8 +147,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func updateIcon() {
         guard let button = statusItem?.button else { return }
         let blocked = secureInput.isEnabled
-        button.image = StatusIcon.image(mode: mode, blocked: blocked, inactive: !controller.isRunning)
-        var tip = "ViPi — \(mode.title)\n" + tr("%@: previous · twice: next", prefs.shortcut.label)
+        button.image = StatusIcon.image(mode: mode, autoSwitch: prefs.autoSwitch, blocked: blocked, inactive: !controller.isRunning)
+        var tip = "ViPi — \(mode.title(autoSwitch: prefs.autoSwitch))\n" + tr("%@: previous · twice: next", prefs.shortcut.label)
         if blocked { tip += "\n" + tr("Secure Input held by %@ — typing blocked", secureInput.holder?.name ?? tr("unknown")) }
         if !controller.isRunning { tip += "\n" + tr("Waiting for Accessibility permission") }
         button.toolTip = tip
@@ -168,8 +173,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         menu.addItem(.separator())
 
-        for m in InputMode.allCases {
-            let i = item(m.title, #selector(selectMode(_:)))
+        for m in prefs.autoSwitch ? [recent.first { $0 != .chinese }!, .chinese] : InputMode.allCases {
+            let i = item(m.title(autoSwitch: prefs.autoSwitch), #selector(selectMode(_:)))
             i.representedObject = m.rawValue
             i.state = m == mode ? .on : .off
             menu.addItem(i)
@@ -196,10 +201,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: - Actions
 
     @objc private func selectMode(_ sender: NSMenuItem) {
-        if let raw = sender.representedObject as? String, let m = InputMode(rawValue: raw) {
-            controller.pauseAutoSwitch()
-            setMode(m)
-        }
+        if let raw = sender.representedObject as? String, let m = InputMode(rawValue: raw) { setMode(m) }
     }
 
     @objc private func showSettings() { settingsWindow.show() }
@@ -215,7 +217,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             controller.autoSwitch = nil
         } else if controller.autoSwitch == nil, let auto = loadAutoSwitch() {
             controller.autoSwitch = auto
-            if mode != .english { setMode(.english) }   // vừa bật (hoặc mở app): bắt đầu ở tiếng Anh
+            if mode == .vietnamese { setMode(.english) }   // vừa bật (hoặc mở app): VE bắt đầu ở tiếng Anh; đang gõ Trung thì để yên
         }
         if let py = controller.pinyin {
             if py.fuzzyRules != prefs.fuzzyRules { py.fuzzyRules = prefs.fuzzyRules }
@@ -259,11 +261,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 enum StatusIcon {
     /// Một kiểu cho mọi chế độ: ô bo góc đặc, chữ đục rỗng (VI / 拼 / EN), ảnh template nên tự theo
     /// màu thanh menu sáng/tối. Ổ khoá khi Secure Input bật, "!" khi chưa có quyền Accessibility.
-    static func image(mode: InputMode, blocked: Bool, inactive: Bool) -> NSImage {
+    static func image(mode: InputMode, autoSwitch: Bool, blocked: Bool, inactive: Bool) -> NSImage {
         let size = NSSize(width: 24, height: 16)
         let mark: NSImage = blocked
             ? symbol("lock.fill")
-            : text(inactive ? "!" : mode.badge, chinese: mode == .chinese && !inactive, in: size)
+            : text(inactive ? "!" : mode.badge(autoSwitch: autoSwitch), chinese: mode == .chinese && !inactive, in: size)
         let img = NSImage(size: size, flipped: false) { rect in
             NSColor.black.setFill()
             NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 4, yRadius: 4).fill()
@@ -320,8 +322,8 @@ final class ModeHUD {
         panel.contentView = bg
     }
 
-    func show(_ mode: InputMode) {
-        label.stringValue = "\(mode.badge)  ·  \(mode.title)"
+    func show(_ mode: InputMode, autoSwitch: Bool) {
+        label.stringValue = "\(mode.badge(autoSwitch: autoSwitch))  ·  \(mode.title(autoSwitch: autoSwitch))"
         let width = max(220, label.intrinsicContentSize.width + 48)
         if let screen = NSScreen.main {
             let f = screen.visibleFrame

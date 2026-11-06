@@ -20,6 +20,10 @@ enum InputMode: String, CaseIterable {
         case .english: return "EN"
         }
     }
+
+    /// Tự đổi Anh/Việt đang bật: tiếng Việt và tiếng Anh là một bộ gõ, người dùng thấy "VE".
+    func badge(autoSwitch: Bool) -> String { autoSwitch && self != .chinese ? "VE" : badge }
+    func title(autoSwitch: Bool) -> String { autoSwitch && self != .chinese ? tr("Vietnamese + English") : title }
 }
 
 /// Bắt phím toàn hệ thống bằng CGEventTap và chuyển cho bộ gõ Telex / Pinyin.
@@ -34,7 +38,6 @@ final class InputController {
     var englishMacros: MacroTable?     // gõ tắt khi gõ tiếng Anh, nil: tắt
     var autoSwitch: AutoSwitch?        // tự đổi Anh/Việt khi kết thúc từ (thử nghiệm), nil: tắt
     var onAutoSwitch: ((InputMode) -> Void)?
-    private var autoSwitchPausedUntil = Date.distantPast
     /// Ngay sau một lần tự đổi: Backspace xoá chữ đã sửa cùng phím kết thúc từ, trả lại đúng chữ trước đó và
     /// chế độ cũ (như Vikey). Phím nào khác thì quên.
     private var undo: (remove: Int, text: String, keys: [Character], mode: InputMode)?
@@ -262,16 +265,13 @@ final class InputController {
         }
     }
 
-    /// Tự đổi đang bật, không trong 5 giây sau một lần đổi tay, và phím kết thúc từ là Space/Enter/Tab
+    /// Tự đổi đang bật và phím kết thúc từ là Space/Enter/Tab
     /// hoặc dấu câu sau một từ ("nhes." → "nhé.").
     private func activeAutoSwitch(_ typed: String) -> AutoSwitch? {
-        guard let autoSwitch, Date() >= autoSwitchPausedUntil, typed.count == 1,
+        guard let autoSwitch, typed.count == 1,
               let c = typed.first, " \r\t,.;!?)'\"".contains(c) else { return nil }
         return autoSwitch
     }
-
-    /// Người dùng tự đổi bộ gõ: tạm dừng tự đổi 5 giây (cách của Vikey).
-    func pauseAutoSwitch() { autoSwitchPausedUntil = Date().addingTimeInterval(5) }
 
     private func handleChinese(_ keyCode: Int, _ typed: String) -> Bool {
         guard let py = pinyin else { return false }

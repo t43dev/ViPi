@@ -4,6 +4,9 @@ What changed in each ViPi release. Download the latest from [Releases](../../rel
 
 ## Unreleased
 
+### Changed
+- **Vietnamese and English now work as one input, VE, and this is on by default.** The menu bar shows **VE** instead of VI or EN, the switch shortcut moves between VE and Chinese, and ViPi follows what you type. To use Vietnamese or English on their own, turn off **Settings → Vietnamese → Switch between Vietnamese and English automatically**.
+
 ### Improved
 - **Vietnamese/English auto switch reads the word before.** Words that are real both ways (`car`/cả, `bus`/bú, `been`/bên, `mix`/mĩ) follow the reading that comes after the previous word more often in real text: `cho con bus` → cho con **bú**, `ddi xe bus` → đi xe **bus**, `owr been` → ở **bên**, `test cos work` → test **có** work. Word pairs from Vikey.
 - **Backspace right after an automatic switch undoes it:** the word comes back as it was and ViPi returns to the language before. Typing the same word again keeps it as typed.
