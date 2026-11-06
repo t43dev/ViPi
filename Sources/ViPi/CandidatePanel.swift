@@ -60,30 +60,40 @@ struct CandidateView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(preedit)
                 .font(.system(size: 13))
-                .foregroundColor(.secondary)
-            HStack(spacing: 6) {
+                .foregroundColor(Theme.inkSecondary)
+                .padding(.horizontal, 4)
+            HStack(spacing: 2) {
                 ForEach(Array(items.enumerated()), id: \.offset) { i, word in
-                    HStack(alignment: .firstTextBaseline, spacing: 3) {
-                        Text("\(i + 1)").font(.system(size: 11)).opacity(0.6)
-                        Text(word).font(.system(size: 18))
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text("\(i + 1)")
+                            .font(.system(size: 11))
+                            .foregroundColor(i == highlight ? .white.opacity(0.75) : Theme.inkSecondary)
+                        Text(word)
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(i == highlight ? .white : Theme.ink)
                     }
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .foregroundColor(i == highlight ? .white : .primary)
-                    .background(i == highlight ? Color(red: 0.80, green: 0.13, blue: 0.13) : Color.clear)
-                    .clipShape(RoundedRectangle(cornerRadius: 5))
+                    .padding(.leading, 6)
+                    .padding(.trailing, 8)
+                    .frame(height: 30)
+                    .background(i == highlight ? Theme.brandRed : Color.clear)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
                 if hasPrev || hasNext {
-                    Text("\(hasPrev ? "◀" : "◁")\(hasNext ? "▶" : "▷")")
-                        .font(.system(size: 10))
-                        .foregroundColor(.secondary)
+                    Theme.stepIdle.frame(width: 1, height: 18).padding(.horizontal, 2)
+                    Image(systemName: "chevron.left")
+                        .opacity(hasPrev ? 1 : 0.3)
+                        .frame(width: 22, height: 26)
+                    Image(systemName: hasNext ? "arrowtriangle.right.fill" : "chevron.right")
+                        .opacity(hasNext ? 1 : 0.3)
+                        .frame(width: 22, height: 26)
                 }
             }
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundColor(Theme.inkSecondary)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .glass(radius: 12, prominent: true, shadow: false)   // vẽ lại mỗi phím: bóng lấy từ NSPanel
         .fixedSize()
     }
 }
