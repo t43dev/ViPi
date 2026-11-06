@@ -14,6 +14,8 @@ BIN="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"
 rm -rf build
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN/ViPi" "$APP/Contents/MacOS/ViPi"
+# SwiftPM ghi SDK = phiên bản tối thiểu (13.0) vào binary, macOS 26 trở lên sẽ coi app là cũ và vẽ theo kiểu cũ: ghi đúng SDK thật
+vtool -set-build-version macos 13.0 "$(xcrun --show-sdk-version)" -replace -output "$APP/Contents/MacOS/ViPi" "$APP/Contents/MacOS/ViPi"
 sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD/" Resources/Info.plist > "$APP/Contents/Info.plist"
 cp Resources/pinyin-words.bin Resources/pinyin-abbrev.bin Resources/s2t.bin Resources/bigram.bin Resources/vietnamese-syllables.txt Resources/autoswitch-vi.bin Resources/autoswitch-en.bin Resources/autoswitch-pairs.bin "$APP/Contents/Resources/"
 [ -d Resources/AppIcon.iconset ] && iconutil -c icns Resources/AppIcon.iconset -o "$APP/Contents/Resources/AppIcon.icns"

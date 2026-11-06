@@ -248,8 +248,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         controller.telex.modernToneStyle = prefs.modernToneStyle
         controller.telex.spellCheck = prefs.spellCheck
         controller.telex.lexicon = prefs.spellCheck && prefs.restoreNonVietnamese ? lexicon : nil
-        controller.macros = prefs.macrosEnabled ? prefs.macroTable : nil
-        controller.englishMacros = prefs.macrosInEnglish ? prefs.macroTable : nil
+        // VE là một bộ gõ: từ tắt theo một trong hai công tắc, dù lúc đó đang ở tiếng Việt hay tiếng Anh
+        let macrosEverywhere = prefs.autoSwitch && (prefs.macrosEnabled || prefs.macrosInEnglish)
+        controller.macros = macrosEverywhere || prefs.macrosEnabled ? prefs.macroTable : nil
+        controller.englishMacros = macrosEverywhere || prefs.macrosInEnglish ? prefs.macroTable : nil
         controller.fullWidthPunctuation = prefs.fullWidthPunctuation
         if !prefs.autoSwitch {
             controller.autoSwitch = nil
@@ -391,7 +393,9 @@ final class ModeHUD {
         panel.orderFrontRegardless()
         fade(to: 1, duration: 0.12)
         let work = DispatchWorkItem { [weak self] in
-            self?.fade(to: 0, duration: 0.18) { self?.panel.orderOut(nil) }
+            self?.fade(to: 0, duration: 0.18) {
+                if self?.hideWork?.isCancelled == false { self?.panel.orderOut(nil) }   // đổi tiếp trong lúc mờ dần: để yên
+            }
         }
         hideWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.9, execute: work)

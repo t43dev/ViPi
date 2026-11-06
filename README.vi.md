@@ -156,7 +156,7 @@ Có app vừa bật Secure Input (ô mật khẩu, terminal bật "Secure Keyboa
 <details>
 <summary><b>Một từ tiếng Anh bị biến thành tiếng Việt</b></summary>
 
-Những từ trùng với âm tiết tiếng Việt có thật, như `of` → `ò`, thì không thể tự phân biệt. Bấm phím dấu hai lần (`off` → `of`) hoặc chuyển sang tiếng Anh bằng `⌃ Control` + `⇧ Shift`. Bạn cũng có thể thử tính năng tự đổi Việt/Anh trong **Cài đặt → Tiếng Việt**.
+Những từ trùng với âm tiết tiếng Việt có thật, như `of` → `ò`, thì không thể tự phân biệt. Bấm phím dấu hai lần (`off` → `of`) hoặc bấm Backspace ngay sau khi ViPi tự đổi để lấy lại đúng chữ đã gõ. Muốn dùng tiếng Việt và tiếng Anh riêng thì tắt VE trong **Cài đặt → Tiếng Việt**.
 </details>
 
 <details>

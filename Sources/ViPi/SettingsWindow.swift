@@ -206,7 +206,7 @@ struct MacrosView: View {
                 ToggleRow(title: tr("Use in Vietnamese"), isOn: $prefs.macrosEnabled)
                 CardDivider()
                 ToggleRow(title: tr("Use in English"), isOn: $prefs.macrosInEnglish)
-                HelpText(tr("Type a shortcut as its own word, then Space, Return or Tab, to replace it with the full text (call2vn@ stays as typed). Letter case follows what you type: vn → Việt Nam, VN → VIỆT NAM. Not used in Chinese mode, where Space picks a candidate."))
+                HelpText(tr("Type a shortcut as its own word, then Space, Return or Tab, to replace it with the full text (call2vn@ stays as typed). Letter case follows what you type: vn → Việt Nam, VN → VIỆT NAM. Not used in Chinese mode, where Space picks a candidate. While VE is on, either switch turns shortcuts on for both languages."))
             }
             .glassCard()
             table

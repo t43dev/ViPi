@@ -24,6 +24,7 @@ BIN=$(swift build -c release --show-bin-path)
 APP=build/ViPi.app
 rm -rf build && mkdir -p $APP/Contents/MacOS $APP/Contents/Resources
 cp $BIN/ViPi $APP/Contents/MacOS/
+vtool -set-build-version macos 13.0 "$(xcrun --show-sdk-version)" -replace -output $APP/Contents/MacOS/ViPi $APP/Contents/MacOS/ViPi
 sed -e "s/__VERSION__/$VER/" -e "s/__BUILD__/$REV/" Resources/Info.plist > $APP/Contents/Info.plist
 cp Resources/pinyin-words.bin Resources/pinyin-abbrev.bin Resources/s2t.bin Resources/bigram.bin Resources/vietnamese-syllables.txt Resources/autoswitch-vi.bin Resources/autoswitch-en.bin Resources/autoswitch-pairs.bin $APP/Contents/Resources/
 iconutil -c icns Resources/AppIcon.iconset -o $APP/Contents/Resources/AppIcon.icns

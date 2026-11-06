@@ -156,7 +156,7 @@ Some app has turned on Secure Input (a password field, a terminal with "Secure K
 <details>
 <summary><b>An English word came out as Vietnamese</b></summary>
 
-Words that are also real Vietnamese syllables, such as `of` → `ò`, cannot be told apart automatically. Press the tone key twice (`off` → `of`) or switch to English with `⌃ Control` + `⇧ Shift`. You can also try the experimental automatic Vietnamese/English switch in **Settings → Vietnamese**.
+Words that are also real Vietnamese syllables, such as `of` → `ò`, cannot be told apart automatically. Press the tone key twice (`off` → `of`) or press Backspace right after an automatic change to get the word back as you typed it. To use Vietnamese and English separately, turn off VE in **Settings → Vietnamese**.
 </details>
 
 <details>
