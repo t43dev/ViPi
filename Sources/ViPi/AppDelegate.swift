@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import ViPiCore
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
@@ -8,7 +9,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private lazy var secureWindow = SecureInputWindowController(monitor: secureInput, prefs: prefs)
     private let updater = Updater()
     private let prefs = Preferences()
-    private lazy var aboutWindow = AboutWindowController(updater: updater, prefs: prefs)
+    private lazy var aboutWindow = AboutWindowController(updater: updater, prefs: prefs) { [weak self] in self?.settingsWindow.show(tab: 0) }
+    private lazy var firstRunWindow = FirstRunWindowController { [weak self] close in
+        FirstRunView(prefs: self?.prefs ?? Preferences(),
+                     currentInput: { self?.mode ?? .vietnamese },
+                     inputs: { self?.menuInputs ?? InputMode.allCases },
+                     selectInput: { self?.setMode($0) },
+                     openAccessibility: { self?.openAccessibility() },
+                     onRecording: { self?.controller.isRecordingShortcut = $0 },
+                     close: close)
+    }
     private lazy var settingsWindow = SettingsWindowController(
         prefs: prefs, updater: updater, userDictionary: userDictionary,
         onRecording: { [weak self] in self?.controller.isRecordingShortcut = $0 },
@@ -45,6 +55,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard prefs.autoSwitch else { return recent }
         let mixed = recent.first { $0 != .chinese }!
         return recent.filter { $0 == mixed || $0 == .chinese }
+    }
+    /// Các bộ gõ theo thứ tự cố định (menu, màn chào): VE luôn đứng đầu.
+    private var menuInputs: [InputMode] {
+        prefs.autoSwitch ? [recent.first { $0 != .chinese }!, .chinese] : InputMode.allCases
     }
     /// Chuỗi Ctrl+Shift liên tiếp: thứ tự lúc bắt đầu, số lần bấm, thời điểm bấm cuối.
     private var switchRun: (order: [InputMode], step: Int, at: Date)?
@@ -89,7 +103,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         loadDictionary()
         setUpLoginItemOnFirstLaunch()
         updater.start()
-        startTapOrAskPermission()
+        startTap(prompt: false)
+        if !AXIsProcessTrusted() || !prefs.didFinishFirstRun {
+            prefs.didFinishFirstRun = true
+            firstRunWindow.show()
+        }
 
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
@@ -120,9 +138,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    private func startTapOrAskPermission() {
-        let prompt = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
-        if AXIsProcessTrustedWithOptions([prompt: true] as CFDictionary), controller.start() {
+    /// `prompt`: hỏi bằng hộp thoại hệ thống (cũng thêm ViPi vào danh sách Accessibility); lúc mở app đã có màn chào.
+    private func startTap(prompt: Bool) {
+        let option = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+        if AXIsProcessTrustedWithOptions([option: prompt] as CFDictionary), controller.start() {
             updateIcon()
             return
         }
@@ -160,26 +179,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(withTitle: "ViPi \(version)", action: nil, keyEquivalent: "")
 
         if !controller.isRunning {
-            menu.addItem(item(tr("⚠️ Grant Accessibility Permission…"), #selector(openAccessibility)))
+            let i = item(tr("Grant Accessibility Permission…"), #selector(showFirstRun))
+            i.image = symbol("exclamationmark.triangle.fill", Theme.alertGoldNS)
+            menu.addItem(i)
         }
         switch updater.state {
-        case .available(let v): menu.addItem(item(tr("⬆️ Update to ViPi %@…", v), #selector(showAbout)))
-        case .ready(let v): menu.addItem(item(tr("⬆️ Relaunch to Finish Updating to %@", v), #selector(relaunchForUpdate)))
+        case .available(let v):
+            let i = item(tr("Update to ViPi %@…", v), #selector(showAbout))
+            i.image = symbol("arrow.down.circle.fill", Theme.brandRedNS)
+            menu.addItem(i)
+        case .ready(let v):
+            let i = item(tr("Relaunch to Finish Updating to %@", v), #selector(relaunchForUpdate))
+            i.image = symbol("arrow.down.circle.fill", Theme.brandRedNS)
+            menu.addItem(i)
         default: break
         }
         if secureInput.isEnabled {
             let who = secureInput.holder.map { "\($0.name) (PID \($0.pid))" } ?? tr("unknown app")
-            menu.addItem(item(tr("🔒 Secure Input held by %@", who), #selector(showSecureInput)))
+            let i = NSMenuItem(title: tr("Secure Input held by %@", who), action: nil, keyEquivalent: "")
+            i.image = symbol("lock.fill", .secondaryLabelColor)
+            i.isEnabled = false
+            menu.addItem(i)
         }
         menu.addItem(.separator())
 
-        for m in prefs.autoSwitch ? [recent.first { $0 != .chinese }!, .chinese] : InputMode.allCases {
+        for m in menuInputs {
             let i = item(m.title(autoSwitch: prefs.autoSwitch), #selector(selectMode(_:)))
             i.representedObject = m.rawValue
             i.state = m == mode ? .on : .off
+            i.indentationLevel = 1
             menu.addItem(i)
         }
         let hint = NSMenuItem(title: tr("%@: previous · twice: next", prefs.shortcut.label), action: nil, keyEquivalent: "")
+        hint.attributedTitle = NSAttributedString(string: hint.title, attributes: [.font: NSFont.menuFont(ofSize: 11), .foregroundColor: NSColor.disabledControlTextColor])
         hint.isEnabled = false
         menu.addItem(hint)
         menu.addItem(.separator())
@@ -190,6 +222,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(item(tr("About ViPi"), #selector(showAbout)))
         menu.addItem(.separator())
         menu.addItem(item(tr("Quit ViPi"), #selector(quit), key: "q"))
+    }
+
+    private func symbol(_ name: String, _ color: NSColor) -> NSImage? {
+        NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 15, weight: .regular)
+                .applying(NSImage.SymbolConfiguration(paletteColors: [color])))
     }
 
     private func item(_ title: String, _ action: Selector, key: String = "") -> NSMenuItem {
@@ -241,8 +279,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func openAccessibility() {
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
-        startTapOrAskPermission()
+        startTap(prompt: true)
     }
+
+    @objc private func showFirstRun() { firstRunWindow.show() }
 
     @objc private func showAbout() { aboutWindow.show() }
 
@@ -259,81 +299,108 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 // MARK: - Icon
 
 enum StatusIcon {
-    /// Một kiểu cho mọi chế độ: ô bo góc đặc, chữ đục rỗng (VI / 拼 / EN), ảnh template nên tự theo
-    /// màu thanh menu sáng/tối. Ổ khoá khi Secure Input bật, "!" khi chưa có quyền Accessibility.
+    /// Khung viền bo góc, chữ căn giữa (VI / 拼 / EN / VE), ảnh template nên tự theo màu thanh menu.
+    /// Secure Input: ổ khoá trong khung. Chưa có quyền Accessibility: khung nét đứt + "!".
     static func image(mode: InputMode, autoSwitch: Bool, blocked: Bool, inactive: Bool) -> NSImage {
-        let size = NSSize(width: 24, height: 16)
-        let mark: NSImage = blocked
-            ? symbol("lock.fill")
-            : text(inactive ? "!" : mode.badge(autoSwitch: autoSwitch), chinese: mode == .chinese && !inactive, in: size)
-        let img = NSImage(size: size, flipped: false) { rect in
-            NSColor.black.setFill()
-            NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 4, yRadius: 4).fill()
-            let r = NSRect(x: rect.midX - mark.size.width / 2, y: rect.midY - mark.size.height / 2,
-                           width: mark.size.width, height: mark.size.height)
-            mark.draw(in: r, from: .zero, operation: .destinationOut, fraction: 1)
+        let label = mode.badge(autoSwitch: autoSwitch)
+        let img = NSImage(size: NSSize(width: 24, height: 16), flipped: true) { rect in
+            NSColor.black.set()
+            let frame = NSBezierPath(roundedRect: rect.insetBy(dx: 0.75, dy: 0.75), xRadius: 3.5, yRadius: 3.5)
+            frame.lineWidth = 1.5
+            if inactive, !blocked { frame.setLineDash([2.2, 1.4], count: 2, phase: 0) }
+            frame.stroke()
+            if blocked {
+                NSBezierPath(roundedRect: NSRect(x: 8.5, y: 7, width: 7, height: 5.5), xRadius: 1, yRadius: 1).fill()
+                let shackle = NSBezierPath()
+                shackle.lineWidth = 1.4
+                shackle.move(to: NSPoint(x: 9.75, y: 7))
+                shackle.line(to: NSPoint(x: 9.75, y: 5.5))
+                shackle.appendArc(withCenter: NSPoint(x: 12, y: 5.5), radius: 2.25, startAngle: 180, endAngle: 0, clockwise: false)
+                shackle.line(to: NSPoint(x: 14.25, y: 7))
+                shackle.stroke()
+            } else if inactive {
+                draw("!", size: 11, in: rect)
+            } else {
+                draw(label, size: mode == .chinese ? 10 : 9.5, in: rect)
+            }
             return true
         }
         img.isTemplate = true
         return img
     }
 
-    private static func text(_ label: String, chinese: Bool, in size: NSSize) -> NSImage {
-        let font = chinese ? NSFont.systemFont(ofSize: 12, weight: .bold) : NSFont.systemFont(ofSize: 10.5, weight: .heavy)
-        let s = NSAttributedString(string: label, attributes: [.font: font, .foregroundColor: NSColor.black])
+    private static func draw(_ text: String, size: CGFloat, in rect: NSRect) {
+        let s = NSAttributedString(string: text, attributes: [.font: NSFont.systemFont(ofSize: size, weight: .bold), .foregroundColor: NSColor.black])
         let ts = s.size()
-        return NSImage(size: ts, flipped: false) { _ in s.draw(at: .zero); return true }
-    }
-
-    private static func symbol(_ name: String) -> NSImage {
-        let config = NSImage.SymbolConfiguration(pointSize: 10, weight: .bold)
-        return NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(config) ?? NSImage()
+        s.draw(at: NSPoint(x: rect.midX - ts.width / 2, y: rect.midY - ts.height / 2))
     }
 }
 
 // MARK: - HUD khi đổi bộ gõ
 
+struct ModeHUDView: View {
+    let badge: String
+    let title: String
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Text(badge)
+                .font(.system(size: 15, weight: .bold))
+                .foregroundColor(.white)
+                .frame(width: 40, height: 28)
+                .background(Theme.brandRed, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            Text(title)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundColor(Theme.ink)
+                .lineLimit(1)
+        }
+        .padding(.leading, 18)
+        .padding(.trailing, 22)
+        .frame(minWidth: 220, minHeight: 64)
+        .glass(radius: 14, prominent: true, shadow: false)   // SwiftUI không được vẽ bóng ra ngoài panel
+        .fixedSize()
+    }
+}
+
 final class ModeHUD {
     private let panel: NSPanel
-    private let label = NSTextField(labelWithString: "")
+    private let host = NSHostingView(rootView: ModeHUDView(badge: "", title: ""))
     private var hideWork: DispatchWorkItem?
 
     init() {
         panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 220, height: 64),
                         styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
-        panel.level = .popUpMenu
+        panel.level = .statusBar
         panel.isOpaque = false
         panel.backgroundColor = .clear
+        panel.hasShadow = true
         panel.ignoresMouseEvents = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
-        let bg = NSVisualEffectView(frame: panel.contentRect(forFrameRect: panel.frame))
-        bg.material = .hudWindow
-        bg.state = .active
-        bg.wantsLayer = true
-        bg.layer?.cornerRadius = 14
-        label.font = .systemFont(ofSize: 20, weight: .semibold)
-        label.alignment = .center
-        label.translatesAutoresizingMaskIntoConstraints = false
-        bg.addSubview(label)
-        NSLayoutConstraint.activate([
-            label.centerXAnchor.constraint(equalTo: bg.centerXAnchor),
-            label.centerYAnchor.constraint(equalTo: bg.centerYAnchor),
-        ])
-        panel.contentView = bg
+        panel.contentView = host
     }
 
     func show(_ mode: InputMode, autoSwitch: Bool) {
-        label.stringValue = "\(mode.badge(autoSwitch: autoSwitch))  ·  \(mode.title(autoSwitch: autoSwitch))"
-        let width = max(220, label.intrinsicContentSize.width + 48)
+        host.rootView = ModeHUDView(badge: mode.badge(autoSwitch: autoSwitch), title: mode.title(autoSwitch: autoSwitch))
+        let size = host.fittingSize
         if let screen = NSScreen.main {
             let f = screen.visibleFrame
-            panel.setFrame(NSRect(x: f.midX - width / 2, y: f.minY + f.height * 0.18, width: width, height: 64), display: true)
+            panel.setFrame(NSRect(x: f.midX - size.width / 2, y: f.minY + f.height * 0.18, width: size.width, height: size.height), display: true)
         }
-        panel.alphaValue = 1
-        panel.orderFrontRegardless()
         hideWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in self?.panel.orderOut(nil) }
+        if !panel.isVisible { panel.alphaValue = 0 }
+        panel.orderFrontRegardless()
+        fade(to: 1, duration: 0.12)
+        let work = DispatchWorkItem { [weak self] in
+            self?.fade(to: 0, duration: 0.18) { self?.panel.orderOut(nil) }
+        }
         hideWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.9, execute: work)
+    }
+
+    private func fade(to alpha: CGFloat, duration: TimeInterval, done: (() -> Void)? = nil) {
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = duration
+            panel.animator().alphaValue = alpha
+        }, completionHandler: done)
     }
 }

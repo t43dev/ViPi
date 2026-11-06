@@ -6,6 +6,10 @@ What changed in each ViPi release. Download the latest from [Releases](../../rel
 
 ### Changed
 - **Vietnamese and English now work as one input, VE, and this is on by default.** The menu bar shows **VE** instead of VI or EN, the switch shortcut moves between VE and Chinese, and ViPi follows what you type. To use Vietnamese or English on their own, turn off **Settings → Vietnamese → Switch between Vietnamese and English automatically**.
+- **A new look built on Liquid Glass.** Settings, About, the Secure Input Monitor, the menu-bar icon, the input switch banner and the Chinese candidate panel are all redrawn, in light and dark. Macs older than macOS 26 get the same layout with standard translucent materials.
+- **First-run screen:** ViPi now walks you through Accessibility permission, your input and the switch shortcut.
+- The Text Shortcuts list now uses all the space in its tab, and the menu shows symbols instead of emoji.
+- **Automatically install updates** now lives only in **Settings → General**; About links to it.
 
 ### Improved
 - **Vietnamese/English auto switch reads the word before.** Words that are real both ways (`car`/cả, `bus`/bú, `been`/bên, `mix`/mĩ) follow the reading that comes after the previous word more often in real text: `cho con bus` → cho con **bú**, `ddi xe bus` → đi xe **bus**, `owr been` → ở **bên**, `test cos work` → test **có** work. Word pairs from Vikey.

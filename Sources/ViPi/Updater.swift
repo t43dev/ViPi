@@ -35,6 +35,9 @@ final class Updater: ObservableObject {
     }
     var onChange: (() -> Void)?
 
+    /// Chỉ dùng khi chụp ảnh giao diện (--render).
+    func preview(_ state: State) { self.state = state }
+
     /// Bản dev (ký tự tạo) không tự cập nhật: đổi sang chữ ký Developer ID sẽ làm mất quyền Accessibility.
     let isReleaseBuild = (try? Updater.verify(Bundle.main.bundleURL)) != nil
     private let defaults = UserDefaults.standard
