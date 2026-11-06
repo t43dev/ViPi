@@ -97,7 +97,7 @@ Nếu bạn viết cả tiếng Việt lẫn tiếng Trung, máy Mac của bạn
 
 ### ⌨️ Một phím tắt cho mọi ngôn ngữ
 
-Bấm **`⌃ Control` + `⇧ Shift`** một lần để quay về bộ gõ trước, bấm nhanh hai lần để sang bộ tiếp theo. Thứ tự theo lần dùng gần nhất, giống ⌘Tab nhưng cho ngôn ngữ: **VI ⇄ 拼 ⇄ EN**. Thích Option+Shift hay Control+Space hơn? Đổi trong Cài đặt.
+Bấm **`⌃ Control` + `⇧ Shift`** một lần để quay về bộ gõ trước, bấm nhanh hai lần để sang bộ tiếp theo. Thứ tự theo lần dùng gần nhất, giống ⌘Tab nhưng cho ngôn ngữ: **VE ⇄ 拼**. VE là tiếng Việt và tiếng Anh gộp làm một, tự theo những gì bạn gõ; tắt trong Cài đặt nếu muốn **VI** và **EN** riêng. Thích Option+Shift hay Control+Space hơn? Đổi trong Cài đặt.
 
 ### 🛡️ Theo dõi Secure Input
 

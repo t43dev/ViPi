@@ -97,7 +97,7 @@ If you write in Vietnamese and Chinese, your Mac probably looks like this:
 
 ### ⌨️ One shortcut for every language
 
-Press **`⌃ Control` + `⇧ Shift`** once to go back to the previous input, twice quickly for the next one. It works in most-recently-used order, like ⌘Tab for languages: **VI ⇄ 拼 ⇄ EN**. Prefer Option+Shift or Control+Space? Change it in Settings.
+Press **`⌃ Control` + `⇧ Shift`** once to go back to the previous input, twice quickly for the next one. It works in most-recently-used order, like ⌘Tab for languages: **VE ⇄ 拼**. VE is Vietnamese and English as one input that follows what you type; turn it off in Settings to get **VI** and **EN** separately. Prefer Option+Shift or Control+Space? Change it in Settings.
 
 ### 🛡️ Secure Input Monitor
 
