@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Thanh tab capsule phía trên nội dung Settings.
@@ -115,14 +116,55 @@ struct CapsulePicker<Value: Hashable>: View {
         .frame(height: 26)
         .background(Theme.control, in: Capsule())
         .overlay(Capsule().strokeBorder(Theme.controlStroke, lineWidth: 1))
+        .accessibilityHidden(true)
         .overlay {
-            Picker(title, selection: $selection) {
-                ForEach(options, id: \.value) { Text($0.label).tag($0.value) }
-            }
-            .pickerStyle(.menu)
-            .labelsHidden()
-            .opacity(0.011)
+            InvisiblePopUp(title: title, labels: options.map(\.label),
+                           index: options.firstIndex { $0.value == selection } ?? -1) { selection = options[$0].value }
         }
+    }
+}
+
+/// Dropdown thật của macOS đè lên viên nang nhưng không tự vẽ gì: click, bàn phím, menu và Accessibility đều là của hệ thống.
+/// Đừng thay bằng Picker của SwiftUI với opacity gần 0: chuột sẽ click xuyên qua (lỗi của 0.5.0, 0.5.1).
+private struct InvisiblePopUp: NSViewRepresentable {
+    let title: String
+    let labels: [String]
+    let index: Int
+    let onPick: (Int) -> Void
+
+    final class Button: NSPopUpButton {
+        override func draw(_ dirtyRect: NSRect) {}
+    }
+
+    final class Coordinator: NSObject {
+        var onPick: (Int) -> Void = { _ in }
+        @objc func picked(_ sender: NSPopUpButton) { onPick(sender.indexOfSelectedItem) }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeNSView(context: Context) -> Button {
+        let button = Button(frame: .zero, pullsDown: false)
+        button.font = .systemFont(ofSize: 13)
+        button.target = context.coordinator
+        button.action = #selector(Coordinator.picked)
+        // lấy đúng khung viên nang thay vì bề rộng tự nhiên của nút
+        for axis in [NSLayoutConstraint.Orientation.horizontal, .vertical] {
+            button.setContentHuggingPriority(.init(1), for: axis)
+            button.setContentCompressionResistancePriority(.init(1), for: axis)
+        }
+        return button
+    }
+
+    func updateNSView(_ button: Button, context: Context) {
+        context.coordinator.onPick = onPick
+        if button.itemTitles != labels {
+            button.removeAllItems()
+            button.addItems(withTitles: labels)
+        }
+        button.selectItem(at: index)
+        button.isEnabled = context.environment.isEnabled
+        button.setAccessibilityLabel(title)
     }
 }
 

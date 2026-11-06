@@ -2,6 +2,11 @@
 
 What changed in each ViPi release. Download the latest from [Releases](../../releases/latest).
 
+## 0.5.2 · 2026-11-06
+
+### Fixed
+- **The dropdowns in Settings respond to the mouse again.** Since 0.5.0, clicking Language, Appearance, Tone placement or Characters did nothing.
+
 ## 0.5.1 · 2026-11-06
 
 ### Changed
