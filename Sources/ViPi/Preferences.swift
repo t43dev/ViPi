@@ -29,6 +29,12 @@ struct SwitchShortcut: Codable, Equatable {
         if let keyName { parts.append(keyName) }
         return parts.joined(separator: "+")
     }
+
+    /// "⌃⇧": ký hiệu các phím bổ trợ, hiện cạnh tên trong ô ghi phím tắt.
+    var symbols: String {
+        [(CGEventFlags.maskControl, "⌃"), (.maskAlternate, "⌥"), (.maskShift, "⇧"), (.maskCommand, "⌘")]
+            .filter { flags.contains($0.0) }.map(\.1).joined()
+    }
 }
 
 /// Giao diện sáng/tối của các cửa sổ ViPi (Settings, About, khung chọn chữ Hán…).
@@ -109,6 +115,12 @@ final class Preferences: ObservableObject {
         appearance = defaults.string(forKey: "appearance").flatMap(Appearance.init(rawValue:)) ?? .system
         language = defaults.string(forKey: "uiLanguage").flatMap(UILanguage.init(rawValue:)) ?? .system
         UILanguage.current = language
+    }
+
+    /// Màn chào đã hiện một lần.
+    var didFinishFirstRun: Bool {
+        get { defaults.bool(forKey: "didFinishFirstRun") }
+        set { defaults.set(newValue, forKey: "didFinishFirstRun") }
     }
 
     var macroTable: MacroTable { MacroTable(macros.map { ($0.key.trimmingCharacters(in: .whitespaces), $0.text) }) }

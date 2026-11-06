@@ -47,8 +47,9 @@ if let i = args.firstIndex(of: "--verify-update"), i + 1 < args.count {
     let windows = (0..<4).map { tab -> NSWindow in
         let w = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(
             prefs: Preferences(), updater: Updater(), userDictionary: PinyinUserDictionary(fileURL: nil),
-            onRecording: { _ in }, showSecureInput: {}, initialTab: tab)))
+            onRecording: { _ in }, showSecureInput: {}, navigation: SettingsNavigation(tab: tab))))
         w.styleMask = [.titled, .closable]
+        w.applyGlassChrome()
         w.title = tr("ViPi Settings")
         w.setFrameOrigin(NSPoint(x: 80 + tab * 40, y: 120 + tab * 40))
         w.orderFrontRegardless()
