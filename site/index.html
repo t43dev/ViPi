@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ViPi: Vietnamese and Chinese typing for Mac</title>
-<meta name="description" content="Telex and Pinyin in one small menu-bar app for macOS. One shortcut switches languages. Free, open source and fully offline.">
+<title>ViPi: Vietnamese and Chinese typing</title>
+<meta name="description" content="Telex and Pinyin on one keyboard, for macOS and Android, with HarmonyOS on the way. Free and open source.">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#fbfaf8" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1c1011" media="(prefers-color-scheme: dark)">
 <link rel="canonical" href="https://vipi.t43.app/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://vipi.t43.app/">
-<meta property="og:title" content="ViPi: Vietnamese and Chinese on one Mac keyboard">
-<meta property="og:description" content="Telex and Pinyin in one small menu-bar app. One shortcut switches. Free, open source, offline.">
+<meta property="og:title" content="ViPi: Vietnamese and Chinese on one keyboard">
+<meta property="og:description" content="Telex and Pinyin on one keyboard, for macOS and Android. Free and open source.">
 <meta property="og:image" content="https://vipi.t43.app/img/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="img/logo.svg" type="image/svg+xml">
@@ -21,6 +21,7 @@
 <link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="style.css">
 <script src="theme.js"></script>
+<script src="platform.js"></script>
 <script src="app.js" defer></script>
 </head>
 <body>
@@ -31,8 +32,10 @@
   <nav aria-label="Sections">
     <a href="#vietnamese">Vietnamese</a>
     <a href="#chinese">Chinese</a>
-    <a href="#switch">Shortcut</a>
-    <a href="#android">Android</a>
+    <a href="#switch" data-for="mac">Shortcut</a>
+    <a href="#keyboard" data-for="android">Keyboard</a>
+    <a href="#foldables" data-for="harmony">Foldables</a>
+    <a href="#start" data-for="mac android">Install</a>
     <a href="#faq">FAQ</a>
     <a href="https://github.com/t43dev/ViPi">GitHub</a>
   </nav>
@@ -43,7 +46,16 @@
 
 <main id="main">
 <section class="hero" id="top">
-  <div class="hero-copy">
+  <div class="picker">
+    <div class="devices" role="group" aria-label="Choose your device">
+      <a class="devkey" data-device="mac" href="?for=mac"><span class="devkey-name">macOS</span><span class="devkey-state" data-version="mac">Version 0.5.3</span></a>
+      <a class="devkey" data-device="android" href="?for=android"><span class="devkey-name">Android</span><span class="devkey-state" data-version="android">Version 0.3.2 beta</span></a>
+      <a class="devkey" data-device="harmony" href="?for=harmony"><span class="devkey-name">HarmonyOS</span><span class="devkey-state">No download yet</span></a>
+    </div>
+    <p class="picker-note" aria-live="polite"></p>
+  </div>
+
+  <div class="hero-copy" data-for="mac">
     <h1>Vietnamese and Chinese on one Mac keyboard.</h1>
     <p class="lede">ViPi puts Telex and Pinyin in one small menu-bar app. Press <kbd>⌃</kbd>&#8239;<kbd>⇧</kbd> to change language. Free, open source, and it never goes online except to check for updates.</p>
     <div class="cta">
@@ -51,11 +63,49 @@
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Download for macOS
       </a>
-      <p class="fine"><span data-version>Latest version</span>, macOS 13 or later, Apple silicon and Intel. Notarized by Apple.</p>
+      <p class="fine"><span data-version="mac">Version 0.5.3</span>, macOS 13 or later, Apple silicon and Intel. Notarized by Apple.</p>
     </div>
   </div>
 
-  <div class="demo" aria-label="Typing demo">
+  <div class="hero-copy" data-for="android">
+    <h1>Vietnamese and Chinese on one Android keyboard.</h1>
+    <p class="lede">Telex, English and Pinyin in a single keyboard. Vietnamese and English are told apart as you type, and the globe key takes you to Chinese. Free and open source, and what you type stays on your phone.</p>
+    <div class="cta">
+      <a class="button" data-apk href="https://github.com/t43dev/ViPi/releases/download/android-v0.3.2/ViPi-android-0.3.2.apk">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Download for Android
+      </a>
+      <p class="fine"><span data-version="android">Version 0.3.2 beta</span>, Android 8 or later. A signed APK from GitHub; not on Google Play yet.</p>
+    </div>
+  </div>
+
+  <div class="hero-copy" data-for="harmony">
+    <h1>Vietnamese and Chinese on one HarmonyOS keyboard.</h1>
+    <p class="lede">The same engine as the Mac and Android versions, made for HarmonyOS 6 and for foldable phones. One half of the keyboard sits on each side of the fold.</p>
+    <div class="cta">
+      <p class="status"><strong>There is no download yet.</strong> The keyboard is written, but it has not been tested on a phone, so it is not ready to install.</p>
+      <a class="button quiet" href="https://github.com/t43dev/ViPi/releases">Follow new releases on GitHub</a>
+      <p class="fine">Using HarmonyOS 4 or older? Your phone runs Android apps, so <a href="?for=android">the Android version</a> is the one to install.</p>
+    </div>
+  </div>
+
+  <div class="hero-copy" data-for="other">
+    <h1>Vietnamese and Chinese on one keyboard.</h1>
+    <p class="lede">ViPi puts Telex and Pinyin in one input method for macOS and Android, with HarmonyOS on the way. Press the key for the device you want to install it on.</p>
+  </div>
+
+  <figure class="stage-shot" data-for="android">
+    <img class="for-light" src="img/android-keyboard-light.png" width="540" height="396" alt="ViPi Android keyboard typing Vietnamese: the suggestion bar offers dduowcj as typed or được">
+    <img class="for-dark" src="img/android-pinyin-dark.png" width="540" height="396" alt="ViPi Android keyboard in dark mode showing Chinese candidates for nihao">
+  </figure>
+
+  <figure class="stage-fold" data-for="harmony">
+    <img class="for-light" src="img/harmony-fold-light.png" width="2385" height="732" alt="ViPi HarmonyOS keyboard on an unfolded phone, split in two halves with the word người suggested">
+    <img class="for-dark" src="img/harmony-fold-dark.png" width="2385" height="732" alt="ViPi HarmonyOS keyboard on an unfolded phone in dark mode, split in two halves with Chinese candidates">
+    <figcaption>Preview of the keyboard on an unfolded Pura X Max.</figcaption>
+  </figure>
+
+  <div class="demo" aria-label="Typing demo" data-for="mac other">
     <div class="demo-bar">
       <span class="demo-title">Try it here</span>
       <div class="modes" role="group" aria-label="Input language">
@@ -90,8 +140,9 @@
     <ul class="facts">
       <li>Classic <em>hòa</em> or modern <em>hoà</em> tone placement.</li>
       <li>Spell checking on or off.</li>
-      <li><strong>New:</strong> Vietnamese and English work as one input, VE, on by default. Type <kbd>treen</kbd> to get trên, and a common English word such as <kbd>server</kbd> stays as typed. To use them separately, turn it off in Settings, Vietnamese.</li>
-      <li>Tested on a real Mac with all 8,329 valid syllables at 8 to 12 ms per key, and in Chrome at 3 ms per key, without losing a key or a mark.</li>
+      <li data-for="mac"><strong>New:</strong> Vietnamese and English work as one input, VE, on by default. Type <kbd>treen</kbd> to get trên, and a common English word such as <kbd>server</kbd> stays as typed. To use them separately, turn it off in Settings, Vietnamese.</li>
+      <li data-for="android harmony other">Vietnamese and English are one keyboard. Type <kbd>treen</kbd> to get trên, and a common English word such as <kbd>server</kbd> stays as typed.</li>
+      <li data-for="mac">Tested on a real Mac with all 8,329 valid syllables at 8 to 12 ms per key, and in Chrome at 3 ms per key, without losing a key or a mark.</li>
     </ul>
   </div>
 </section>
@@ -99,8 +150,8 @@
 <section class="band" id="chinese" aria-labelledby="zh-h">
   <div class="band-head">
     <h2 id="zh-h">Pinyin with a real candidate window</h2>
-    <p>Candidates appear at the cursor. Whole sentences convert at once, each word chosen from the one before it.</p>
-    <figure class="cand-shot">
+    <p><span data-for="mac">Candidates appear at the cursor. </span>Whole sentences convert at once, each word chosen from the one before it.</p>
+    <figure class="cand-shot" data-for="mac">
       <img class="for-light" src="img/cand-light.png" width="289" height="57" alt="ViPi candidate window showing 你好 for nihao">
       <img class="for-dark" src="img/cand-dark.png" width="289" height="57" alt="ViPi candidate window showing 你好 for nihao">
     </figure>
@@ -113,11 +164,11 @@
       <div><dt><kbd class="typed">wozaixuexi</kbd></dt><dd><span class="out" lang="zh">我在学习</span><span class="note">A whole sentence in one go, with 在 rather than 再 from context.</span></dd></div>
       <div><dt><kbd class="typed">xi'an</kbd></dt><dd><span class="out" lang="zh">西安</span><span class="note">An apostrophe splits syllables.</span></dd></div>
     </dl>
-    <p class="keys"><kbd>1</kbd>–<kbd>9</kbd> or <kbd>Space</kbd> picks a candidate. <kbd>←</kbd> <kbd>→</kbd> move, <kbd>-</kbd> <kbd>=</kbd> or <kbd>↑</kbd> <kbd>↓</kbd> turn the page. <kbd>Enter</kbd> types the raw pinyin and <kbd>Esc</kbd> cancels. Punctuation is full width: <span lang="zh">，。？！</span></p>
+    <p class="keys" data-for="mac"><kbd>1</kbd>–<kbd>9</kbd> or <kbd>Space</kbd> picks a candidate. <kbd>←</kbd> <kbd>→</kbd> move, <kbd>-</kbd> <kbd>=</kbd> or <kbd>↑</kbd> <kbd>↓</kbd> turn the page. <kbd>Enter</kbd> types the raw pinyin and <kbd>Esc</kbd> cancels. Punctuation is full width: <span lang="zh">，。？！</span></p>
     <div class="trio">
       <div>
         <h3>Learns from you</h3>
-        <p>The words and phrases you pick come first next time. They are stored only on your Mac and clear with one click.</p>
+        <p>The words and phrases you pick come first next time. They are stored only on your device and clear with one click.</p>
       </div>
       <div>
         <h3>Fuzzy pinyin</h3>
@@ -131,7 +182,7 @@
   </div>
 </section>
 
-<section class="band switch" id="switch" aria-labelledby="sw-h">
+<section class="band switch" id="switch" aria-labelledby="sw-h" data-for="mac">
   <div class="band-head">
     <h2 id="sw-h">One shortcut for every language</h2>
     <p>Like <kbd>⌘</kbd>&#8239;<kbd>Tab</kbd>, but for languages. Prefer <kbd>⌥</kbd>&#8239;<kbd>⇧</kbd> or <kbd>⌃</kbd>&#8239;<kbd>Space</kbd>? Change it in Settings.</p>
@@ -149,33 +200,37 @@
   </div>
 </section>
 
-<section class="band" id="android" aria-labelledby="an-h">
+<section class="band" id="keyboard" aria-labelledby="an-h" data-for="android">
   <div class="band-head">
-    <h2 id="an-h">Now on Android, in beta</h2>
-    <p>The same Telex and Pinyin engine as on the Mac, on a keyboard of its own. Vietnamese and English are one keyboard: ViPi tells them apart as you type. Tap the globe key to switch to <span lang="zh">中文 · 拼音</span> and back; hold it for more choices.</p>
-    <div class="cta">
-      <a class="button" href="https://github.com/t43dev/ViPi/releases/download/android-v0.3.2/ViPi-android-0.3.2.apk">
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Download for Android
-      </a>
-      <p class="fine">Version 0.3.2 beta, Android 8 or later. A signed APK from GitHub; not on Google Play yet.</p>
-    </div>
+    <h2 id="an-h">A keyboard of its own</h2>
+    <p>The same Telex and Pinyin engine as on the Mac. Tap the globe key to switch to <span lang="zh">中文 · 拼音</span> and back; hold it for more choices.</p>
   </div>
   <div class="band-body">
-    <figure class="android-shot">
-      <img class="for-light" src="img/android-keyboard-light.png" width="540" height="396" alt="ViPi Android keyboard typing Vietnamese: the suggestion bar offers dduowcj as typed or được">
-      <img class="for-dark" src="img/android-pinyin-dark.png" width="540" height="396" alt="ViPi Android keyboard in dark mode showing Chinese candidates for nihao">
-    </figure>
-    <ol class="steps">
-      <li><a href="https://github.com/t43dev/ViPi/releases/download/android-v0.3.2/ViPi-android-0.3.2.apk">Download the APK</a> on your phone and open it. Allow installing from your browser if Android asks.</li>
-      <li>Open ViPi, tap <em>Turn on ViPi in Settings</em> and switch on ViPi.</li>
-      <li>Tap <em>Switch to ViPi</em>, then type. <kbd>treen</kbd> gives trên, <kbd>server</kbd> stays server, and the globe key takes you to <span lang="zh">拼音</span> and back.</li>
-    </ol>
-    <p class="fine">On Honor phones, a second globe under the keyboard comes from MagicOS, not ViPi. To hide it, turn off <em>Settings → System &amp; updates → Language &amp; input → Raise keyboard</em>.</p>
+    <ul class="facts flush">
+      <li>Hold a key on the top row for its number.</li>
+      <li>On an unfolded phone or a tablet, split the keyboard around the fold, keep one block in the middle, or float it anywhere.</li>
+      <li>Clipboard history, light and dark themes, and Material You colors.</li>
+      <li>Updates itself: ViPi checks GitHub once a day, confirms the download is signed by the ViPi developer, and installs it while the keyboard is closed. Android asks you to confirm the first time. You can turn this off in Settings.</li>
+    </ul>
+    <p class="fine wide">On Honor phones, a second globe under the keyboard comes from MagicOS, not ViPi. To hide it, turn off <em>Settings → System &amp; updates → Language &amp; input → Raise keyboard</em>.</p>
   </div>
 </section>
 
-<section class="band" id="secure" aria-labelledby="se-h">
+<section class="band" id="foldables" aria-labelledby="fo-h" data-for="harmony">
+  <div class="band-head">
+    <h2 id="fo-h">Fits the phone in either shape</h2>
+    <p>Folding or unfolding resizes the keyboard, and the word you are typing is kept.</p>
+  </div>
+  <div class="band-body">
+    <dl class="specimen">
+      <div><dt><span class="out">Folded</span></dt><dd><span class="note">The phone layout with compact keys, so the app keeps more than half of the cover screen.</span></dd></div>
+      <div><dt><span class="out">Unfolded</span></dt><dd><span class="note">One half of the keyboard on each side of the hinge. Prefer one block in the middle? Choose Wide in Settings.</span></dd></div>
+    </dl>
+    <p class="after">Tuned for the Huawei Pura X Max, and it works the same on other HarmonyOS 6 phones and tablets. The settings match the Android version.</p>
+  </div>
+</section>
+
+<section class="band" id="secure" aria-labelledby="se-h" data-for="mac">
   <div class="band-head">
     <h2 id="se-h">When typing stops, ViPi tells you why</h2>
     <p>A password field or a terminal can turn on macOS Secure Input, and every input method goes silent. ViPi's menu-bar icon turns into a lock and names the app holding it.</p>
@@ -194,7 +249,7 @@
   </div>
 </section>
 
-<section class="band" id="settings" aria-labelledby="st-h">
+<section class="band" id="settings" aria-labelledby="st-h" data-for="mac">
   <div class="band-head">
     <h2 id="st-h">Settings that fit on one screen</h2>
     <ul class="facts">
@@ -226,24 +281,33 @@
   <div class="band-body">
     <ul class="vows">
       <li><strong>No price.</strong> Free forever under GPL-3.0. There is no Pro version.</li>
-      <li><strong>No tracking.</strong> Keystrokes are processed on your Mac and never leave it. The only network request is the update check to GitHub.</li>
+      <li data-for="mac"><strong>No tracking.</strong> Keystrokes are processed on your Mac and never leave it. The only network request is the update check to GitHub.</li>
+      <li data-for="android"><strong>No tracking.</strong> Typing is processed on your phone and never leaves it. The only network request is the update check to GitHub, and you can turn it off.</li>
+      <li data-for="harmony other"><strong>No tracking.</strong> Typing is processed on your device and never leaves it.</li>
       <li><strong>No ads, no account, no nagging.</strong></li>
-      <li><strong>No warnings.</strong> ViPi is signed and notarized by Apple, so macOS opens it straight away and the Accessibility permission survives updates.</li>
+      <li data-for="mac"><strong>No warnings.</strong> ViPi is signed and notarized by Apple, so macOS opens it straight away and the Accessibility permission survives updates.</li>
     </ul>
   </div>
 </section>
 
-<section class="band" id="start" aria-labelledby="go-h">
+<section class="band" id="start" aria-labelledby="go-h" data-for="mac android">
   <div class="band-head">
     <h2 id="go-h">Set up in under a minute</h2>
   </div>
   <div class="band-body">
-    <ol class="steps">
-      <li><a href="https://github.com/t43dev/ViPi/releases/latest/download/ViPi.dmg">Download ViPi.dmg</a>, open it and drag ViPi onto Applications.</li>
-      <li>Open ViPi and allow it in System Settings, Privacy &amp; Security, Accessibility. It starts working within two seconds.</li>
-      <li>Press <kbd>⌃</kbd>&#8239;<kbd>⇧</kbd> and type.</li>
+    <div data-for="mac">
+      <ol class="steps">
+        <li><a href="https://github.com/t43dev/ViPi/releases/latest/download/ViPi.dmg">Download ViPi.dmg</a>, open it and drag ViPi onto Applications.</li>
+        <li>Open ViPi and allow it in System Settings, Privacy &amp; Security, Accessibility. It starts working within two seconds.</li>
+        <li>Press <kbd>⌃</kbd>&#8239;<kbd>⇧</kbd> and type.</li>
+      </ol>
+      <p class="after">Turn off other Vietnamese input methods such as UniKey, EVKey or GoNhanh, and keep the plain ABC input source, so only ViPi changes what you type.</p>
+    </div>
+    <ol class="steps" data-for="android">
+      <li><a data-apk href="https://github.com/t43dev/ViPi/releases/download/android-v0.3.2/ViPi-android-0.3.2.apk">Download the APK</a> on your phone and open it. Allow installing from your browser if Android asks.</li>
+      <li>Open ViPi, tap <em>Turn on ViPi in Settings</em> and switch on ViPi.</li>
+      <li>Tap <em>Switch to ViPi</em>, then type. <kbd>treen</kbd> gives trên, <kbd>server</kbd> stays server, and the globe key takes you to <span lang="zh">拼音</span> and back.</li>
     </ol>
-    <p class="after">Turn off other Vietnamese input methods such as UniKey, EVKey or GoNhanh, and keep the plain ABC input source, so only ViPi changes what you type.</p>
   </div>
 </section>
 
@@ -252,27 +316,37 @@
     <h2 id="faq-h">Questions</h2>
   </div>
   <div class="band-body faq">
-    <details>
+    <details data-for="mac">
       <summary>ViPi suddenly stopped typing in every app</summary>
       <p>Some app has turned on Secure Input: a password field, a terminal with Secure Keyboard Entry, or a password manager. The menu-bar icon shows a lock. Open Secure Input Monitor from the menu to see which app it is, then close that field or quit the app.</p>
     </details>
     <details>
       <summary>An English word came out as Vietnamese</summary>
-      <p>Words that are also real Vietnamese syllables, such as <kbd>of</kbd> becoming ò, cannot be told apart automatically. Press the tone key twice (<kbd>off</kbd> gives of), or press Backspace right after an automatic change to get the word back as you typed it. To use Vietnamese and English separately, turn off VE in Settings, Vietnamese.</p>
+      <p>Words that are also real Vietnamese syllables, such as <kbd>of</kbd> becoming ò, cannot be told apart automatically. Press the tone key twice (<kbd>off</kbd> gives of), or press Backspace right after an automatic change to get the word back as you typed it.<span data-for="mac"> To use Vietnamese and English separately, turn off VE in Settings, Vietnamese.</span></p>
     </details>
-    <details>
+    <details data-for="mac">
       <summary>Do I have to uninstall UniKey, EVKey or GoNhanh?</summary>
       <p>No, just turn them off while you use ViPi. Two tools rewriting the same keystrokes fight each other.</p>
     </details>
-    <details>
+    <details data-for="mac">
       <summary>Which Macs are supported?</summary>
       <p>macOS 13 Ventura or later, on Apple silicon and Intel.</p>
     </details>
     <details>
       <summary>Does ViPi send what I type anywhere?</summary>
-      <p>No. Everything happens on your Mac. The learned Pinyin words stay in a file on your Mac, and the only request ViPi makes is the update check to GitHub.</p>
+      <p data-for="mac">No. Everything happens on your Mac. The learned Pinyin words stay in a file on your Mac, and the only request ViPi makes is the update check to GitHub.</p>
+      <p data-for="android">No. Everything happens on your phone, and the learned Pinyin words stay there. ViPi uses the internet for one thing, the update check to GitHub. Turn off <em>Install updates automatically</em> in its Settings and it will not go online unless you tap <em>Check for updates</em>.</p>
+      <p data-for="harmony other">No. Everything happens on your device, and the learned Pinyin words stay there.</p>
     </details>
-    <details>
+    <details data-for="android">
+      <summary>How do updates work?</summary>
+      <p>Once a day ViPi asks GitHub for a newer version, downloads it on Wi-Fi and checks that it carries the same signature as the app you have. Then it installs while the keyboard is closed. The first update needs your permission and one confirmation; after that Android usually installs them without asking.</p>
+    </details>
+    <details data-for="android harmony">
+      <summary>I have a Huawei phone. Which version do I need?</summary>
+      <p>HarmonyOS 4 and older run Android apps, so use the Android version. HarmonyOS 5 and later do not, so those phones need the HarmonyOS version, which has no download yet.</p>
+    </details>
+    <details data-for="mac">
       <summary>How do I uninstall it?</summary>
       <p>Choose Quit ViPi from its menu, then drag ViPi from Applications to the Trash.</p>
     </details>

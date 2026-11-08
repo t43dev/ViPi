@@ -2,6 +2,14 @@
 
 What changed in each ViPi release. Download the latest from [Releases](../../releases/latest).
 
+## Android 0.3.3 · 2026-11-08
+
+### Added
+- **ViPi for Android updates itself.** Once a day it checks GitHub, downloads a new version on Wi-Fi, confirms it is signed by the ViPi developer and installs it while the keyboard is closed. Android asks you to confirm the first time. Turn it off, or check by hand, under **Settings → Updates**. To do this the app now has internet access, used only for this update check; what you type stays on your phone.
+
+### Changed
+- **The website shows the right version for your device:** macOS, Android or HarmonyOS, with a key to switch to another.
+
 ## 0.5.3 · 2026-11-08
 
 macOS 0.5.3 and Android 0.3.2.

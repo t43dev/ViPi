@@ -35,6 +35,7 @@ class Prefs(context: Context) {
     val doubleSpacePeriod get() = bool(DOUBLE_SPACE, true)
     val keyPopup get() = bool(KEY_POPUP, true)
     val materialYou get() = bool(MATERIAL_YOU, false)
+    val autoUpdate get() = bool(AUTO_UPDATE, true)
     var largeLayout: KeyboardView.LargeLayout
         get() = runCatching { KeyboardView.LargeLayout.valueOf(sp.getString(LARGE_LAYOUT, null) ?: "") }.getOrDefault(KeyboardView.LargeLayout.SPLIT)
         set(v) = sp.edit().putString(LARGE_LAYOUT, v.name).apply()
@@ -59,6 +60,8 @@ class Prefs(context: Context) {
         const val FUZZY = "fuzzy"
         const val KEY_POPUP = "keyPopup"
         const val MATERIAL_YOU = "materialYou"
+        const val AUTO_UPDATE = "autoUpdate"
+        const val ASKED_NOTIFICATIONS = "askedNotifications"
         const val THEME = "theme"
         const val LARGE_LAYOUT = "largeLayout"
     }

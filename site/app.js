@@ -24,11 +24,58 @@
   systemDark.addEventListener('change', syncTheme);
   syncTheme();
 
-  // ---------- Latest version ----------
-  const versionEl = $('[data-version]');
-  fetch('https://api.github.com/repos/t43dev/ViPi/releases/latest', { headers: { Accept: 'application/vnd.github+json' } })
+  // ---------- Device picker ----------
+  const yours = { mac: 'your Mac', android: 'your Android phone', harmony: 'your HarmonyOS phone' };
+  const onThis = { mac: 'a Mac', android: 'an Android phone', harmony: 'a HarmonyOS phone' };
+  const unsupported = { windows: 'Windows', linux: 'Linux', iphone: 'iPhone and iPad', other: 'this device' };
+  const product = { mac: 'macOS', android: 'Android', harmony: 'HarmonyOS' };
+  const pickable = ['mac', 'android', 'harmony'];
+  const titles = { mac: 'for Mac', android: 'for Android', harmony: 'for HarmonyOS', other: '' };
+  const note = $('.picker-note');
+  function showPlatform(platform) {
+    root.dataset.platform = platform;
+    for (const k of $$('.devkey')) {
+      if (k.dataset.device === platform) k.setAttribute('aria-current', 'true'); else k.removeAttribute('aria-current');
+    }
+    const detected = root.dataset.detected;
+    if (platform === 'other') note.textContent = `ViPi is not available for ${unsupported[detected]} yet. Press a key to see another version.`;
+    else if (platform === detected) note.textContent = `Showing ViPi for ${yours[platform]}.`;
+    else note.textContent = `Showing ViPi for ${product[platform]}.` + (pickable.includes(detected) ? ` You are on ${onThis[detected]}.` : '');
+    document.title = ('ViPi: Vietnamese and Chinese typing ' + titles[platform]).trim();
+  }
+  for (const k of $$('.devkey')) {
+    k.addEventListener('click', (e) => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey) return; // mở tab mới thì để trình duyệt lo
+      e.preventDefault();
+      root.classList.remove('first-press');
+      showPlatform(k.dataset.device);
+      history.replaceState(null, '', k.getAttribute('href'));
+    });
+  }
+  showPlatform(root.dataset.platform || 'mac');
+  root.classList.add('first-press');
+
+  // ---------- Latest versions ----------
+  fetch('https://api.github.com/repos/t43dev/ViPi/releases?per_page=30', { headers: { Accept: 'application/vnd.github+json' } })
     .then((r) => (r.ok ? r.json() : null))
-    .then((j) => { if (j && /^v?\d/.test(j.tag_name)) versionEl.textContent = 'Version ' + j.tag_name.replace(/^v/, ''); })
+    .then((list) => {
+      if (!Array.isArray(list)) return;
+      const newest = (test, ext) => {
+        for (const r of list) {
+          if (r.draft || !test.test(r.tag_name)) continue;
+          const asset = r.assets.find((a) => a.name.endsWith(ext));
+          if (asset) return { version: r.tag_name.match(/\d.*$/)[0], url: asset.browser_download_url };
+        }
+        return null;
+      };
+      const mac = newest(/^v\d/, '.dmg');
+      const android = newest(/^android-v\d/, '.apk');
+      if (mac) for (const el of $$('[data-version="mac"]')) el.textContent = 'Version ' + mac.version;
+      if (android) {
+        for (const el of $$('[data-version="android"]')) el.textContent = `Version ${android.version} beta`;
+        for (const a of $$('[data-apk]')) a.href = android.url;
+      }
+    })
     .catch(() => {});
 
   // ---------- Settings tabs ----------
