@@ -189,7 +189,8 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
             return
         }
         val before = c.mode()
-        val hadWord = c.currentWord().isNotEmpty()
+        val wordLength = c.currentWord().length
+        val hadWord = wordLength > 0
         val wasComposingChinese = c.isComposingChinese()
         val r = c.handleKey(key)
         ic.beginBatchEdit()
@@ -200,7 +201,7 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
             ic.deleteSurroundingText(undo.backspaces.toInt(), 0)
             ic.commitText(undo.insert, 1)
         } else when (before) {
-            InputMode.VIETNAMESE -> applyVietnamese(ic, key, r, hadWord)
+            InputMode.VIETNAMESE -> applyVietnamese(ic, key, r, hadWord, wordLength)
             InputMode.ENGLISH -> applyEnglish(ic, key, r)
             InputMode.CHINESE -> applyChinese(ic, key, r, wasComposingChinese)
         }
@@ -210,7 +211,7 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         updateShift()
     }
 
-    private fun applyVietnamese(ic: InputConnection, key: KeyInput, r: KeyOutcome, hadWord: Boolean) {
+    private fun applyVietnamese(ic: InputConnection, key: KeyInput, r: KeyOutcome, hadWord: Boolean, wordLength: Int) {
         val c = composer ?: return
         val isLetter = key is KeyInput.Text && key.text.length == 1 && key.text[0].let { it in 'a'..'z' || it in 'A'..'Z' }
         when {
@@ -222,8 +223,15 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
             else -> {
                 val edit = r.edit
                 if (edit != null) {
-                    ic.setComposingText(edit.insert, 1)
-                    ic.finishComposingText()
+                    if (edit.backspaces.toInt() > wordLength) {
+                        // tự đổi sửa cả từ trước ("thí makes" → "this makes"): vùng soạn chỉ chứa từ đang gõ
+                        ic.finishComposingText()
+                        ic.deleteSurroundingText(edit.backspaces.toInt(), 0)
+                        ic.commitText(edit.insert, 1)
+                    } else {
+                        ic.setComposingText(edit.insert, 1)
+                        ic.finishComposingText()
+                    }
                     if (r.repostKey) deliver(ic, key)
                 } else {
                     ic.finishComposingText()

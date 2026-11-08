@@ -117,7 +117,9 @@ pub struct Composer {
     english_word: Vec<char>,        // chữ cái của từ đang gõ ở chế độ tiếng Anh
     undo: Option<Undo>,             // ngay sau một lần tự đổi: Backspace trả lại chữ trước đó
     undone_keys: Option<Vec<char>>, // từ vừa được trả lại bằng Backspace: kết thúc lại nó thì không tự đổi nữa
-    at_word_start: bool,            // từ đang gõ đứng sau dấu cách/đầu dòng (không dính sau số, @, ...)
+    at_word_start: bool,            // từ đang gõ đứng sau dấu cách/đầu dòng/mở ngoặc (không dính sau số, @, ...)
+    after_digit: bool,              // phím vừa rồi là số: w ngay sau số là đơn vị (65w), không phải ư
+    in_code: bool,                  // số dính sau chữ (abc1def, md5sum): các chữ tiếp theo giữ nguyên
     telex: TelexEngine,
     lexicon: Option<Arc<VietnameseLexicon>>,
     restore_non_vietnamese: bool,
@@ -153,6 +155,8 @@ impl Composer {
             undo: None,
             undone_keys: None,
             at_word_start: true,
+            after_digit: false,
+            in_code: false,
             telex: TelexEngine::new(),
             lexicon: None,
             restore_non_vietnamese: true,
@@ -260,7 +264,7 @@ impl Composer {
         self.auto_switch_enabled = on && self.auto_switch_tables.is_some();
         if !self.auto_switch_enabled {
             if let Some(a) = &mut self.auto_switch_tables {
-                a.remember(None, false);
+                a.remember(None, false, None);
             }
         }
     }
@@ -320,10 +324,12 @@ impl Composer {
     /// Bỏ phần đang gõ dở (click chuột, phím tắt có Command/Control, đổi ô nhập).
     pub fn cancel(&mut self) {
         self.at_word_start = true;
+        self.after_digit = false;
+        self.in_code = false;
         self.undo = None;
         self.undone_keys = None;
         if let Some(a) = &mut self.auto_switch_tables {
-            a.remember(None, false);
+            a.remember(None, false, None);
         }
         self.english_word.clear();
         self.telex.reset();
@@ -356,10 +362,10 @@ impl Composer {
             && typed.is_some_and(|c| WORD_END_FOR_AUTO_SWITCH.contains(c))
     }
 
-    fn remember(&mut self, word: Option<Vec<char>>, vietnamese: bool) {
+    fn remember(&mut self, word: Option<Vec<char>>, vietnamese: bool, shown: Option<String>) {
         if self.auto_switch_enabled {
             if let Some(a) = &mut self.auto_switch_tables {
-                a.remember(word, vietnamese);
+                a.remember(word, vietnamese, shown);
             }
         }
     }
@@ -401,15 +407,29 @@ impl Composer {
                 None
             };
             let auto = self.at_word_start && self.active_auto_switch(typed);
-            self.at_word_start = is_space;
+            self.at_word_start = is_space || matches!(ascii, Some('(' | '"'));
+            let digit = ascii.is_some_and(|a| a.is_ascii_digit());
+            self.in_code = digit && (self.in_code || !word.is_empty());
+            self.after_digit = digit;
             if let Some(a) = ascii.filter(|&a| (' '..='~').contains(&a) || is_space) {
                 let mut edit = macro_edit;
                 let mut switch_to = None;
+                let mut undoable = true;
                 let tables = self.auto_switch_tables.as_ref();
                 // tự đổi: từ tiếng Anh gõ ở chế độ tiếng Việt ("server", "more") → trả lại phím đã gõ, sang tiếng Anh
                 if edit.is_none() && auto && tables.is_some_and(|t| t.prefers_english(&word, &shown)) {
-                    edit = Some(TextEdit::new(shown.chars().count(), word.iter().collect::<String>()));
+                    let keys: String = word.iter().collect();
+                    // từ ngay trước cũng là tiếng Anh ("thí makes"): sửa luôn; sửa hai từ thì Backspace không hoàn tác (D20)
+                    edit = Some(match tables.and_then(|t| t.look_back(&word)) {
+                        Some((before, typed)) => {
+                            undoable = false;
+                            TextEdit::new(before.chars().count() + 1 + shown.chars().count(), format!("{typed} {keys}"))
+                        }
+                        None => TextEdit::new(shown.chars().count(), keys),
+                    });
                     switch_to = Some(Mode::English);
+                } else if let Some(s) = (edit.is_none() && auto).then(|| tables.and_then(|t| t.shorthand(&word))).flatten() {
+                    edit = Some(TextEdit::new(shown.chars().count(), s));
                 } else if edit.is_none() {
                     if let Some(restored) = self.telex.finish_word() {
                         edit = Some(restored);
@@ -418,16 +438,24 @@ impl Composer {
                         }
                     }
                 }
-                self.remember((a == ' ' && !word.is_empty()).then_some(word.clone()), true);
+                let kept = edit.is_none().then(|| shown.clone());
+                self.remember((a == ' ' && !word.is_empty()).then_some(word.clone()), true, kept);
                 if let Some(edit) = edit {
                     self.telex.reset();
-                    let undo = (a != '\r').then(|| (shown, word, Mode::Vietnamese));
+                    let undo = (a != '\r' && undoable).then(|| (shown, word, Mode::Vietnamese));
                     return self.word_end_result(edit, switch_to, undo);
                 }
             }
             self.telex.reset();
             return KeyResult::pass();
         };
+        if self.in_code {
+            return KeyResult::pass();
+        }
+        let after_digit = std::mem::take(&mut self.after_digit);
+        if after_digit && self.telex.is_empty() && ch.eq_ignore_ascii_case(&'w') {
+            return KeyResult::pass();
+        }
         let shown = self.telex.output_len();
         let edit = self.telex.type_key(ch);
         if edit.backspaces == 0 && edit.insert.chars().eq([ch]) {
@@ -480,7 +508,7 @@ impl Composer {
         let is_space = matches!(ascii, Some(' ' | '\r' | '\t'));
         let word = std::mem::take(&mut self.english_word);
         let started = self.at_word_start;
-        self.at_word_start = is_space;
+        self.at_word_start = is_space || matches!(ascii, Some('(' | '"'));
         let word_str: String = word.iter().collect();
         let mut text =
             if is_space && started { self.english_macros.as_ref().and_then(|m| m.expansion(&word_str)) } else { None };
@@ -497,7 +525,7 @@ impl Composer {
             }
         }
         let backspaces = word.len();
-        self.remember((ascii == Some(' ') && !word.is_empty()).then_some(word.clone()), false);
+        self.remember((ascii == Some(' ') && !word.is_empty()).then_some(word.clone()), false, None);
         let undo = (ascii != Some('\r')).then(|| (word_str, word, Mode::English));
         match text {
             Some(text) => self.word_end_result(TextEdit::new(backspaces, text), switch_to, undo),

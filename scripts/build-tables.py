@@ -8,7 +8,7 @@ Dùng: python3 -I scripts/build-tables.py      (chạy lại mỗi khi sửa m�
                                            mỗi từ là vị trí (u32) của mục đó trong pinyin-words.bin
   s2t.tsv             → s2t.bin            giản thể → phồn thể (OpenCC)
   autoswitch-vi.tsv   → autoswitch-vi.bin  khoá Telex → điểm tần suất (1 byte có dấu)
-  autoswitch-en.tsv   → autoswitch-en.bin
+  autoswitch-en.tsv + autoswitch-en-forms.tsv → autoswitch-en.bin (dạng từ của SCOWL, từ đã có trong danh sách thì giữ điểm)
   autoswitch-pairs.tsv → autoswitch-pairs.bin "từ trước<TAB>từ sau" → 8·log2(số lần) (1 byte)
 """
 import pathlib
@@ -86,6 +86,11 @@ def autoswitch():
             cols = line.split("\t")
             if len(cols) == 2:
                 table[cols[0]] = struct.pack("<b", int(cols[1]))
+        if lang == "en":
+            for line in (RES / "autoswitch-en-forms.tsv").read_text(encoding="utf-8").split("\n"):
+                cols = line.split("\t")
+                if len(cols) == 2 and not line.startswith("#"):
+                    table.setdefault(cols[0], struct.pack("<b", int(cols[1])))
         write_table(f"autoswitch-{lang}.bin", table)
     table = {}
     for line in (RES / "autoswitch-pairs.tsv").read_text(encoding="utf-8").split("\n"):

@@ -28,14 +28,26 @@ final class AutoSwitchTests: XCTestCase {
             }
             let word = vi ? telex.keys : english
             let wasVi = vi
+            var kept: String?
             if vi {
                 let shown = telex.output
+                kept = shown
                 if atWordStart, auto.prefersEnglish(keys: word, shown: shown) {
-                    apply(TextEdit(backspaces: shown.count, insert: String(word)))
+                    if let back = auto.lookBack(keys: word) {
+                        apply(TextEdit(backspaces: back.shown.count + 1 + shown.count, insert: back.keys + " " + String(word)))
+                    } else {
+                        apply(TextEdit(backspaces: shown.count, insert: String(word)))
+                    }
                     telex.reset()
                     vi = false
+                    kept = nil
+                } else if atWordStart, let s = auto.shorthand(keys: word) {
+                    apply(TextEdit(backspaces: shown.count, insert: s))
+                    telex.reset()
+                    kept = nil
                 } else if let edit = telex.finishWord() {
                     apply(edit)
+                    kept = nil
                     if atWordStart, auto.isForeign(keys: word, shown: shown) { vi = false }
                 }
             } else {
@@ -46,9 +58,9 @@ final class AutoSwitchTests: XCTestCase {
                 english = []
             }
             // như InputController: nhớ từ vừa gõ; đổi chế độ thì bắt đầu lại từ đầu (quên từ trước)
-            auto.remember(ch == " " && !word.isEmpty ? word : nil, vietnamese: wasVi)
+            auto.remember(ch == " " && !word.isEmpty ? word : nil, vietnamese: wasVi, shown: kept)
             if vi != wasVi { auto.remember(nil) }
-            atWordStart = ch == " "
+            atWordStart = ch == " " || ch == "(" || ch == "\""
             text.append(ch)
         }
         return (String(text), vi)
@@ -87,6 +99,25 @@ final class AutoSwitchTests: XCTestCase {
             ("owr been ", "ở bên ", true),
             ("sang mix ", "sang mĩ ", true),
             ("cachs mix ddoof ", "cách mix đồ ", true),
+            // sửa ngược từ ngay trước (Vikey D8, D13, D20, D42)
+            ("this makes sense ", "this makes sense ", false),
+            ("(this create ", "(this create ", false),
+            ("tooi thaays bee app bij loix ", "tôi thấy bê app bị lõi ", true),
+            ("been USA ", "bên USA ", false),
+            ("been server ", "bên server ", false),
+            ("car server ", "cả server ", false),
+            ("queen deploy ", "quên deploy ", true),
+            // Telex nuốt phím, dạng từ tiếng Anh, tên riêng, đ viết tắt (D18, D19, D23, D27, D60)
+            ("currentState ", "currentState ", false),
+            ("currentWindow ", "currentWindow ", false),
+            ("mirrorless ", "mirrorless ", false),
+            ("cheese, ", "cheese, ", false),
+            ("ASUS ", "ASUS ", false),
+            ("Momo ", "Momo ", false),
+            ("resets ", "resets ", false),
+            ("quests ", "quests ", false),
+            ("phis ", "phí ", true),
+            ("ddc ", "đc ", true),
         ], vietnamese: true)
     }
 
@@ -112,6 +143,13 @@ final class AutoSwitchTests: XCTestCase {
             ("the bus ", "the bus ", false),
             // cặp từ rõ là tiếng Việt thắng luật "ngay sau từ tiếng Anh" (D34)
             ("test cos work ", "test có work ", false),
+            ("this get resets ", "this get resets ", false),
+            ("ddc ", "đc ", true),
+            // Caps Lock gõ tiếng Việt (D23, D41); viết tắt thì giữ
+            ("THOONG ", "THÔNG ", true),
+            ("TOOI DDI HOCJ ", "TÔI ĐI HỌC ", true),
+            ("DDaf Nawngx ", "Đà Nẵng ", true),
+            ("HDD DDR ", "HDD DDR ", false),
         ], vietnamese: false)
     }
 }

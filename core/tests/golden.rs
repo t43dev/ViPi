@@ -116,10 +116,10 @@ fn auto_switch_matches_swift() {
         let keys: Vec<char> = f[1].chars().collect();
         let shown = render(&keys, false, true);
         let b = |v: bool| if v { "1" } else { "0" };
-        auto.remember(prev.clone(), true); // đang gõ tiếng Việt
+        auto.remember(prev.clone(), true, None); // đang gõ tiếng Việt
         let pe = b(auto.prefers_english(&keys, &shown));
         let fo = b(auto.is_foreign(&keys, &shown));
-        auto.remember(prev, false); // đang gõ tiếng Anh
+        auto.remember(prev, false, None); // đang gõ tiếng Anh
         let vn = auto.vietnamese_for(&keys, false).unwrap_or_else(|| "-".into());
         let vnm = auto.vietnamese_for(&keys, true).unwrap_or_else(|| "-".into());
         let got = [f[0], f[1], &shown, pe, fo, &vn, &vnm].join("\t");

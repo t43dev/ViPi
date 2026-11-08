@@ -2,6 +2,17 @@
 
 What changed in each ViPi release. Download the latest from [Releases](../../releases/latest).
 
+## 0.5.3 · 2026-11-08
+
+macOS 0.5.3 and Android 0.3.2.
+
+### Changed
+- **VE fixes the word before when it becomes clear you are writing English.** `this makes` no longer leaves `thí makes`. Common Vietnamese words stay: `bên server`, `cả server`.
+- **English words keep every letter.** `currentState`, `mirrorless`, `cheese` and `ASUS` no longer lose a doubled letter, and names like `Momo` stay as typed.
+- **18,000 more English word forms** (`resets`, `quests`), so they no longer turn into something like `rêts`.
+- **Caps Lock Vietnamese works under VE.** `THOONG` becomes `THÔNG`, while `HDD` and `DDR` stay.
+- **`đc`, `đt` and `đk` are typed as chat shorthand under VE.** Units and codes stay as typed: `65w`, `abc1def`.
+
 ## 0.5.2 · 2026-11-06
 
 ### Fixed

@@ -3,7 +3,7 @@
 //! trong Resources/ (docs/data-format.md), đọc bằng mmap.
 //!
 //! Nguồn: luật Telex và bảng nguyên âm theo UniKey (GPL); từ điển Pinyin rime-ice (GPL-3.0); mô hình bigram
-//! từ libpinyin (GPL-3.0); bảng phồn thể OpenCC (Apache-2.0); tự đổi Anh/Việt theo Vikey (GPL-3.0) với tần suất
+//! từ libpinyin (GPL-3.0); bảng phồn thể OpenCC (Apache-2.0); tự đổi Anh/Việt theo Vikey (GPL-3.0), dạng từ tiếng Anh SCOWL (© Kevin Atkinson), với tần suất
 //! từ FrequencyWords (CC BY-SA 4.0); danh sách âm tiết từ danh sách từ của Hồ Ngọc Đức (GPL).
 
 pub mod autoswitch;

@@ -7,6 +7,8 @@ mỗi dòng "từ<TAB>điểm", điểm = 10·log10(số lần trên một tri�
 Tần suất gốc: FrequencyWords (Hermit Dave), OpenSubtitles 2018, CC BY-SA 4.0.
 Và Resources/autoswitch-pairs.tsv (BigramData.h): "từ trước<TAB>từ sau<TAB>8·log2(số lần)" cho các từ đọc được cả
 hai cách (bus/bú, been/bên), từ FineWeb-2 / FineWeb (ODC-By), HPLT 2 (CC0), MADLAD-400 (ODC-By), Reddit.
+Và Resources/autoswitch-en-forms.tsv (EnglishFormsData.h, Vikey D60): dạng từ tiếng Anh danh sách trên thiếu (resets, quests),
+từ SCOWL en_US; build-tables.py gộp vào autoswitch-en.bin. Bỏ những chuỗi cũng là phím của một từ Việt (phis = phí).
 """
 import pathlib
 import re
@@ -59,6 +61,22 @@ def pairs(engine, out):
     print(path.name, len(keys))
 
 
+FORM_SCORE = -8  # hiếm hơn mọi từ trong danh sách
+
+
+def forms(engine, out, vietnamese):
+    src = (engine / "EnglishFormsData.h").read_text(encoding="utf-8")
+    kept = [w for w in words(src, "kEnglishFormsWords") if w and w not in vietnamese]
+    head = ("# English word forms from SCOWL en_US (Hunspell), via Vikey. Copyright 2000-2026 by Kevin Atkinson. Permission to use,\n"
+            "# copy, modify, distribute, and sell any part of the English Speller Database, or word lists created from it, is hereby\n"
+            "# granted without fee, provided that the above copyright notice appears in all copies and that both the above copyright\n"
+            "# notice and this notice appear in supporting documentation. Kevin Atkinson makes no representations about the\n"
+            "# suitability of this database for any purpose. It is provided \"as is\" without express or implied warranty.\n")
+    path = out / "autoswitch-en-forms.tsv"
+    path.write_text(head + "".join(f"{w}\t{FORM_SCORE}\n" for w in kept), encoding="utf-8")
+    print(path.name, len(kept))
+
+
 def main():
     engine = pathlib.Path(sys.argv[1])
     src = (engine / "AutoSwitchData.h").read_text(encoding="utf-8")
@@ -72,6 +90,7 @@ def main():
         path.write_text("".join(f"{e}\t{s}\n" for e, s in zip(entries, scores)), encoding="utf-8")
         print(path.name, len(entries))
     pairs(engine, out)
+    forms(engine, out, {l.split("\t")[0] for l in (out / "autoswitch-vi.tsv").read_text(encoding="utf-8").splitlines()})
 
 
 main()

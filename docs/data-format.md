@@ -25,7 +25,7 @@ Values per file:
 - **`pinyin-words.bin`**: the key is the pinyin syllables joined by single spaces, for example `ni hao`. The value is the words for that key, heaviest first. Each word is stored as its UTF-8 length (1 byte), its UTF-8 bytes, then its weight (u32). `meta` is the sum of `max(weight, 1)` over all words.
 - **`pinyin-abbrev.bin`**: the key is the first letters of a 2–4 syllable key, for example `nh`. The value is up to 30 u32 offsets, heaviest first. Each offset points at a word record in the value block of `pinyin-words.bin`.
 - **`s2t.bin`**: the key is Simplified Chinese and the value is the Traditional UTF-8 text. ViPi converts by taking the longest match first.
-- **`autoswitch-vi.bin`, `autoswitch-en.bin`**: the key is a word (Vietnamese as normalised Telex keys, `trên` → `treen`) and the value is one signed byte, `10·log10(occurrences per million)`.
+- **`autoswitch-vi.bin`, `autoswitch-en.bin`**: the key is a word (Vietnamese as normalised Telex keys, `trên` → `treen`) and the value is one signed byte, `10·log10(occurrences per million)`. `autoswitch-en.bin` also holds the English word forms of `autoswitch-en-forms.tsv` (SCOWL en_US) at a fixed score of −8.
 
 ## Bigram model (`bigram.bin`)
 

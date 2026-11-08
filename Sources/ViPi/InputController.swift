@@ -43,7 +43,9 @@ final class InputController {
     private var undo: (remove: Int, text: String, keys: [Character], mode: InputMode)?
     private var undoneKeys: [Character]?   // từ vừa được trả lại bằng Backspace: kết thúc lại nó thì không tự đổi nữa
     private var englishWord = ""       // chữ cái của từ đang gõ ở chế độ tiếng Anh
-    private var atWordStart = true      // từ đang gõ đứng sau dấu cách/đầu dòng (không dính sau số, @, ...)
+    private var atWordStart = true      // từ đang gõ đứng sau dấu cách/đầu dòng/mở ngoặc (không dính sau số, @, ...)
+    private var afterDigit = false      // phím vừa rồi là số: w ngay sau số là đơn vị (65w), không phải ư
+    private var inCode = false          // số dính sau chữ (abc1def, md5sum): các chữ tiếp theo giữ nguyên
     var isRecordingShortcut = false     // đang ghi phím tắt trong Settings: để mọi phím đi qua
 
     let telex = TelexEngine()
@@ -177,18 +179,29 @@ final class InputController {
             // gõ tắt chỉ khi từ đứng riêng và kết thúc bằng Space/Enter/Tab: "call2vn@" giữ nguyên
             let macro = isSpace && atWordStart ? macros.flatMap(telex.expandMacro) : nil
             let auto = atWordStart ? activeAutoSwitch(typed) : nil
-            atWordStart = isSpace
+            atWordStart = isSpace || ascii == 0x28 || ascii == 0x22   // ( "
+            let digit = ascii.map { (0x30...0x39).contains($0) } ?? false
+            inCode = digit && (inCode || !word.isEmpty)
+            afterDigit = digit
             if let ascii, (0x20...0x7E).contains(ascii) || isSpace {
-                var edit = macro, switchTo: InputMode?
+                var edit = macro, switchTo: InputMode?, undoable = true
                 // tự đổi: từ tiếng Anh gõ ở chế độ tiếng Việt ("server", "more") → trả lại phím đã gõ, sang tiếng Anh
                 if edit == nil, let auto, auto.prefersEnglish(keys: word, shown: shown) {
-                    edit = TextEdit(backspaces: shown.count, insert: String(word))
+                    // từ ngay trước cũng là tiếng Anh ("thí makes"): sửa luôn; sửa hai từ thì Backspace không hoàn tác (D20)
+                    if let back = auto.lookBack(keys: word) {
+                        edit = TextEdit(backspaces: back.shown.count + 1 + shown.count, insert: back.keys + " " + String(word))
+                        undoable = false
+                    } else {
+                        edit = TextEdit(backspaces: shown.count, insert: String(word))
+                    }
                     switchTo = .english
+                } else if edit == nil, let s = auto?.shorthand(keys: word) {
+                    edit = TextEdit(backspaces: shown.count, insert: s)
                 } else if edit == nil, let restored = telex.finishWord() {
                     edit = restored
                     if auto?.isForeign(keys: word, shown: shown) == true { switchTo = .english }
                 }
-                autoSwitch?.remember(ascii == 0x20 && !word.isEmpty ? word : nil, vietnamese: true)
+                autoSwitch?.remember(ascii == 0x20 && !word.isEmpty ? word : nil, vietnamese: true, shown: edit == nil ? shown : nil)
                 if let edit {
                     // gõ nhanh thì phím chữ cuối có thể còn đang giữ: mượn mã của chính phím Space (app chưa thấy nó)
                     KeySender.send(edit, wholeWord: true, keyCode: ascii == 0x20 ? CGKeyCode(kVK_Space) : self.keyCode, proxy: proxy)
@@ -196,7 +209,7 @@ final class InputController {
                     telex.reset()
                     if let switchTo {
                         onAutoSwitch?(switchTo)
-                        if ascii != 0x0D { undo = (edit.insert.count + 1, shown, word, .vietnamese) }
+                        if ascii != 0x0D, undoable { undo = (edit.insert.count + 1, shown, word, .vietnamese) }
                     }
                     return true
                 }
@@ -204,6 +217,10 @@ final class InputController {
             telex.reset()
             return false
         }
+        if inCode { return false }
+        let wasAfterDigit = afterDigit
+        afterDigit = false
+        if wasAfterDigit, telex.output.isEmpty, ch == "w" || ch == "W" { return false }
         let shown = telex.output.count
         let edit = telex.type(ch)
         if edit.backspaces == 0, edit.insert == typed { return false }   // để phím gốc đi qua
@@ -228,7 +245,7 @@ final class InputController {
         let word = englishWord
         let started = atWordStart
         englishWord = ""
-        atWordStart = isSpace
+        atWordStart = isSpace || ascii == 0x28 || ascii == 0x22   // ( "
         var text = isSpace && started ? englishMacros?.expansion(for: word) : nil
         var switchTo: InputMode?
         // tự đổi: chữ Telex gõ ở chế độ tiếng Anh ("treen") → chữ tiếng Việt, sang tiếng Việt
@@ -365,6 +382,8 @@ final class InputController {
         undo = nil
         undoneKeys = nil
         atWordStart = true
+        afterDigit = false
+        inCode = false
         autoSwitch?.remember(nil)
         englishWord = ""
         telex.reset()

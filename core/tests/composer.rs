@@ -123,6 +123,34 @@ fn auto_switch_from_vietnamese() {
             ("owr been ", "ở bên ", true),
             ("sang mix ", "sang mĩ ", true),
             ("cachs mix ddoof ", "cách mix đồ ", true),
+            // sửa ngược từ ngay trước (Vikey D8, D13, D20, D42)
+            ("this makes sense ", "this makes sense ", false),
+            ("last week i lost my test, it is the best ", "last week i lost my test, it is the best ", false),
+            ("(this create ", "(this create ", false),
+            ("\"this create ", "\"this create ", false),
+            ("tooi thaays bee app bij loix ", "tôi thấy bê app bị lõi ", true),
+            ("been USA ", "bên USA ", false),
+            ("been server ", "bên server ", false),
+            ("car server ", "cả server ", false),
+            ("queen deploy ", "quên deploy ", true),
+            // Telex nuốt phím: tên biến, từ nhiều âm tiết, viết tắt, tên riêng (D18, D19, D23)
+            ("currentState ", "currentState ", false),
+            ("currentWindow ", "currentWindow ", false),
+            ("mirrorless ", "mirrorless ", false),
+            ("terrorizer ", "terrorizer ", false),
+            ("cheese, ", "cheese, ", false),
+            ("ASUS ", "ASUS ", false),
+            ("Momo ", "Momo ", false),
+            ("been Momo ", "bên Momo ", false),
+            // dạng từ tiếng Anh (D60): "rêts" không phải chữ nào, dù cùng khoá với "rết"
+            ("resets ", "resets ", false),
+            ("quests ", "quests ", false),
+            ("phis ", "phí ", true),
+            // đ viết tắt, số (D27, D33)
+            ("ddc ", "đc ", true),
+            ("abc1def ", "abc1def ", true),
+            ("sacj 2w ", "sạc 2w ", true),
+            ("mua 1casi ", "mua 1cái ", true),
         ],
         Mode::Vietnamese,
     );
@@ -152,6 +180,13 @@ fn auto_switch_from_english() {
             ("the bus ", "the bus ", false),
             // cặp từ rõ là tiếng Việt thắng luật "ngay sau từ tiếng Anh" (D34)
             ("test cos work ", "test có work ", false),
+            ("this get resets ", "this get resets ", false),
+            ("ddc ", "đc ", true),
+            // Caps Lock gõ tiếng Việt (D23, D41); viết tắt thì giữ
+            ("THOONG ", "THÔNG ", true),
+            ("TOOI DDI HOCJ ", "TÔI ĐI HỌC ", true),
+            ("DDaf Nawngx ", "Đà Nẵng ", true),
+            ("HDD DDR ", "HDD DDR ", false),
         ],
         Mode::English,
     );
@@ -225,6 +260,17 @@ fn english_mode_passes_keys_through() {
         let r = c.handle_key(key_for(ch));
         assert!(!r.handled && r.edit.is_none());
     }
+}
+
+/// Sửa cả hai từ thì Backspace chỉ xoá như thường, không dựng lại "thí" (Vikey D20).
+#[test]
+fn look_back_has_no_undo() {
+    let mut c = composer();
+    c.set_vietnamese_options(true, true, true);
+    c.set_auto_switch(true);
+    c.set_mode(Mode::Vietnamese);
+    assert_eq!(type_all(&mut c, "this create ⌫s"), "this creates");
+    assert_eq!(c.mode(), Mode::English);
 }
 
 /// Backspace ngay sau một lần tự đổi trả lại chữ trước đó và chế độ cũ (Vikey); phím khác thì không.
