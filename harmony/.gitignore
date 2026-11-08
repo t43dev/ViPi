@@ -1,0 +1,17 @@
+/oh_modules
+/.hvigor
+/.idea
+/build
+/local.properties
+/oh-package-lock.json5
+/entry/oh_modules
+/entry/build
+/entry/.preview
+/entry/oh-package-lock.json5
+/entry/src/main/resources/rawfile/vipi
+/native/target
+/test/node_modules
+/test/node-addon/target
+/test/node-addon/Cargo.lock
+/test/out
+/test/files

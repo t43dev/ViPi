@@ -1,0 +1,6 @@
+{
+  "name": "libvipi.so",
+  "types": "./index.d.ts",
+  "version": "0.1.0",
+  "description": "ViPi input engine (Rust core, prebuilt in entry/libs by scripts/harmony-native.sh)"
+}

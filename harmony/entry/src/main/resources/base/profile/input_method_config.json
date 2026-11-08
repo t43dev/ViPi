@@ -1,0 +1,11 @@
+{
+  "subtypes": [
+    {
+      "id": "vipi",
+      "label": "$string:subtype",
+      "icon": "$media:app_icon",
+      "locale": "vi-VN",
+      "mode": "lower"
+    }
+  ]
+}

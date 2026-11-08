@@ -1,0 +1,26 @@
+[package]
+name = "vipi-ohos"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-only"
+description = "NAPI bridge from the ViPi Rust core to the HarmonyOS keyboard (libvipi.so)"
+publish = false
+
+[lib]
+name = "vipi"
+crate-type = ["cdylib"]
+
+[dependencies]
+vipi-core = { path = "../../core" }
+napi-ohos = { version = "1.2", default-features = false, features = ["napi8"] }
+napi-derive-ohos = "1.2"
+
+[build-dependencies]
+napi-build-ohos = "1.2"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

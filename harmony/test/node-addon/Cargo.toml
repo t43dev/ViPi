@@ -1,0 +1,19 @@
+[package]
+name = "vipi-node-test"
+version = "0.0.0"
+edition = "2021"
+license = "GPL-3.0-only"
+publish = false
+
+# Only for tests on Linux: the same bridge source as harmony/native, built with napi-rs so Node can load it.
+[lib]
+name = "vipi"
+crate-type = ["cdylib"]
+
+[dependencies]
+vipi-core = { path = "../../../core" }
+napi = { version = "3", default-features = false, features = ["napi8"] }
+napi-derive-ohos = { package = "napi-derive", version = "3" }
+
+[build-dependencies]
+napi-build = "2"

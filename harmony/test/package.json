@@ -1,0 +1,9 @@
+{
+  "name": "vipi-harmony-test",
+  "private": true,
+  "description": "Runs the HarmonyOS keyboard logic in Node with the real Rust core and a fake text field",
+  "devDependencies": {
+    "@napi-rs/canvas": "0.1.80",
+    "esbuild": "0.25.10"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "string": [
+    { "name": "app_name", "value": "ViPi" },
+    { "name": "module_desc", "value": "ViPi keyboard" },
+    { "name": "settings_desc", "value": "ViPi settings" },
+    { "name": "ime_label", "value": "ViPi" },
+    { "name": "ime_desc", "value": "Vietnamese Telex, English and Chinese Pinyin in one keyboard" },
+    { "name": "subtype", "value": "Vietnamese, English, Chinese" }
+  ]
+}
