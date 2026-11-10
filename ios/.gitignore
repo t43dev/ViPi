@@ -1,0 +1,8 @@
+Core/
+build/
+*.xcodeproj
+# sinh bởi XcodeGen từ project.yml
+ViPi/Info.plist
+ViPi/ViPi.entitlements
+ViPiKeyboard/Info.plist
+ViPiKeyboard/ViPiKeyboard.entitlements

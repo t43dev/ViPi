@@ -51,6 +51,30 @@ On first launch the data files are copied from the APK to the app's files direct
 
 `KeyboardView.kt` draws the whole keyboard on a canvas, following the Material 3 design (colours and sizes in dp from the design spec). The unpressed keys are recorded once into a `RenderNode`; each frame only adds the pressed keys, the key popup and the suggestion bar. The view is 124 dp taller than the keyboard (96 dp on short screens such as a phone in landscape, where the keys are smaller too): that transparent strip on top is where the globe key menu opens. `ViPiInputMethod.onComputeInsets` keeps apps laid out against the real keyboard top and passes touches on the strip through to the app unless the menu is open. On screens at least 600 dp wide the keyboard is split around the fold (or one wide block, or a floating card, per the setting); the floating card fills the IME window with a transparent view, so apps keep their full size and only the card takes touches. Emulator tests are in `android/test/emu/`.
 
+## iPhone and iPad
+
+`ios/` is the iOS/iPadOS app (iOS 26+, Liquid Glass): a SwiftUI settings app and a keyboard extension in UIKit that draws its keys with Core Graphics, like the Android `KeyboardView`. Both use the Rust core through uniffi; the dictionaries are bundled in the keyboard and read with mmap, so they stay out of the keyboard's memory limit.
+
+```
+scripts/ios-dev.sh            # from the dev machine: copy the tree to a Mac (MAC in .env) and build there
+scripts/ios-build.sh [--core] # on the Mac: Rust core if needed, xcodegen, simulator build
+scripts/ios-core.sh           # on the Mac: ios/Core/ViPiCore.xcframework + ViPiCoreFFI.swift
+scripts/ios-type.sh "<taps>" [simulator] [name]  # on the Mac: type with ViPi in the simulator, print the text, take a screenshot
+```
+
+TestFlight builds come from the committed `HEAD`, signed on the Mac with the team's Apple Distribution certificate:
+
+```
+scripts/ios-profiles.sh    # App Store profiles for dev.t43.vipi and dev.t43.vipi.keyboard (again after any App ID change)
+scripts/ios-testflight.sh  # archive, sign, upload, wait for App Store Connect to process the build
+```
+
+Both read the signing files through `APPLE_ENV` in `.env`; the team ID is passed in at build time and is not in the repo. The App Group `group.dev.t43.vipi` and the App Store Connect app record cannot be made through the API: create them on developer.apple.com and appstoreconnect.apple.com first.
+
+`ios-type.sh` runs `ios/ViPiUITests`: the first run on a simulator turns ViPi on in Settings, then each run taps the given screen points (in points; `w` waits a second, `p:x,y,s` holds, `2:x,y` double-taps, `d:x1,y1,x2,y2` drags) in the app's "Try it here" field. `SET="<switch label>=1"` sets a switch in the app first, which checks that settings reach the keyboard through the App Group. The keys are drawn, not views, so the taps are coordinates; on an iPhone 18 Pro in portrait the letter rows are at y 605, 660 and 714 and the bottom row at 768.
+
+`ios/project.yml` is the XcodeGen spec; the `.xcodeproj`, Info.plists, entitlements and `ios/Core/` are generated and not in git. The keyboard works fully without Full Access; Full Access only enables vibration. Settings go from the app to the keyboard through the App Group `group.dev.t43.vipi`, which the keyboard can only read.
+
 ## Website
 
 `site/` is the static page served at [vipi.t43.app](https://vipi.t43.app) (Cloudflare Pages project `vipi`). `scripts/site.sh` assembles `build/site` from it, the README screenshots, the syllable list and a cut-down Pinyin dictionary (`scripts/site-pinyin.py`); `scripts/site.sh deploy` also uploads it, using `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` from `.env`. The typing demo in `site/app.js` ports the Telex rules of `TelexEngine.swift`; keep them in step when the engine changes.

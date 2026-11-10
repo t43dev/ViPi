@@ -1,0 +1,91 @@
+import UIKit
+
+/// Thanh phía trên phím: chữ Hán gợi ý khi gõ Pinyin (kèm pinyin đang gõ, vì iOS không gạch chân nó trong ô nhập),
+/// hoặc hai lựa chọn khi gõ tiếng Việt: giữ đúng phím đã gõ, hay chữ có dấu.
+final class CandidateBar: UIView {
+    enum Content: Equatable {
+        case empty
+        case chinese(preedit: String, candidates: [String])
+        case vietnamese(keys: String, word: String)
+    }
+
+    var onPick: ((Int) -> Void)?
+    var onSuggestion: ((Int) -> Void)?
+    var content: Content = .empty { didSet { if content != oldValue { reload() } } }
+
+    private let preedit = UILabel()
+    private let scroll = UIScrollView()
+    private let stack = UIStackView()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .clear
+        preedit.font = .systemFont(ofSize: 13, weight: .medium)
+        preedit.textColor = .secondaryLabel
+        preedit.lineBreakMode = .byTruncatingHead
+        addSubview(preedit)
+        scroll.showsHorizontalScrollIndicator = false
+        scroll.alwaysBounceHorizontal = true
+        // iOS 26 làm mờ mép cuộn; thanh thấp nên mép trên và dưới phủ kín chữ
+        for edge in [scroll.topEdgeEffect, scroll.bottomEdgeEffect, scroll.leftEdgeEffect, scroll.rightEdgeEffect] { edge.isHidden = true }
+        addSubview(scroll)
+        stack.axis = .horizontal
+        stack.spacing = 2
+        stack.alignment = .fill
+        scroll.addSubview(stack)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let h = bounds.height
+        if case .chinese(let p, _) = content, !p.isEmpty {
+            let w = min(preedit.intrinsicContentSize.width, bounds.width * 0.3)
+            preedit.frame = CGRect(x: 10, y: 0, width: w, height: h)
+            scroll.frame = CGRect(x: preedit.frame.maxX + 6, y: 0, width: bounds.width - preedit.frame.maxX - 6, height: h)
+        } else {
+            preedit.frame = .zero
+            scroll.frame = bounds
+        }
+        let size = stack.systemLayoutSizeFitting(CGSize(width: UIView.layoutFittingCompressedSize.width, height: h))
+        stack.frame = CGRect(x: 0, y: 0, width: max(size.width, content.isVietnamese ? scroll.bounds.width : 0), height: h)
+        scroll.contentSize = stack.frame.size
+    }
+
+    private func reload() {
+        stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        scroll.contentOffset = .zero
+        switch content {
+        case .empty:
+            preedit.text = nil
+        case .chinese(let p, let candidates):
+            preedit.text = p
+            stack.distribution = .fill
+            for (i, c) in candidates.enumerated() {
+                stack.addArrangedSubview(button(c, size: 21, weight: i == 0 ? .semibold : .regular) { [weak self] in self?.onPick?(i) })
+            }
+        case .vietnamese(let keys, let word):
+            preedit.text = nil
+            stack.distribution = .fillEqually
+            stack.addArrangedSubview(button("\"\(keys)\"", size: 17, weight: .regular) { [weak self] in self?.onSuggestion?(0) })
+            stack.addArrangedSubview(button(word, size: 17, weight: .semibold) { [weak self] in self?.onSuggestion?(1) })
+        }
+        setNeedsLayout()
+    }
+
+    private func button(_ title: String, size: CGFloat, weight: UIFont.Weight, action: @escaping () -> Void) -> UIButton {
+        var config = UIButton.Configuration.plain()
+        config.attributedTitle = AttributedString(title, attributes: AttributeContainer([.font: UIFont.systemFont(ofSize: size, weight: weight)]))
+        config.baseForegroundColor = .label
+        config.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 10, bottom: 0, trailing: 10)
+        return UIButton(configuration: config, primaryAction: UIAction { _ in action() })
+    }
+}
+
+private extension CandidateBar.Content {
+    var isVietnamese: Bool {
+        if case .vietnamese = self { return true }
+        return false
+    }
+}
