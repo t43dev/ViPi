@@ -43,6 +43,7 @@ extension InputMode {
 final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate {
     private var keyboard: KeyboardView!
     private var heightConstraint: NSLayoutConstraint?
+    private var vietnameseBar = true
     private var composer: ViPiComposer? { Engine.shared.composer }
     /// Trạng thái riêng của bàn phím (chế độ đang dùng…), bàn phím tự ghi được.
     private let local = UserDefaults.standard
@@ -144,6 +145,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
 
     private func applyPrefs() {
         keyboard.keyPopup = Prefs.bool(Prefs.keyPopup)
+        vietnameseBar = Prefs.bool(Prefs.vietnameseBar)
         keyboard.fullWidth = Prefs.bool(Prefs.fullWidth)
         keyboard.splitOnPad = Prefs.string(Prefs.largeLayout) != "wide"
         guard let c = composer else { return }
@@ -367,6 +369,12 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
         guard let kb = keyboard else { return }
         let c = composer
         kb.mode = passthrough || c == nil ? .english : c!.mode()
+        // thanh gợi ý: luôn có khi gõ tiếng Trung, khi gõ Việt · Anh thì theo cài đặt; ô mật khẩu / số thì không
+        let showsBar = !passthrough && (kb.mode == .chinese || vietnameseBar)
+        if kb.showsBar != showsBar {
+            kb.showsBar = showsBar
+            heightConstraint?.constant = kb.preferredHeight(traits: traitCollection)
+        }
         if let c, !passthrough, c.isComposingChinese() {
             kb.bar.content = .chinese(preedit: c.preedit(), candidates: c.candidates().prefix(60).map(\.text))
         } else if let c, !passthrough, c.mode() == .vietnamese, !c.currentWord().isEmpty, c.currentKeys() != c.currentWord() {

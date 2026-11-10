@@ -11,6 +11,7 @@ struct SettingsView: View {
     @AppStorage(Prefs.fullWidth, store: Prefs.shared) private var fullWidth = true
     @AppStorage(Prefs.theme, store: Prefs.shared) private var theme = "system"
     @AppStorage(Prefs.keyPopup, store: Prefs.shared) private var keyPopup = true
+    @AppStorage(Prefs.vietnameseBar, store: Prefs.shared) private var vietnameseBar = true
     @AppStorage(Prefs.largeLayout, store: Prefs.shared) private var largeLayout = "split"
     @AppStorage(Prefs.haptics, store: Prefs.shared) private var haptics = true
     @AppStorage(Prefs.autoCap, store: Prefs.shared) private var autoCap = true
@@ -48,6 +49,7 @@ struct SettingsView: View {
                 option("Check spelling", "Only add marks where they make a real Vietnamese syllable, so words like \"class\" stay as typed.", $spellCheck)
                 option("Restore non-Vietnamese words", "When a word ends and is not Vietnamese, put back the keys you typed: user, data, more.", $restore)
                 option("Modern tone placement", "hoà, khoẻ, thuý instead of hòa, khỏe, thúy.", $modernTone)
+                option("Suggestion bar", "Show the bar above the keys with the keys you typed and the word with marks. Off: the keyboard is shorter, and the bar only shows for Chinese.", $vietnameseBar)
             } header: {
                 Text("Vietnamese")
             }

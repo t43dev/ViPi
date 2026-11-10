@@ -17,6 +17,8 @@ enum Prefs {
     static let autoCap = "autoCapitalize"
     static let doubleSpace = "doubleSpacePeriod"
     static let keyPopup = "keyPopup"
+    /// Thanh gợi ý khi gõ Việt · Anh (tiếng Trung luôn có thanh ứng viên)
+    static let vietnameseBar = "vietnameseBar"
     static let fuzzy = "fuzzy"
     /// "system" | "light" | "dark"
     static let theme = "theme"
@@ -27,7 +29,7 @@ enum Prefs {
 
     private static let defaults: [String: Any] = [
         modernTone: false, spellCheck: true, restore: true, traditional: false, learn: true, fullWidth: true,
-        haptics: true, autoCap: true, doubleSpace: true, keyPopup: true, theme: "system", largeLayout: "split",
+        haptics: true, autoCap: true, doubleSpace: true, keyPopup: true, vietnameseBar: true, theme: "system", largeLayout: "split",
     ]
 
     static func bool(_ key: String) -> Bool {

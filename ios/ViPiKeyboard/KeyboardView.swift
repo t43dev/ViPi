@@ -68,6 +68,8 @@ final class KeyboardView: UIView {
     var splitOnPad = true { didSet { if splitOnPad != oldValue { rebuild() } } }
     var keyPopup = true
     var fullWidth = true { didSet { setNeedsDisplay() } }
+    /// Thanh gợi ý trên các phím; tắt thì bàn phím thấp hơn (controller đổi chiều cao theo preferredHeight).
+    var showsBar = true { didSet { if showsBar != oldValue { bar.isHidden = !showsBar; setNeedsLayout(); setNeedsDisplay() } } }
 
     private var keys: [Key] = []
     private var pressed: Set<Int> = []
@@ -98,18 +100,20 @@ final class KeyboardView: UIView {
 
     private func metrics(_ traits: UITraitCollection) -> Metrics {
         if traits.userInterfaceIdiom == .pad && traits.horizontalSizeClass == .regular {
-            return Metrics(bar: 50, row: 66, gapX: 8, gapY: 10, side: 6, bottom: 8, radius: 11, font: 24)
+            return Metrics(bar: 44, row: 66, gapX: 8, gapY: 10, side: 6, bottom: 8, radius: 11, font: 24)
         }
         if traits.verticalSizeClass == .compact {
-            return Metrics(bar: 38, row: 40, gapX: 6, gapY: 6, side: 4, bottom: 2, radius: 8, font: 20)
+            return Metrics(bar: 32, row: 40, gapX: 6, gapY: 6, side: 4, bottom: 2, radius: 8, font: 20)
         }
-        return Metrics(bar: 44, row: 54, gapX: 6, gapY: 11, side: 3, bottom: 4, radius: 9, font: 23)
+        return Metrics(bar: 36, row: 54, gapX: 6, gapY: 11, side: 3, bottom: 4, radius: 9, font: 23)
     }
 
     func preferredHeight(traits: UITraitCollection) -> CGFloat {
         let m = metrics(traits)
-        return m.bar + 4 * m.row + m.bottom
+        return barHeight(m) + 4 * m.row + m.bottom
     }
+
+    private func barHeight(_ m: Metrics) -> CGFloat { showsBar ? m.bar : 0 }
 
     private var isSplit: Bool {
         splitOnPad && traitCollection.userInterfaceIdiom == .pad && traitCollection.horizontalSizeClass == .regular && bounds.width >= 700
@@ -118,7 +122,7 @@ final class KeyboardView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         let m = metrics(traitCollection)
-        bar.frame = CGRect(x: 0, y: 0, width: bounds.width, height: m.bar)
+        bar.frame = CGRect(x: 0, y: 0, width: bounds.width, height: barHeight(m))
         popup.frame = bounds
         rebuild()
     }
@@ -202,7 +206,7 @@ final class KeyboardView: UIView {
         let unit = split ? min(width * 0.36, 5 * 64) / 5 : width / 10
         var out: [Key] = []
         for (r, row) in rows().enumerated() {
-            let y = m.bar + CGFloat(r) * m.row
+            let y = barHeight(m) + CGFloat(r) * m.row
             let gapIndex = row.firstIndex { $0.kind == .gap }
             let leftPart = gapIndex.map { Array(row[..<$0]) } ?? row
             let rightPart = gapIndex.map { Array(row[($0 + 1)...]) } ?? []
@@ -340,8 +344,8 @@ final class KeyboardView: UIView {
 
     private func keyIndex(at p: CGPoint) -> Int? {
         let m = metrics(traitCollection)
-        guard p.y >= m.bar - 4 else { return nil }
-        let row = max(0, min(3, Int((p.y - m.bar) / m.row)))
+        guard p.y >= barHeight(m) - 4 else { return nil }
+        let row = max(0, min(3, Int((p.y - barHeight(m)) / m.row)))
         var best: Int?
         var bestDistance = CGFloat.greatestFiniteMagnitude
         for (i, k) in keys.enumerated() where k.row == row && k.kind != .spacer && k.kind != .gap {
@@ -502,8 +506,11 @@ final class PopupView: UIView {
 
     override func draw(_ rect: CGRect) {
         let w = max(keyFrame.width + 14, 46)
-        let h = min(keyFrame.height * 1.15, max(keyFrame.minY - 6, 30))
-        let box = CGRect(x: min(max(keyFrame.midX - w / 2, 2), bounds.width - w - 2), y: keyFrame.minY - h - 4, width: w, height: h)
+        // phía trên hàng đầu không còn chỗ khi ẩn thanh gợi ý (iOS không cho vẽ ra ngoài bàn phím): đè lên chính phím
+        let room = keyFrame.minY - 6
+        let h = room >= 30 ? min(keyFrame.height * 1.15, room) : keyFrame.height
+        let y = room >= 30 ? keyFrame.minY - h - 4 : 2
+        let box = CGRect(x: min(max(keyFrame.midX - w / 2, 2), bounds.width - w - 2), y: y, width: w, height: h)
         guard let ctx = UIGraphicsGetCurrentContext() else { return }
         ctx.setShadow(offset: CGSize(width: 0, height: 2), blur: 10, color: UIColor(white: 0, alpha: 0.25).cgColor)
         colors.fill.setFill()
