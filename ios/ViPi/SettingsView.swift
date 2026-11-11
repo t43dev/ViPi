@@ -37,6 +37,8 @@ struct SettingsView: View {
                 Button("Open Settings") {
                     if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
                 }
+                // chỉ cho UI test (-clearButton): xoá ô bằng code như nút gửi của app chat
+                if ProcessInfo.processInfo.arguments.contains("-clearButton") { Button("Clear") { trial = "" } }
                 TextField("Try it here", text: $trial, axis: .vertical)
                     .lineLimit(2...6)
                     .accessibilityIdentifier("trial")
@@ -126,3 +128,4 @@ struct SettingsView: View {
         }
     }
 }
+

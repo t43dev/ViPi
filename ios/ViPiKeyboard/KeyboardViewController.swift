@@ -203,7 +203,18 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
         textDocumentProxy.adjustTextPosition(byCharacterOffset: delta)
     }
 
+    /// App xoá ô nhập (nút gửi của Telegram) mà thông báo tới lúc bàn phím còn bỏ qua (0,3 s sau phím vừa gõ, xem
+    /// cursorMaybeMoved): ô đã trống thì bỏ chữ đang soạn, không thì phím sau tính lại cả chữ cũ và chèn nó vào ô
+    /// trống ("dúngddunf"). Chỉ xét ô trống: so nội dung ô có thể nhầm khi gõ nhanh.
+    private func syncWithField() {
+        guard !shown.isEmpty, !textDocumentProxy.hasText else { return }
+        shown = ""
+        composer?.cancel()
+        refreshUI()
+    }
+
     func keyboardDidType(_ key: KeyInput) {
+        syncWithField()
         markOwnEdit()
         guard let c = composer, !passthrough else {
             deliver(key)
@@ -254,7 +265,8 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
 
     /// Thanh gợi ý tiếng Việt: giữ đúng các phím đã gõ (0) hoặc chữ đang hiện (1), rồi một dấu cách.
     func keyboardPickSuggestion(_ index: Int) {
-        guard let c = composer else { return }
+        syncWithField()
+        guard let c = composer, !c.currentWord().isEmpty else { return }
         markOwnEdit()
         setComposing(index == 0 ? c.currentKeys() : c.currentWord())
         finishComposing()

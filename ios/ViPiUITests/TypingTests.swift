@@ -2,7 +2,7 @@ import XCTest
 
 /// Gõ thử bàn phím ViPi trên simulator. Phím vẽ bằng Core Graphics nên test chạm theo toạ độ màn hình (point).
 /// Biến môi trường (xcodebuild chuyển TEST_RUNNER_<tên> thành <tên>):
-///   VIPI_TAPS  "x,y x,y ..." các điểm chạm, "w" chờ 1 giây, "p:x,y,giây" giữ, "2:x,y" chạm đúp, "d:x1,y1,x2,y2" kéo
+///   VIPI_TAPS  "x,y x,y ..." các điểm chạm, "w" chờ 1 giây, "p:x,y,giây" giữ, "2:x,y" chạm đúp, "clear" xoá ô bằng code (như nút gửi của app chat), "d:x1,y1,x2,y2" kéo
 ///   VIPI_GLOBE "x,y" nút quả địa cầu của bàn phím hệ thống (mặc định iPhone 18 Pro dọc)
 ///   VIPI_PICK  "x,y" mục ViPi trong danh sách khi giữ quả địa cầu trên iPad (không có thì chạm quả địa cầu)
 ///   VIPI_INTRO có thì chạm Continue của màn "Quickly Change Keyboards" trước
@@ -42,6 +42,7 @@ final class TypingTests: XCTestCase {
         let env = ProcessInfo.processInfo.environment
         let app = XCUIApplication()
         XCUIDevice.shared.orientation = env["VIPI_LANDSCAPE"] == nil ? .portrait : .landscapeLeft
+        app.launchArguments = ["-clearButton"]
         app.launch()
         if let set = env["VIPI_SET"], let eq = set.lastIndex(of: "=") {
             // đặt một công tắc trong app (ghi vào App Group), để kiểm tra bàn phím đọc được cài đặt
@@ -84,6 +85,7 @@ final class TypingTests: XCTestCase {
         let origin = app.coordinate(withNormalizedOffset: .zero)
         for step in (env["VIPI_TAPS"] ?? "").split(separator: " ") {
             if step == "w" { sleep(1); continue }
+            if step == "clear" { app.buttons["Clear"].tap(); sleep(1); continue }
             let point = { (x: Double, y: Double) in origin.withOffset(CGVector(dx: x, dy: y)) }
             if step.hasPrefix("p:") || step.hasPrefix("d:") || step.hasPrefix("2:") {
                 let v = step.dropFirst(2).split(separator: ",").compactMap { Double($0) }
