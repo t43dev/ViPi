@@ -7,10 +7,13 @@ final class CandidateBar: UIView {
         case empty
         case chinese(preedit: String, candidates: [String])
         case vietnamese(keys: String, word: String)
+        /// tiếng Trung khi chưa gõ gì: dấu câu (như bàn phím Trung của Apple)
+        case punctuation([String])
     }
 
     var onPick: ((Int) -> Void)?
     var onSuggestion: ((Int) -> Void)?
+    var onPunctuation: ((String) -> Void)?
     var content: Content = .empty { didSet { if content != oldValue { reload() } } }
 
     private let preedit = UILabel()
@@ -70,6 +73,14 @@ final class CandidateBar: UIView {
             stack.distribution = .fillEqually
             stack.addArrangedSubview(button("\"\(keys)\"", size: 17, weight: .regular) { [weak self] in self?.onSuggestion?(0) })
             stack.addArrangedSubview(button(word, size: 17, weight: .semibold) { [weak self] in self?.onSuggestion?(1) })
+        case .punctuation(let marks):
+            preedit.text = nil
+            stack.distribution = .fill
+            for m in marks {
+                let b = button(m, size: 21, weight: .regular) { [weak self] in self?.onPunctuation?(m) }
+                b.widthAnchor.constraint(greaterThanOrEqualToConstant: 52).isActive = true
+                stack.addArrangedSubview(b)
+            }
         }
         setNeedsLayout()
     }

@@ -7,6 +7,7 @@ protocol KeyboardViewDelegate: AnyObject {
     func keyboardMoveCursor(_ delta: Int)
     func keyboardPickCandidate(_ index: Int)
     func keyboardPickSuggestion(_ index: Int)
+    func keyboardTypePunctuation(_ text: String)
 }
 
 /// Bàn phím vẽ tay bằng Core Graphics (như Canvas của bản Android): ít view, ít bộ nhớ, hợp giới hạn của keyboard extension.
@@ -72,6 +73,7 @@ final class KeyboardView: UIView {
     var showsBar = true { didSet { if showsBar != oldValue { bar.isHidden = !showsBar; setNeedsLayout(); setNeedsDisplay() } } }
 
     private var keys: [Key] = []
+    private var unit: CGFloat = 0
     private var pressed: Set<Int> = []
     private var lastShiftTap: TimeInterval = 0
 
@@ -83,6 +85,7 @@ final class KeyboardView: UIView {
         contentMode = .redraw
         bar.onPick = { [weak self] in self?.delegate?.keyboardPickCandidate($0) }
         bar.onSuggestion = { [weak self] in self?.delegate?.keyboardPickSuggestion($0) }
+        bar.onPunctuation = { [weak self] in self?.delegate?.keyboardTypePunctuation($0) }
         addSubview(bar)
         nextKeyboardButton.isHidden = true
         addSubview(nextKeyboardButton)
@@ -102,10 +105,16 @@ final class KeyboardView: UIView {
         if traits.userInterfaceIdiom == .pad && traits.horizontalSizeClass == .regular {
             return Metrics(bar: 44, row: 66, gapX: 8, gapY: 10, side: 6, bottom: 8, radius: 11, font: 24)
         }
+        // Số đo bàn phím Apple (iOS 27, đo trên simulator iPhone 15 đến 18 Pro Max, khớp ảnh chụp máy thật):
+        // - nằm ngang: phím cao 32, hàng cách 40, khe ngang 6,5, phím ngoài cách mép 4,8, đáy phím cách đáy vùng bàn phím 2
+        // - dọc: phím cao 43 (máy rộng dưới 410 pt) hoặc 45, khe 6 / 11, phím ngoài cách mép 6,7, đáy phím sát đáy vùng bàn phím
+        //   trên máy hẹp; máy rộng thì đáy phím cách đáy vùng bàn phím 7 pt (máy hẹp Apple còn lấn xuống thêm ~4 pt vào vùng
+        //   iOS dành cho thanh dưới, bàn phím ngoài không làm được)
         if traits.verticalSizeClass == .compact {
-            return Metrics(bar: 32, row: 40, gapX: 6, gapY: 6, side: 4, bottom: 2, radius: 8, font: 20)
+            return Metrics(bar: 32, row: 40, gapX: 6.5, gapY: 8, side: 1.55, bottom: -2, radius: 8, font: 20)
         }
-        return Metrics(bar: 36, row: 54, gapX: 6, gapY: 11, side: 3, bottom: 4, radius: 9, font: 23)
+        let wide = (bounds.width > 0 ? bounds.width : 402) >= 410
+        return Metrics(bar: 36, row: wide ? 56 : 54, gapX: 6, gapY: 11, side: 3.7, bottom: wide ? 1.5 : -5.5, radius: 9, font: 23)
     }
 
     func preferredHeight(traits: UITraitCollection) -> CGFloat {
@@ -146,11 +155,10 @@ final class KeyboardView: UIView {
     }
 
     private func fullRows() -> [[Key]] {
+        // hàng dưới như Apple: 123 (2,5 phím, ở đây chia cho 123 và phím ngôn ngữ), cách 5, Return 2,5; dấu , . ở trang 123
         var bottom = [layout == .letters ? Key(kind: .numbers, label: "123", units: 1.5) : Key(kind: .letters, label: "ABC", units: 1.5)]
         if showsNextKeyboard { bottom.append(Key(kind: .nextKeyboard)) }
-        bottom += [Key(kind: .mode), Key(kind: .char, label: ",", punct: true),
-                   Key(kind: .space, units: showsNextKeyboard ? 3 : 4), Key(kind: .char, label: ".", punct: true),
-                   Key(kind: .ret, units: 1.5)]
+        bottom += [Key(kind: .mode), Key(kind: .space, units: showsNextKeyboard ? 4 : 5), Key(kind: .ret, units: 2.5)]
         let third = { (left: Key) in [left] + self.chars(".,?!'", 1.4) + [Key(kind: .backspace, units: 1.5)] }
         switch layout {
         case .letters:
@@ -204,6 +212,7 @@ final class KeyboardView: UIView {
         let width = traitCollection.userInterfaceIdiom == .pad && !split ? min(available, 760) : available
         let originX = (bounds.width - width) / 2
         let unit = split ? min(width * 0.36, 5 * 64) / 5 : width / 10
+        self.unit = unit
         var out: [Key] = []
         for (r, row) in rows().enumerated() {
             let y = barHeight(m) + CGFloat(r) * m.row
@@ -249,12 +258,13 @@ final class KeyboardView: UIView {
         let red = dark ? UIColor(red: 0xE5 / 255, green: 0x48 / 255, blue: 0x3D / 255, alpha: 1)
             : UIColor(red: 0xA8 / 255, green: 0x22 / 255, blue: 0x1C / 255, alpha: 1)
         return dark
-            ? Palette(key: UIColor(white: 1, alpha: 0.30), fn: UIColor(white: 1, alpha: 0.14), text: .white,
+            // như bàn phím Apple iOS 26: phím chức năng cùng màu phím chữ
+            ? Palette(key: UIColor(white: 1, alpha: 0.30), fn: UIColor(white: 1, alpha: 0.30), text: .white,
                       hint: UIColor(white: 1, alpha: 0.55), accent: red, onAccent: .white,
-                      keyPressed: UIColor(white: 1, alpha: 0.14), fnPressed: UIColor(white: 1, alpha: 0.30))
-            : Palette(key: UIColor(white: 1, alpha: 0.96), fn: UIColor(white: 1, alpha: 0.42), text: .black,
+                      keyPressed: UIColor(white: 1, alpha: 0.14), fnPressed: UIColor(white: 1, alpha: 0.14))
+            : Palette(key: UIColor(white: 1, alpha: 0.96), fn: UIColor(white: 1, alpha: 0.96), text: .black,
                       hint: UIColor(white: 0, alpha: 0.45), accent: red, onAccent: .white,
-                      keyPressed: UIColor(white: 1, alpha: 0.42), fnPressed: UIColor(white: 1, alpha: 0.96))
+                      keyPressed: UIColor(white: 1, alpha: 0.42), fnPressed: UIColor(white: 1, alpha: 0.42))
     }
 
     private var chinese: Bool { !modeLocked && mode == .chinese }
@@ -276,7 +286,13 @@ final class KeyboardView: UIView {
         let m = metrics(traitCollection)
         let p = palette
         for (i, k) in keys.enumerated() where k.kind != .spacer && k.kind != .gap {
-            let r = k.frame.insetBy(dx: m.gapX / 2, dy: m.gapY / 2)
+            var r = k.frame.insetBy(dx: m.gapX / 2, dy: m.gapY / 2)
+            if k.row == 2 && !isSplit && [.shift, .backspace, .numbers, .symbols].contains(k.kind) {
+                // như Apple: Shift / xoá hẹp hơn ô của chúng (50 pt trên máy 440 pt), sát mép ngoài, chạm vẫn nhận cả ô
+                let w = unit * (traitCollection.verticalSizeClass == .compact ? 1.21 : 1.155)
+                if k.frame.midX > bounds.midX { r.origin.x = r.maxX - w }
+                r.size.width = w
+            }
             let isDown = pressed.contains(i)
             let fill: UIColor
             switch k.kind {
@@ -331,13 +347,19 @@ final class KeyboardView: UIView {
 
     private final class TouchState {
         var key: Int
-        let startX: CGFloat
+        let start: CGPoint
         var lastX: CGFloat
+        let order: Int
         var trackpad = false
         var longFired = false
+        /// đã gửi phím trước khi nhấc (ngón khác chạm xuống)
+        var done = false
         var timer: Timer?
-        init(key: Int, x: CGFloat) { self.key = key; startX = x; lastX = x }
+        init(key: Int, at p: CGPoint, order: Int) { self.key = key; start = p; lastX = p.x; self.order = order }
+        var startX: CGFloat { start.x }
     }
+
+    private var touchCount = 0
 
     private var touchStates: [ObjectIdentifier: TouchState] = [:]
     private var repeatTimer: Timer?
@@ -357,9 +379,19 @@ final class KeyboardView: UIView {
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        // gõ nhanh hai ngón: ngón sau chạm xuống thì gửi ngay phím của ngón trước, đúng thứ tự chạm
+        // (đợi nhấc mới gửi thì ngón sau nhấc trước sẽ làm đảo chữ)
+        for s in touchStates.values.sorted(by: { $0.order < $1.order })
+        where !s.done && !s.longFired && !s.trackpad && (keys[s.key].kind == .char || keys[s.key].kind == .space) {
+            s.timer?.invalidate()
+            s.done = true
+            pressed.remove(s.key)
+            fire(keys[s.key])
+        }
         for t in touches {
             guard let i = keyIndex(at: t.location(in: self)) else { continue }
-            let state = TouchState(key: i, x: t.location(in: self).x)
+            touchCount += 1
+            let state = TouchState(key: i, at: t.location(in: self), order: touchCount)
             touchStates[ObjectIdentifier(t)] = state
             delegate?.keyboardWillPress()
             press(i, state)
@@ -408,7 +440,7 @@ final class KeyboardView: UIView {
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         for t in touches {
-            guard let s = touchStates[ObjectIdentifier(t)] else { continue }
+            guard let s = touchStates[ObjectIdentifier(t)], !s.done else { continue }
             let p = t.location(in: self)
             let k = keys[s.key]
             if k.kind == .space {
@@ -418,8 +450,10 @@ final class KeyboardView: UIView {
                     while p.x - s.lastX > step { delegate?.keyboardMoveCursor(1); s.lastX += step }
                     while s.lastX - p.x > step { delegate?.keyboardMoveCursor(-1); s.lastX -= step }
                 }
-            } else if k.kind == .char && !s.longFired, let i = keyIndex(at: p), i != s.key, keys[i].kind == .char {
-                // trượt ngón sang phím khác trước khi nhấc: lấy phím mới (như bàn phím iOS)
+            } else if k.kind == .char && !s.longFired, hypot(p.x - s.start.x, p.y - s.start.y) > k.frame.width * 0.5,
+                      let i = keyIndex(at: p), i != s.key, keys[i].kind == .char {
+                // trượt hẳn sang phím khác trước khi nhấc: lấy phím mới (như bàn phím iOS);
+                // lệch vài điểm khi gõ nhanh thì vẫn là phím đã chạm
                 s.timer?.invalidate()
                 pressed.remove(s.key)
                 s.key = i
@@ -434,6 +468,7 @@ final class KeyboardView: UIView {
             s.timer?.invalidate()
             let k = keys[s.key]
             pressed.remove(s.key)
+            if s.done { continue }
             if k.kind == .backspace { repeatTimer?.invalidate(); repeatTimer = nil }
             if s.longFired, let h = k.hint { delegate?.keyboardDidType(.text(text: h)) }
             else if !s.trackpad { fire(k) }

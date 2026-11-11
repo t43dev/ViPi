@@ -5,7 +5,7 @@
 # In ra TEXT: <chữ trong ô thử> và chụp màn hình vào ios/build/shots/<tên-ảnh>.png.
 # Lần đầu với mỗi simulator: bật ViPi trong Settings. iPad lần đầu còn hiện màn "Quickly Change Keyboards":
 # truyền toạ độ nút Continue trong danh sách chạm của lần chạy đó.
-# Biến tuỳ chọn: SET="<nhãn>=0|1" đặt một công tắc trong app trước khi gõ; LAND=1 xoay ngang; GLOBE="x,y" quả địa cầu (iPhone); PICK="x,y" mục ViPi khi giữ quả địa cầu (iPad).
+# Biến tuỳ chọn: SYSTEM=1 giữ bàn phím của Apple (không bật ViPi); SET="<nhãn>=0|1" đặt một công tắc trong app trước khi gõ; LAND=1 xoay ngang; GLOBE="x,y" quả địa cầu (iPhone); PICK="x,y" mục ViPi khi giữ quả địa cầu (iPad).
 set -uo pipefail
 cd "$(dirname "$0")/../ios"
 export PATH="/opt/homebrew/bin:$PATH"
@@ -21,12 +21,12 @@ LOG=build/test.log
 ARGS=(-project ViPi.xcodeproj -scheme ViPi -destination "id=$UDID" -derivedDataPath build/dd CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual)
 xcodebuild build-for-testing "${ARGS[@]}" >$LOG 2>&1 || { grep -E "error" $LOG | sort -u | head -30; exit 1; }
 xcrun simctl install "$UDID" build/dd/Build/Products/Debug-iphonesimulator/ViPi.app
-if [ ! -f "build/.enabled-$UDID" ]; then
+if [ -z "${SYSTEM:-}" ] && [ ! -f "build/.enabled-$UDID" ]; then
   xcodebuild test-without-building "${ARGS[@]}" -only-testing:ViPiUITests/TypingTests/testEnableKeyboard >>$LOG 2>&1 \
     && touch "build/.enabled-$UDID" && echo "ViPi enabled in Settings" \
     || { grep -E "error|failed" $LOG | tail -20; exit 1; }
 fi
-env ${LAND:+TEST_RUNNER_VIPI_LANDSCAPE=1} ${GLOBE:+TEST_RUNNER_VIPI_GLOBE=$GLOBE} ${PICK:+TEST_RUNNER_VIPI_PICK=$PICK} ${SET:+"TEST_RUNNER_VIPI_SET=$SET"} \
+env ${LAND:+TEST_RUNNER_VIPI_LANDSCAPE=1} ${SYSTEM:+TEST_RUNNER_VIPI_SYSTEM=1} ${GLOBE:+TEST_RUNNER_VIPI_GLOBE=$GLOBE} ${PICK:+TEST_RUNNER_VIPI_PICK=$PICK} ${SET:+"TEST_RUNNER_VIPI_SET=$SET"} \
     TEST_RUNNER_VIPI_TAPS="$TAPS" TEST_RUNNER_VIPI_HOLD=6 \
     xcodebuild test-without-building "${ARGS[@]}" -only-testing:ViPiUITests/TypingTests/testType 2>&1 | tee -a $LOG |
   while IFS= read -r line; do

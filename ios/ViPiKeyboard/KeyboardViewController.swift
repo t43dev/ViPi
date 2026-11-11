@@ -238,6 +238,15 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
         refreshUI()
     }
 
+    /// Dấu câu trên thanh khi gõ tiếng Trung mà chưa có chữ đang soạn.
+    func keyboardTypePunctuation(_ text: String) {
+        keyboardWillPress()
+        markOwnEdit()
+        endComposition()
+        textDocumentProxy.insertText(text)
+        updateShift()
+    }
+
     /// Thanh gợi ý tiếng Việt: giữ đúng các phím đã gõ (0) hoặc chữ đang hiện (1), rồi một dấu cách.
     func keyboardPickSuggestion(_ index: Int) {
         guard let c = composer else { return }
@@ -379,6 +388,8 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
             kb.bar.content = .chinese(preedit: c.preedit(), candidates: c.candidates().prefix(60).map(\.text))
         } else if let c, !passthrough, c.mode() == .vietnamese, !c.currentWord().isEmpty, c.currentKeys() != c.currentWord() {
             kb.bar.content = .vietnamese(keys: c.currentKeys(), word: c.currentWord())
+        } else if let c, !passthrough, c.mode() == .chinese {
+            kb.bar.content = .punctuation(keyboard.fullWidth ? ["，", "。", "？", "！", "、", "……"] : [",", ".", "?", "!"])
         } else {
             kb.bar.content = .empty
         }
