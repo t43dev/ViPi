@@ -210,7 +210,6 @@
       <li>Hold a key on the top row for its number.</li>
       <li>On an unfolded phone or a tablet, split the keyboard around the fold, keep one block in the middle, or float it anywhere.</li>
       <li>Clipboard history, light and dark themes, and Material You colors.</li>
-      <li>Updates itself: ViPi checks GitHub once a day, confirms the download is signed by the ViPi developer, and installs it while the keyboard is closed. Android asks you to confirm the first time. You can turn this off in Settings.</li>
     </ul>
     <p class="fine wide">On Honor phones, a second globe under the keyboard comes from MagicOS, not ViPi. To hide it, turn off <em>Settings → System &amp; updates → Language &amp; input → Raise keyboard</em>.</p>
   </div>
@@ -335,12 +334,12 @@
     <details>
       <summary>Does ViPi send what I type anywhere?</summary>
       <p data-for="mac">No. Everything happens on your Mac. The learned Pinyin words stay in a file on your Mac, and the only request ViPi makes is the update check to GitHub.</p>
-      <p data-for="android">No. Everything happens on your phone, and the learned Pinyin words stay there. ViPi uses the internet for one thing, the update check to GitHub. Turn off <em>Install updates automatically</em> in its Settings and it will not go online unless you tap <em>Check for updates</em>.</p>
+      <p data-for="android">No. Everything happens on your phone, and the learned Pinyin words stay there. From version 0.3.4 ViPi has no internet permission at all, so it cannot send anything anywhere. See the <a href="/privacy">privacy policy</a>.</p>
       <p data-for="harmony other">No. Everything happens on your device, and the learned Pinyin words stay there.</p>
     </details>
     <details data-for="android">
       <summary>How do updates work?</summary>
-      <p>Once a day ViPi asks GitHub for a newer version, downloads it on Wi-Fi and checks that it carries the same signature as the app you have. Then it installs while the keyboard is closed. The first update needs your permission and one confirmation; after that Android usually installs them without asking.</p>
+      <p>From version 0.3.4 ViPi no longer updates itself or goes online. Install new versions from this page. Version 0.3.3 can still fetch the next version from GitHub by itself, once.</p>
     </details>
     <details data-for="android harmony">
       <summary>I have a Huawei phone. Which version do I need?</summary>
@@ -362,6 +361,7 @@
     <a href="https://github.com/t43dev/ViPi/blob/main/CHANGELOG.md">What's new</a>
     <a href="https://github.com/t43dev/ViPi/releases">All releases</a>
     <a href="https://github.com/t43dev/ViPi/blob/main/LICENSE">License</a>
+    <a href="/privacy">Privacy</a>
   </nav>
 </footer>
 </body>

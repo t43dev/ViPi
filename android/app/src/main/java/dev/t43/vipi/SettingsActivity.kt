@@ -26,8 +26,6 @@ class SettingsActivity : Activity() {
     private lateinit var prefs: Prefs
     private lateinit var status: TextView
     private lateinit var learned: TextView
-    private lateinit var updateStatus: TextView
-    private lateinit var updateButton: Button
     private val dp by lazy { resources.displayMetrics.density }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -127,69 +125,20 @@ class SettingsActivity : Activity() {
         root.addView(toggle("Auto-capitalize", Prefs.AUTO_CAP, true, "Start sentences with a capital letter."))
         root.addView(toggle("\".\" shortcut", Prefs.DOUBLE_SPACE, true, "Double-tap the space bar for a period and a space."))
 
-        section(root, "Updates")
-        root.addView(toggle("Install updates automatically", Prefs.AUTO_UPDATE, true,
-            "ViPi checks GitHub once a day, downloads new versions on Wi-Fi and installs them while the keyboard is closed. Android may ask you to confirm."))
-        updateStatus = note("")
-        root.addView(updateStatus)
-        updateButton = button("Check for updates") { updatePressed() }
-        root.addView(updateButton)
-
         section(root, "About")
-        root.addView(note("ViPi is free software under GPL-3.0. Typing stays on this phone. The only thing ViPi does online is check GitHub for updates."))
-        root.addView(button("Source code on GitHub") {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/t43dev/ViPi")))
-        })
+        root.addView(note("ViPi is free software under GPL-3.0. Typing stays on this phone: ViPi has no internet permission, so it cannot send anything anywhere."))
+        root.addView(button("Privacy policy") { openLink("https://vipi.t43.app/privacy") })
+        root.addView(button("Source code on GitHub") { openLink("https://github.com/t43dev/ViPi") })
 
-        setContentView(ScrollView(this).apply { addView(root) })
-
-        Updater.useTestFeed(this, intent.getStringExtra("feed"))
-        Updater.schedule(this)
-        if (android.os.Build.VERSION.SDK_INT >= 33 && prefs.autoUpdate && !prefs.bool(Prefs.ASKED_NOTIFICATIONS, false)) {
-            prefs.set(Prefs.ASKED_NOTIFICATIONS, true)
-            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1)
-        }
-        if (intent.getBooleanExtra(Updater.EXTRA_INSTALL, false)) Updater.install(this)
+        setContentView(ScrollView(this).apply { fitsSystemWindows = true; addView(root) })
     }
 
     override fun onResume() {
         super.onResume()
         refresh()
-        Updater.foreground = this
-        Updater.onChange = { refreshUpdate() }
-        refreshUpdate()
-        Updater.resume(this)
     }
 
-    override fun onPause() {
-        Updater.foreground = null
-        Updater.onChange = null
-        super.onPause()
-    }
-
-    private fun updatePressed() {
-        when (Updater.state) {
-            is Updater.State.Available, is Updater.State.Ready -> Updater.install(this)
-            else -> Updater.check(this)
-        }
-    }
-
-    private fun refreshUpdate() {
-        val current = Updater.currentVersion(this)
-        val (message, label, enabled) = when (val s = Updater.state) {
-            Updater.State.Idle -> Triple("Version $current", "Check for updates", true)
-            Updater.State.Checking -> Triple("Checking GitHub.", "Check for updates", false)
-            Updater.State.UpToDate -> Triple("Version $current is the latest.", "Check for updates", true)
-            is Updater.State.Available -> Triple("Version ${s.version} is available. You have $current.", "Install ${s.version}", true)
-            is Updater.State.Downloading -> Triple("Downloading ${s.version}.", "Install ${s.version}", false)
-            is Updater.State.Ready -> Triple("Version ${s.version} is ready to install.", "Install ${s.version}", true)
-            is Updater.State.Installing -> Triple("Installing ${s.version}. ViPi restarts when it finishes.", "Install ${s.version}", false)
-            is Updater.State.Failed -> Triple(s.message, "Check for updates", true)
-        }
-        updateStatus.text = message
-        updateButton.text = label
-        updateButton.isEnabled = enabled
-    }
+    private fun openLink(url: String) = startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
 
     private fun refresh() {
         val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
@@ -211,7 +160,7 @@ class SettingsActivity : Activity() {
             text = title
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
-            setTextColor(0xFFC8102E.toInt())
+            setTextColor(android.util.TypedValue().also { theme.resolveAttribute(android.R.attr.colorAccent, it, true) }.data)
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(26); bottomMargin = px(4) })
     }
 

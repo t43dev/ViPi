@@ -55,7 +55,6 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         clipHistory = ClipHistory(this)
         clipboard.addPrimaryClipChangedListener(clipListener)
         if (BuildConfigCompat.debuggable(this)) registerDebugDump()
-        Updater.schedule(this)
     }
 
     override fun onDestroy() {
@@ -527,19 +526,8 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         debugReceiver = r
     }
 
-    companion object {
-        /** Đang hiện trên màn hình: cài bản mới sẽ tắt bàn phím giữa chừng nên chờ. */
-        @Volatile var keyboardVisible = false
-    }
-
-    override fun onWindowHidden() {
-        super.onWindowHidden()
-        keyboardVisible = false
-    }
-
     override fun onWindowShown() {
         super.onWindowShown()
-        keyboardVisible = true
         if (BuildConfigCompat.debuggable(this)) keyboard?.post { Log.i("ViPiKeys", keyboard?.describeKeys() ?: "") }
     }
 }

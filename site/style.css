@@ -462,3 +462,12 @@ kbd.cap small { margin-top: 10px; font-size: 14px; font-weight: 600; color: var(
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Trang Privacy Policy */
+.policy { max-width: 42em; margin: 0 auto; padding: 40px 16px 72px; }
+.policy .brand { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 32px; color: var(--ink); text-decoration: none; font-weight: 800; }
+.policy h1 { font-size: clamp(34px, 5vw, 46px); }
+.policy h2 { font-size: 22px; margin-top: 36px; max-width: none; letter-spacing: -.01em; }
+.policy p, .policy ul { margin-top: 12px; }
+.policy ul { padding-left: 1.2em; }
+.policy li { margin-top: 8px; }

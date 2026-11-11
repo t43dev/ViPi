@@ -2,6 +2,18 @@
 
 What changed in each ViPi release. Download the latest from [Releases](../../releases/latest).
 
+## Android 0.3.4 · 2026-11-09
+
+### Changed
+- **ViPi for Android no longer goes online.** The built-in updater is gone, and with it the internet, install and notification permissions. The only permission left is vibration, so what you type cannot leave your phone.
+- **Learned words and settings are no longer included in Android cloud backups.**
+
+### Fixed
+- **The Settings screen no longer slides under the status bar** on Android 15 and later, and section titles are readable in dark mode.
+
+### Added
+- **A privacy policy,** linked from Settings → About and from the website.
+
 ## Android 0.3.3 · 2026-11-08
 
 ### Added

@@ -14,8 +14,8 @@ android {
         applicationId = "dev.t43.vipi"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13
-        versionName = "0.3.3"
+        versionCode = 14
+        versionName = "0.3.4"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
     }
 
@@ -69,6 +69,8 @@ abstract class CargoNdkTask : DefaultTask() {
         exec.exec {
             workingDir(crateDir.get())
             environment("ANDROID_NDK_HOME", ndkDir.get())
+            // thư viện được phát hành công khai: không để lộ đường dẫn của máy build
+            environment("RUSTFLAGS", "--remap-path-prefix=${System.getProperty("user.home")}=/home --remap-path-prefix=${File(crateDir.get()).parent}=/vipi")
             commandLine(listOf("cargo", "ndk") + abis.get().flatMap { listOf("-t", it) } +
                 listOf("-o", out.absolutePath, "build", "--release", "--features", "uniffi"))
         }
