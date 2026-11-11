@@ -210,8 +210,12 @@ final class KeyboardView: UIView {
         let pageKey = { (k: Kind, label: String, u: CGFloat) in Key(kind: k, label: label, units: u) }
         let left = layout == .letters ? pageKey(.numbers, ".?123", p.small) : pageKey(.letters, "ABC", p.small)
         let right = layout == .letters ? pageKey(.numbers, ".?123", p.big) : pageKey(.letters, "ABC", p.big)
-        let bottom: [Key] = [showsNextKeyboard ? Key(kind: .nextKeyboard, units: p.small) : spacer(p.small), left,
-                             Key(kind: .mode, units: p.small), Key(kind: .space, fill: true), right, Key(kind: .dismiss, units: p.big)]
+        let globe = showsNextKeyboard ? Key(kind: .nextKeyboard, units: p.small) : spacer(p.small)
+        // iPad mini, trang 123 và #+=: Apple chia phần phải thành [hoàn tác] [ABC] [ẩn], mỗi phím cỡ nhỏ; ô hoàn tác để trống
+        let bottom: [Key] = p.family == .mini && layout != .letters
+            ? [globe, left, Key(kind: .mode, units: p.small), Key(kind: .space, fill: true), spacer(p.small),
+               pageKey(.letters, "ABC", p.small), Key(kind: .dismiss, units: p.small)]
+            : [globe, left, Key(kind: .mode, units: p.small), Key(kind: .space, fill: true), right, Key(kind: .dismiss, units: p.big)]
         let tab = Key(kind: .tab, units: 1.25)
         switch (p.family, layout) {
         case (.thirteen, .letters):
@@ -249,9 +253,10 @@ final class KeyboardView: UIView {
                         row2Start + hinted("@#$&*()'\"", "€£¥_^[]{}") + [Key(kind: .ret, fill: true)],
                         [shiftLeft] + hinted("%-+=/;:", "§|~…\\<>") + [comma, period, shiftRight], bottom]
             case .symbols:
-                return [row1Start + chars("[]{}#%^*+=") + [Key(kind: .backspace, fill: true)],
-                        row2Start + chars("_\\|~<>€£¥") + [Key(kind: .ret, fill: true)],
-                        [shiftLeft] + chars("•…§°·`´") + [comma, period, shiftRight], bottom]
+                // như trang #+= của Apple trên iPad mini / 11"
+                return [row1Start + chars("1234567890") + [Key(kind: .backspace, fill: true)],
+                        row2Start + chars("€£¥_^[]{}") + [Key(kind: .ret, fill: true)],
+                        [shiftLeft] + chars("§|~…\\<>!?") + [shiftRight], bottom]
             }
         }
     }
