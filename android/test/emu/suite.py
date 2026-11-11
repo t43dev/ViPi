@@ -36,6 +36,11 @@ check("shift once", field(), "Ab|")
 fresh()
 tap("shift", delay=0.05); tap("shift"); typ("ab"); tap("shift")
 check("caps lock (double tap)", field(), "AB|")
+# --- slides: touch near the edge of g and drift a quarter key into h stays g; a slide all the way to h gives h
+fresh()
+ax, ay = K["g"]; sx = K["h"][0]; pitch = sx - ax
+drag((ax + pitch * 0.35, ay), (ax + pitch * 0.6, ay), 150); drag((ax, ay), (sx, ay), 300)
+check("slide: small drift stays, full slide moves", field(), "gh|")
 # --- hold top row for digits
 fresh()
 if "1" in K:   # split keyboard with a number row: digits have their own keys

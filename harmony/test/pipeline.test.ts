@@ -177,7 +177,9 @@ function tap(label: string, id = 1) { const k = keyAt(label); board.touchDown(id
   const { Board: B } = require('../entry/src/main/ets/ime/Board');
   expect('inner screen height (vp)', String(B.heightFor(795, 562, true)), '244');
   expect('cover screen height (vp)', String(B.heightFor(389, 569, true)), '244');
-  expect('normal phone height (vp)', String(B.heightFor(389, 860, true)), '278');
+  // phím 43 vp (máy rộng < 410 vp), khe 11 như bàn phím Apple: 48 + 6 + 4 × 43 + 3 × 11 + 8
+  expect('normal phone height (vp)', String(B.heightFor(389, 860, true)), '267');
+  expect('wide phone height (vp)', String(B.heightFor(412, 915, true)), '275');
   toVietnamese();
   c = start({});
   type('vie');

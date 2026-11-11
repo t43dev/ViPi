@@ -32,6 +32,7 @@ import android.widget.OverScroller
 import dev.t43.vipi.core.InputMode
 import dev.t43.vipi.core.KeyInput
 import kotlin.math.abs
+import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
 
@@ -162,16 +163,18 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     private var bottomPad = 0f
 
     /**
-     * Cỡ theo chiều cao màn hình: điện thoại dọc phím 48 dp; màn thấp < 760 dp (máy gập mở ngang) 46 dp;
-     * điện thoại xoay ngang (< 500 dp) gọn hẳn để app phía sau còn chỗ và cửa sổ bàn phím không cắt mất hàng dưới.
+     * Cỡ theo màn hình. Điện thoại dọc và xoay ngang lấy số đo bàn phím Apple (đo trên iPhone 15 → 18 Pro Max, bản iOS):
+     * phím cao 43 dp (máy rộng < 410 dp) hoặc 45, khe dọc 11; xoay ngang (< 500 dp) phím 32, khe 8.
+     * Màn thấp < 760 dp (máy gập mở ngang) giữ 46 dp.
      */
     private fun applyMetrics() {
         val h = resources.configuration.screenHeightDp
         val short = h in 1 until 500
-        keyH = (if (short) 38 else if (h in 1 until 760) 46 else 48) * dp
+        val mid = h in 500 until 760
+        keyH = (if (short) 32 else if (mid) 46 else if (resources.configuration.screenWidthDp >= 410) 45 else 43) * dp
         barH = (if (short) 40 else 48) * dp
         topGap = (if (short) 4 else 6) * dp
-        gapY = (if (short) 6 else 8) * dp
+        gapY = (if (short || mid) 8 else 11) * dp
         bottomPad = (if (short) 6 else 8) * dp
         overlayMax = ((if (short) 96 else 124) * dp).toInt()
         overlay = overlayMax
@@ -412,7 +415,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
 
     private fun layoutKeys() {
         if (width == 0) return
-        val side = (if (form == Form.PHONE) 4 else 12) * dp
+        // điện thoại: phím ngoài cùng cách mép 6,7 dp như bàn phím Apple
+        val side = (if (form == Form.PHONE) 6.7f else 12f) * dp
         when (form) {
             Form.SPLIT -> {
                 // phím rộng clamp((W/2 − 44)/5, 56, 64) dp; hai nửa sát hai mép, khoảng hở giữa canh bản lề
@@ -1027,7 +1031,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
 
     // MARK: - Chạm
 
-    private class Touch(var key: Key, val startX: Float, var lastX: Float) {
+    private class Touch(var key: Key, val startX: Float, var lastX: Float, val startY: Float = 0f) {
         var trackpad = false
         var longFired = false
         var longPress: Runnable? = null
@@ -1168,7 +1172,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                     }
                 }
                 feedback()
-                val touch = Touch(k, x, x)
+                val touch = Touch(k, x, x, y)
                 when (k.kind) {
                     Kind.SHIFT -> { tapShift(); release(k); return true }
                     Kind.MODE -> handler.postDelayed(Runnable { holdGlobe(k, id) }.also { globeHold = it }, 300)
@@ -1251,7 +1255,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                             while (x - t.lastX > step) { listener.onCursor(1); t.lastX += step }
                             while (t.lastX - x > step) { listener.onCursor(-1); t.lastX -= step }
                         }
-                    } else if (t.key.kind == Kind.CHAR && !t.longFired) {
+                    } else if (t.key.kind == Kind.CHAR && !t.longFired && hypot(x - t.startX, y - t.startY) > t.key.rect.width() * 0.5f) {
+                        // chỉ đổi phím khi trượt hẳn sang phím khác (quá nửa phím); lệch vài dp khi gõ nhanh vẫn là phím đã chạm
                         val k = hit(x, y)
                         if (k != null && k !== t.key && k.kind == Kind.CHAR) {
                             t.longPress?.let { handler.removeCallbacks(it) }

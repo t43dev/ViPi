@@ -2,6 +2,14 @@
 
 What changed in each ViPi release. Download the latest from [Releases](../../releases/latest).
 
+## Android 0.3.5 · 2026-11-11
+
+### Changed
+- **Keys are sized like the iPhone keyboard:** a little shorter with more room between rows (43 dp, or 45 dp on phones 410 dp and wider), and a little more space at the edges. In landscape the keys are lower so more of the app stays visible.
+
+### Fixed
+- **Fast typing no longer lands on the key next to the one you meant.** A slight slide while typing now keeps the key you touched; slide more than half a key to change your mind.
+
 ## Android 0.3.4 · 2026-11-09
 
 ### Changed

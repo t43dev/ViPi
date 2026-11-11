@@ -93,9 +93,10 @@ class Metrics {
    * Điện thoại dọc phím 48 vp; màn < 760 vp 46; màn thấp < 650 vp (Pura X Max: màn ngoài ~569 vp, màn trong mở
    * ~562 vp) 42 để app phía sau còn hơn nửa màn; điện thoại xoay ngang (< 500 vp) 38.
    */
-  static of(screenH: number): Metrics {
+  static of(screenW: number, screenH: number): Metrics {
     if (screenH > 0 && screenH < 500) {
-      return new Metrics(38, 40, 4, 6, 6);
+      // xoay ngang: như bàn phím Apple, phím 32, khe 8
+      return new Metrics(32, 40, 4, 8, 6);
     }
     if (screenH > 0 && screenH < 650) {
       return new Metrics(42, 44, 5, 7, 6);
@@ -103,7 +104,8 @@ class Metrics {
     if (screenH > 0 && screenH < 760) {
       return new Metrics(46, 48, 6, 8, 8);
     }
-    return new Metrics(48, 48, 6, 8, 8);
+    // điện thoại dọc: số đo bàn phím Apple (bản iOS), phím 43 vp (máy rộng < 410 vp) hoặc 45, khe dọc 11
+    return new Metrics(screenW >= 410 ? 45 : 43, 48, 6, 11, 8);
   }
 }
 
@@ -166,14 +168,16 @@ class MenuItem {
 class Touch {
   key: Key;
   startX: number;
+  startY: number;
   lastX: number;
   trackpad: boolean = false;
   longFired: boolean = false;
   longPress: number = -1;
 
-  constructor(key: Key, x: number) {
+  constructor(key: Key, x: number, y: number) {
     this.key = key;
     this.startX = x;
+    this.startY = y;
     this.lastX = x;
   }
 }
@@ -340,7 +344,7 @@ export class Board {
 
   /** Chiều cao bàn phím (vp) cho màn `screenW` × `screenH` (vp). */
   static heightFor(screenW: number, screenH: number, splitPref: boolean): number {
-    const m = Metrics.of(screenH);
+    const m = Metrics.of(screenW, screenH);
     const rows = Board.numberRowFor(Board.splitFor(screenW, screenH, splitPref), screenH) ? 5 : 4;
     return m.barH + m.topGap + rows * m.keyH + (rows - 1) * m.gapY + m.bottomPad;
   }
@@ -355,7 +359,7 @@ export class Board {
 
   /** Cỡ theo màn hình hiện tại; gập/mở máy hay xoay màn thì gọi lại (bố cục đổi, chữ đang gõ giữ nguyên). */
   resize(width: number, height: number, screenH: number): void {
-    const m = Metrics.of(screenH);
+    const m = Metrics.of(width, screenH);
     this.keyH = m.keyH;
     this.barH = m.barH;
     this.topGap = m.topGap;
@@ -502,7 +506,8 @@ export class Board {
     }
     // điện thoại: lề 4, phím (W − 8 − 54)/10; màn rộng ≥ 600 vp: một khối, phím tối đa 64 vp, canh giữa
     const wide = this.width >= 600;
-    const side = wide ? 12 : 4;
+    // điện thoại: phím ngoài cùng cách mép 6,7 vp như bàn phím Apple
+    const side = wide ? 12 : 6.7;
     let unit = (this.width - 2 * side + GAP_X) / 10;
     if (wide) {
       unit = Math.min(unit, 64 + GAP_X);
@@ -1138,7 +1143,7 @@ export class Board {
       }
     }
     this.listener.feedback();
-    const touch = new Touch(k, x);
+    const touch = new Touch(k, x, y);
     switch (k.kind) {
       case Kind.SHIFT:
         this.tapShift();
@@ -1236,7 +1241,8 @@ export class Board {
           t.lastX -= step;
         }
       }
-    } else if (t.key.kind === Kind.CHAR && !t.longFired) {
+    } else if (t.key.kind === Kind.CHAR && !t.longFired && Math.hypot(x - t.startX, y - t.startY) > t.key.w * 0.5) {
+      // chỉ đổi phím khi trượt hẳn sang phím khác (quá nửa phím); lệch vài vp khi gõ nhanh vẫn là phím đã chạm
       const k = this.hit(x, y);
       if (k !== null && k !== t.key && k.kind === Kind.CHAR) {
         if (t.longPress >= 0) {
