@@ -29,7 +29,7 @@ enum Prefs {
 
     private static let defaults: [String: Any] = [
         modernTone: false, spellCheck: true, restore: true, traditional: false, learn: true, fullWidth: true,
-        haptics: true, autoCap: true, doubleSpace: true, keyPopup: true, vietnameseBar: true, theme: "system", largeLayout: "split",
+        haptics: true, autoCap: true, doubleSpace: true, keyPopup: true, vietnameseBar: true, theme: "system", largeLayout: "wide",
     ]
 
     static func bool(_ key: String) -> Bool {

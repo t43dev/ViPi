@@ -4,7 +4,8 @@ import XCTest
 /// Biến môi trường (xcodebuild chuyển TEST_RUNNER_<tên> thành <tên>):
 ///   VIPI_TAPS  "x,y x,y ..." các điểm chạm, "w" chờ 1 giây, "p:x,y,giây" giữ, "2:x,y" chạm đúp, "d:x1,y1,x2,y2" kéo
 ///   VIPI_GLOBE "x,y" nút quả địa cầu của bàn phím hệ thống (mặc định iPhone 18 Pro dọc)
-///   VIPI_PICK  "x,y" mục ViPi trong danh sách khi giữ quả địa cầu trên iPad (mặc định iPad Pro 13" dọc)
+///   VIPI_PICK  "x,y" mục ViPi trong danh sách khi giữ quả địa cầu trên iPad (không có thì chạm quả địa cầu)
+///   VIPI_INTRO có thì chạm Continue của màn "Quickly Change Keyboards" trước
 ///   VIPI_LANDSCAPE có thì xoay ngang
 ///   VIPI_SYSTEM có thì giữ bàn phím của Apple (để đo, so sánh)
 ///   VIPI_SET   "<nhãn công tắc trong app>=0|1", đặt trước khi gõ
@@ -19,6 +20,13 @@ final class TypingTests: XCTestCase {
             let item = step.firstMatch
             XCTAssertTrue(item.waitForExistence(timeout: 10), settings.debugDescription)
             item.tap()
+        }
+        // bỏ bàn phím Emoji của máy test: quả địa cầu chỉ còn đổi qua lại English ↔ ViPi (Emoji trên iPad không có quả địa cầu)
+        let emoji = settings.cells["emoji@sw=Emoji"]
+        if emoji.waitForExistence(timeout: 3) {
+            emoji.swipeLeft()
+            let delete = settings.buttons["Delete"].firstMatch
+            if delete.waitForExistence(timeout: 3) { delete.tap() }
         }
         if settings.staticTexts["ViPi"].waitForExistence(timeout: 3) { return }
         let add = settings.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'Add New Keyboard'")).firstMatch
@@ -51,9 +59,17 @@ final class TypingTests: XCTestCase {
         // Bàn phím của Apple (kể cả Emoji) nằm trong cây accessibility của app, ViPi thì không:
         // còn thấy nó thì bấm quả địa cầu (iPad: nút "Next keyboard"; iPhone: thanh dưới, chạm theo toạ độ VIPI_GLOBE "x,y").
         // Lần đầu iPad hiện màn "Quickly Change Keyboards" ngoài cây accessibility: bấm Continue bằng VIPI_TAPS.
+        if env["VIPI_INTRO"] != nil {
+            // màn "Quickly Change Keyboards" (iPad, lần đầu có nhiều bàn phím): nút Continue ở giữa, sát đáy
+            let size = app.windows.firstMatch.frame.size
+            app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: size.width / 2, dy: size.height - 44)).tap()
+            sleep(1)
+        }
         for _ in 0..<3 where env["VIPI_SYSTEM"] == nil && app.keyboards.firstMatch.exists {
             let globe = app.keyboards.buttons["Next keyboard"]
-            if globe.exists {
+            if globe.exists && env["VIPI_PICK"] == nil {
+                globe.tap()
+            } else if globe.exists {
                 // giữ quả địa cầu để chọn ViPi trong danh sách (bấm thường sẽ sang Emoji, mà Emoji trên iPad không có quả địa cầu)
                 // danh sách này cũng ngoài cây accessibility: chạm mục ViPi theo toạ độ VIPI_PICK "x,y"
                 globe.press(forDuration: 1.2)

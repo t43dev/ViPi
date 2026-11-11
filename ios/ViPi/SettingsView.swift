@@ -12,7 +12,7 @@ struct SettingsView: View {
     @AppStorage(Prefs.theme, store: Prefs.shared) private var theme = "system"
     @AppStorage(Prefs.keyPopup, store: Prefs.shared) private var keyPopup = true
     @AppStorage(Prefs.vietnameseBar, store: Prefs.shared) private var vietnameseBar = true
-    @AppStorage(Prefs.largeLayout, store: Prefs.shared) private var largeLayout = "split"
+    @AppStorage(Prefs.largeLayout, store: Prefs.shared) private var largeLayout = "wide"
     @AppStorage(Prefs.haptics, store: Prefs.shared) private var haptics = true
     @AppStorage(Prefs.autoCap, store: Prefs.shared) private var autoCap = true
     @AppStorage(Prefs.doubleSpace, store: Prefs.shared) private var doubleSpace = true
@@ -92,8 +92,8 @@ struct SettingsView: View {
             Section {
                 if isPad {
                     Picker("On iPad", selection: $largeLayout) {
+                        Text("Full: like the iPad keyboard").tag("wide")
                         Text("Split: one half on each side").tag("split")
-                        Text("Wide: one keyboard in the middle").tag("wide")
                     }
                 }
                 option("Vibrate on key press", "Needs Full Access: Settings → Apps → ViPi → Keyboards → Allow Full Access.", $haptics)

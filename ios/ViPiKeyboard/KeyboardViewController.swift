@@ -238,6 +238,11 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
         refreshUI()
     }
 
+    func keyboardDismiss() {
+        endComposition()
+        dismissKeyboard()
+    }
+
     /// Dấu câu trên thanh khi gõ tiếng Trung mà chưa có chữ đang soạn.
     func keyboardTypePunctuation(_ text: String) {
         keyboardWillPress()
