@@ -181,6 +181,20 @@ final class KeyboardView: UIView {
         rebuild()
     }
 
+    /// Bỏ vùng nhớ ảnh của bàn phím và của ô phóng to phím (mỗi cái bằng cả bàn phím, cỡ 5–6 MB địa chỉ ảo).
+    /// Mỗi lần bàn phím hiện lên iOS tạo một controller mới trong cùng tiến trình và không giải phóng view của
+    /// các lần trước, nên không bỏ thì vùng địa chỉ cứ dồn lại: sau khoảng một ngày dùng là cạn (7,4 GB) và
+    /// bàn phím văng lúc mở, để lại khung trắng. Lần hiện sau vẽ lại.
+    func releaseSurfaces() {
+        layer.contents = nil
+        popup.layer.contents = nil
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window == nil { releaseSurfaces() } else { setNeedsDisplay() }
+    }
+
     func reset() {
         cancelTimers()
         pressed.removeAll()
@@ -350,6 +364,16 @@ final class KeyboardView: UIView {
                     rx += k.units * unit
                 }
             }
+        }
+        // ngón còn đang giữ nhớ phím theo chỉ số: sang trang phím khác thì bỏ các ngón đó. Trang chữ có 34 phím,
+        // trang 123 có 31: giữ phím cách (số 32) lúc ngón kia bấm xong "123" rồi nhấc lên là đọc ngoài mảng, bàn phím
+        // văng (gõ nhanh một từ, dấu cách rồi số là gặp)
+        if out.count != keys.count || zip(out, keys).contains(where: { $0.kind != $1.kind || $0.label != $1.label }) {
+            cancelTimers()
+            for s in touchStates.values { s.done = true }   // vòng lặp đang chạy dở trong touchesBegan cũng bỏ qua
+            touchStates.removeAll()
+            pressed.removeAll()
+            popup.hide()
         }
         keys = out
         if let i = keys.firstIndex(where: { $0.kind == .nextKeyboard }) {

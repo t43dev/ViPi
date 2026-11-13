@@ -78,6 +78,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        keyboard.setNeedsDisplay()   // vùng ảnh đã bỏ lúc ẩn (viewDidDisappear)
         applyPrefs()
         startInput()
     }
@@ -92,6 +93,11 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
         endComposition()
         keyboard.reset()
         super.viewWillDisappear(animated)
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        keyboard.releaseSurfaces()
     }
 
     // MARK: - Ô nhập
