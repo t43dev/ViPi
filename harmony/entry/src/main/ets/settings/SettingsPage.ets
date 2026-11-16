@@ -75,7 +75,6 @@ struct SettingsPage {
   aboutToAppear(): void {
     this.settings = loadSettings(this.ctx, true);
     if (openEngine(this.ctx)) {
-      vipi.configure(false, true, true, true, false, this.settings.learn, learnedWordsFile(this.ctx), []);
       this.fuzzyOptions = vipi.fuzzyOptions();
     }
     this.refresh();
@@ -86,7 +85,14 @@ struct SettingsPage {
   }
 
   private refresh(): void {
-    const n = vipi.isOpen() ? vipi.learnedCount() : 0;
+    let n = 0;
+    if (vipi.isOpen()) {
+      // file từ đã học do tiến trình bàn phím ghi: bỏ bản trong bộ nhớ rồi đọc lại. Luôn nạp ở đây, kể cả khi
+      // đang tắt học từ, để số đếm đúng và nút Clear xoá được file
+      vipi.configure(false, true, true, true, false, false, '', []);
+      vipi.configure(false, true, true, true, false, true, learnedWordsFile(this.ctx), []);
+      n = vipi.learnedCount();
+    }
     this.learned = n === 0 ? 'No learned words yet.' : `${n} learned words and phrases.`;
     this.refreshStatus().catch(() => {
       this.status = 'Open Settings and search for "keyboard" to turn on ViPi.';
@@ -163,7 +169,7 @@ struct SettingsPage {
     }
     // bàn phím chạy ở tiến trình khác: nó thấy mốc này lần mở sau thì đọc lại file đã xoá
     saveNumber(this.ctx, LEARNED_CLEARED_AT, Date.now());
-    this.refresh();
+    this.learned = 'No learned words yet.';   // file bị xoá ở luồng nền, đọc lại ngay có thể còn thấy
   }
 
   private switchToViPi(): void {

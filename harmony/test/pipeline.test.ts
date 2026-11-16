@@ -24,6 +24,7 @@ class Client {
     this.cursor = s;
   }
   getForwardSync(n: number) { return this.text.slice(Math.max(0, this.cursor - n), this.cursor); }
+  getBackwardSync(n: number) { return this.text.slice(this.cursor, this.cursor + n); }
   setPreviewTextSync(t: string, r: { start: number; end: number }) {
     if (!this.attr.isTextPreviewSupported) { const e: any = new Error('no preview'); e.code = 12800011; throw e; }
     if (r.start !== -1) throw new Error('only whole-preview replace is used');
@@ -75,8 +76,20 @@ type('server ');
 expect('English word in VI mode goes back to English', c.text, 'trên server ');
 c = start({});
 type('treen ');
+type('⌫⌫');
+expect('second backspace right after auto switch restores keys', c.text, 'treen');
+c = start({});   // lại ở tiếng Anh sau khi hoàn tác
+type('treen ');
 type('⌫');
-expect('backspace right after auto switch restores keys', c.text, 'treen');
+expect('first backspace after auto switch only takes the space (D61)', c.text, 'trên');
+type(',');
+expect('a comma after that backspace keeps the fix', c.text, 'trên,');
+type(' ⌫⌫');   // phím khác chen vào: hai Backspace chỉ xoá như thường
+c = start({});
+type('server ');   // về tiếng Anh
+c = start({});
+type('vaay ⌫j ');
+expect('typing on after that backspace adds the tone to the fixed word', c.text, 'vậy ');
 c = start({});
 type('Vieejt Nam ');
 expect('Telex with capital and tone', c.text, 'Việt Nam ');
@@ -101,6 +114,12 @@ type('dduowngf');
 expect('Vietnamese word shown while typing', c.text, 'đường');
 type('⌫⌫');
 expect('backspace inside a Vietnamese word', c.text, 'đườ');
+c = start({});
+toVietnamese();
+type('ddungs');
+c.text = ''; c.cursor = 0; // app xoá ô ngay sau phím (nút gửi của Telegram), thông báo bị bỏ qua
+type('ddungs');
+expect('field cleared by the app mid-word', c.text, 'đúng');
 
 toChinese();
 c = start({ isTextPreviewSupported: true });
@@ -135,6 +154,7 @@ function keyAt(label: string): any {
   for (const row of board.rows) for (const k of row) if ((k.kind === 0 ? k.label : 'k' + k.kind) === label) return k;
   throw new Error('no key ' + label);
 }
+const bs0 = () => keyAt('k2');
 function tap(label: string, id = 1) { const k = keyAt(label); board.touchDown(id, k.x + k.w / 2, k.y + k.h / 2); board.touchUp(id, k.x + k.w / 2, k.y + k.h / 2); }
 (async () => {
   toVietnamese();
@@ -145,6 +165,12 @@ function tap(label: string, id = 1) { const k = keyAt(label); board.touchDown(id
   const h = keyAt('h'), i = keyAt('i');
   board.touchDown(1, h.x + 5, h.y + 5); board.touchDown(2, i.x + 5, i.y + 5); board.touchUp(1, h.x + 5, h.y + 5); board.touchUp(2, i.x + 5, i.y + 5);
   expect('second finger fires the first key (rollover)', c.text, 'hellohi');
+  // trượt sang phím bên rồi quay lại giữa phím đầu: thả ra là phím đang ở dưới ngón tay
+  const g = keyAt('g');
+  board.touchDown(7, g.x + g.w / 2, g.y + g.h / 2); board.touchMove(7, h.x + h.w / 2, h.y + h.h / 2);
+  board.touchMove(7, g.x + g.w / 2 + 2, g.y + g.h / 2); board.touchUp(7, g.x + g.w / 2 + 2, g.y + g.h / 2);
+  expect('slide to the next key and back types the key under the finger', c.text, 'hellohig');
+  board.touchDown(4, bs0().x + 5, bs0().y + 5); board.touchUp(4, bs0().x + 5, bs0().y + 5);
   const q = keyAt('q');
   board.touchDown(3, q.x + 5, q.y + 5); await sleep(450); board.touchUp(3, q.x + 5, q.y + 5);
   expect('hold top-row key types its number', c.text, 'hellohi1');
@@ -156,6 +182,20 @@ function tap(label: string, id = 1) { const k = keyAt(label); board.touchDown(id
   tap('x');
   expect('shift once then a capital', c.text, 'hellohiX');
   expect('shift released after one letter', String(board.shift), String(Shift.OFF));
+  // đầu câu Shift đã bật sẵn (tự viết hoa): chạm đúp vẫn phải khoá chữ hoa
+  board.shift = Shift.ONCE;
+  board.touchDown(5, sh.x + 5, sh.y + 5); board.touchUp(5, sh.x + 5, sh.y + 5);
+  board.touchDown(5, sh.x + 5, sh.y + 5); board.touchUp(5, sh.x + 5, sh.y + 5);
+  expect('double tap on Shift locks even when auto-capitalize had set it', String(board.shift), String(Shift.LOCK));
+  board.touchDown(5, sh.x + 5, sh.y + 5); board.touchUp(5, sh.x + 5, sh.y + 5);
+  expect('a tap on Shift leaves caps lock', String(board.shift), String(Shift.OFF));
+  // Shift, chữ, Shift gõ nhanh: không phải chạm đúp
+  board.touchDown(5, sh.x + 5, sh.y + 5); board.touchUp(5, sh.x + 5, sh.y + 5);
+  tap('y');
+  board.touchDown(5, sh.x + 5, sh.y + 5); board.touchUp(5, sh.x + 5, sh.y + 5);
+  expect('Shift, letter, Shift is not a double tap', String(board.shift), String(Shift.ONCE));
+  board.touchDown(4, bs0().x + 5, bs0().y + 5); board.touchUp(4, bs0().x + 5, bs0().y + 5);
+  board.shift = Shift.OFF;
   const sp = keyAt('k7');
   board.touchDown(6, sp.x + sp.w / 2, sp.y + 5); for (let d = 2; d <= 50; d += 2) board.touchMove(6, sp.x + sp.w / 2 - d, sp.y + 5); board.touchUp(6, sp.x + sp.w / 2 - 50, sp.y + 5);
   expect('drag on space moves the cursor left', String(c.cursor), String(c.text.length - 3));

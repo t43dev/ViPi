@@ -273,40 +273,64 @@ fn look_back_has_no_undo() {
     assert_eq!(c.mode(), Mode::English);
 }
 
-/// Backspace ngay sau một lần tự đổi trả lại chữ trước đó và chế độ cũ (Vikey); phím khác thì không.
+/// Xoá lùi ra ngoài từ đang gõ rồi gõ từ khác: không sửa ngược từ đã xoá (trước đây xoá lùi quá tay vào chữ trước).
+#[test]
+fn look_back_forgets_a_deleted_word() {
+    let typed = |keys: &str| {
+        let mut c = composer();
+        c.set_vietnamese_options(true, true, true);
+        c.set_auto_switch(true);
+        c.set_mode(Mode::Vietnamese);
+        type_all(&mut c, keys)
+    };
+    assert_eq!(typed("xin chao this ⌫⌫⌫⌫server "), "xin chao server ");
+    assert_eq!(typed("this ⌫⌫⌫⌫server "), "server ");
+}
+
+/// Backspace khi đang gõ pinyin đưa khung chọn về trang đầu: Space chọn ứng viên đầu, không phải mục của trang cũ.
+#[test]
+fn chinese_backspace_returns_to_first_page() {
+    let mut c = composer();
+    c.set_mode(Mode::Chinese);
+    let first = type_all(&mut c, "zhongguo ");
+    c.cancel();
+    assert_eq!(type_all(&mut c, "zhongguoren=="), "");
+    assert_eq!(type_all(&mut c, "⌫⌫⌫ "), first);
+}
+
+/// Backspace ngay sau một lần tự đổi (Vikey D61): cái đầu chỉ xoá phím kết thúc từ, chữ đã sửa giữ nguyên;
+/// cái thứ hai liền sau trả lại chữ trước đó và chế độ cũ; phím khác chen vào thì hết.
 #[test]
 fn backspace_undoes_auto_switch() {
-    let mut c = composer();
-    c.set_vietnamese_options(true, true, true);
-    c.set_auto_switch(true);
-    c.set_mode(Mode::English);
-    // tiếng Anh → tiếng Việt: "treen " → "trên ", Backspace → "treen", lại tiếng Anh
-    assert_eq!(type_all(&mut c, "treen ⌫"), "treen");
-    assert_eq!(c.mode(), Mode::English);
+    let typed = |mode: Mode, keys: &str| {
+        let mut c = composer();
+        c.set_vietnamese_options(true, true, true);
+        c.set_auto_switch(true);
+        c.set_mode(mode);
+        (type_all(&mut c, keys), c.mode())
+    };
+    // tiếng Anh → tiếng Việt: "treen " → "trên "; ⌫ → "trên" (thêm được dấu phẩy); ⌫⌫ → "treen", lại tiếng Anh
+    assert_eq!(typed(Mode::English, "treen ⌫"), ("trên".into(), Mode::Vietnamese));
+    assert_eq!(typed(Mode::English, "treen ⌫,"), ("trên,".into(), Mode::Vietnamese));
+    assert_eq!(typed(Mode::English, "treen ⌫ "), ("trên ".into(), Mode::Vietnamese));
+    assert_eq!(typed(Mode::English, "treen,⌫."), ("trên.".into(), Mode::Vietnamese));
+    assert_eq!(typed(Mode::English, "treen ⌫⌫"), ("treen".into(), Mode::English));
+    assert_eq!(typed(Mode::English, "treen ⌫⌫⌫"), ("tree".into(), Mode::English));
     // kết thúc lại đúng từ đó: giữ như đã gõ
-    let mut c2 = composer();
-    c2.set_auto_switch(true);
-    c2.set_mode(Mode::English);
-    assert_eq!(type_all(&mut c2, "treen ⌫ "), "treen ");
-    assert_eq!(c2.mode(), Mode::English);
-    // gõ tiếp cho thành từ khác: lại được xét ("vaay" ⌫ … "j" → "vậy")
-    let mut c3 = composer();
-    c3.set_auto_switch(true);
-    c3.set_mode(Mode::English);
-    assert_eq!(type_all(&mut c3, "vaay ⌫j "), "vậy ");
-    // tiếng Việt → tiếng Anh: "server " → giữ "server", sang tiếng Anh; Backspace → về tiếng Việt
-    let mut c4 = composer();
-    c4.set_auto_switch(true);
-    c4.set_mode(Mode::Vietnamese);
-    assert_eq!(type_all(&mut c4, "server "), "server ");
-    assert_eq!(c4.mode(), Mode::English);
-    let r = c4.handle_key(Key::Backspace);
-    assert_eq!(r.switched_to, Some(Mode::Vietnamese));
-    assert_eq!(c4.mode(), Mode::Vietnamese);
-    // phím khác chen vào: Backspace chỉ xoá một ký tự như thường
-    let mut c5 = composer();
-    c5.set_auto_switch(true);
-    c5.set_mode(Mode::English);
-    assert_eq!(type_all(&mut c5, "treen a⌫"), "trên ");
-    assert_eq!(c5.mode(), Mode::Vietnamese);
+    assert_eq!(typed(Mode::English, "treen ⌫⌫ "), ("treen ".into(), Mode::English));
+    // gõ tiếp cho thành từ khác: lại được xét ("vaay" ⌫⌫ … "j" → "vậy")
+    assert_eq!(typed(Mode::English, "vaay ⌫⌫j ").0, "vậy ");
+    // tiếng Việt → tiếng Anh: "server " giữ "server", sang tiếng Anh; ⌫ giữ nguyên, ⌫⌫ về tiếng Việt
+    assert_eq!(typed(Mode::Vietnamese, "server ⌫"), ("server".into(), Mode::English));
+    assert_eq!(typed(Mode::Vietnamese, "merge ⌫,"), ("merge,".into(), Mode::English));
+    assert_eq!(typed(Mode::Vietnamese, "merge ⌫⌫"), ("merge".into(), Mode::Vietnamese));
+    // sau Backspace đầu gõ tiếp chữ cái: chữ vừa sửa lại là từ đang gõ, thêm được dấu (Vikey: "vaay <j ")
+    assert_eq!(typed(Mode::English, "vaay ⌫j "), ("vậy ".into(), Mode::Vietnamese));
+    // như gõ liền "treenn": không thành chữ Việt thì trả lại các phím đã gõ
+    assert_eq!(typed(Mode::English, "treen ⌫n "), ("treenn ".into(), Mode::Vietnamese));
+    assert_eq!(typed(Mode::Vietnamese, "server ⌫s "), ("servers ".into(), Mode::English));
+    assert_eq!(typed(Mode::English, "vaay ⌫j⌫⌫⌫"), ("".into(), Mode::Vietnamese));
+    // phím khác chen vào (trước hay giữa hai Backspace): Backspace chỉ xoá một ký tự như thường
+    assert_eq!(typed(Mode::English, "treen a⌫"), ("trên ".into(), Mode::Vietnamese));
+    assert_eq!(typed(Mode::English, "treen ⌫,⌫⌫"), ("trê".into(), Mode::Vietnamese));
 }

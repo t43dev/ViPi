@@ -75,8 +75,14 @@ impl BigramModel {
     /// log P(w2 | w1) = log(λ·c12/c1 + (1-λ)·P(w2)). w1 không có trong corpus coi như c12 = 0,
     /// vẫn chịu hệ số (1-λ) để từ hiếm không được "miễn phạt" khi đứng trước.
     pub fn log_prob(&self, w1: &str, w2: &str, unigram: f64) -> f64 {
-        let c1 = self.count(Self::fnv1a(w1), self.uni_keys, self.uni_counts, self.unigrams);
-        let c12 = self.count(Self::fnv1a(&format!("{w1}\t{w2}")), self.pair_keys, self.pair_counts, self.pairs);
+        let h1 = Self::fnv1a(w1);
+        let c1 = self.count(h1, self.uni_keys, self.uni_counts, self.unigrams);
+        // FNV-1a đi từng byte: băm tiếp "\t" + w2 từ h1 cho đúng bằng băm của "w1\tw2", khỏi dựng chuỗi
+        let mut h12 = h1;
+        for b in std::iter::once(b'\t').chain(w2.bytes()) {
+            h12 = (h12 ^ b as u64).wrapping_mul(0x0000_0100_0000_01b3);
+        }
+        let c12 = self.count(h12, self.pair_keys, self.pair_counts, self.pairs);
         match (c1, c12) {
             (Some(c1), Some(c12)) if c1 > 0 => {
                 (self.lambda * c12 as f64 / c1 as f64 + (1.0 - self.lambda) * unigram).ln()

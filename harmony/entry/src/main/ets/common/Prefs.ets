@@ -1,6 +1,6 @@
 import { preferences } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
-import { Mode } from './Engine';
+import { Mode, logError } from './Engine';
 
 /** Cài đặt người dùng (Preferences "vipi"), cùng khoá với bản Android. */
 export class Settings {
@@ -44,9 +44,32 @@ export const LEARNED_CLEARED_AT = 'learnedClearedAt';
 const MODE = 'mode';
 const LATIN = 'latin';
 const NAME = 'vipi';
+/** Chế độ đang dùng: chỉ tiến trình bàn phím ghi (ghi cả khi đang gõ, lúc tự đổi Anh/Việt). */
+const STATE = 'vipi-state';
 
 function store(ctx: common.Context): preferences.Preferences {
   return preferences.getPreferencesSync(ctx, { name: NAME } as preferences.Options);
+}
+
+function state(ctx: common.Context): preferences.Preferences {
+  return preferences.getPreferencesSync(ctx, { name: STATE } as preferences.Options);
+}
+
+/**
+ * Ghi một cài đặt. Preferences không dùng chung được giữa hai tiến trình: flush ghi cả bản đệm của tiến trình
+ * này đè lên file, nên bản đệm cũ sẽ xoá mất thay đổi bên kia vừa ghi. Vì vậy đọc lại file trước khi sửa, và
+ * ghi xong mới trả về (bên kia, hoặc chính mình, đọc lại ngay sau đó là thấy).
+ */
+function write(ctx: common.Context, key: string, value: preferences.ValueType): void {
+  try {
+    const o: preferences.Options = { name: NAME };
+    preferences.removePreferencesFromCacheSync(ctx, o);
+    const p = preferences.getPreferencesSync(ctx, o);
+    p.putSync(key, value);
+    p.flushSync();
+  } catch (e) {
+    logError(`cannot save ${key}: ${JSON.stringify(e)}`);
+  }
 }
 
 function bool(p: preferences.Preferences, key: string, fallback: boolean): boolean {
@@ -85,41 +108,40 @@ export function loadSettings(ctx: common.Context, fresh: boolean): Settings {
   s.largeLayout = large === 'WIDE' ? 'WIDE' : 'SPLIT';
   const fuzzy = p.getSync(FUZZY, [] as string[]);
   s.fuzzy = Array.isArray(fuzzy) ? (fuzzy as string[]) : [];
-  s.mode = num(p, MODE, Mode.ENGLISH) as Mode;
-  s.latin = num(p, LATIN, Mode.ENGLISH) as Mode;
+  // bản cũ để chế độ chung file cài đặt: lần đầu sau khi cập nhật lấy lại từ đó
+  const st = state(ctx);
+  s.mode = num(st, MODE, num(p, MODE, Mode.ENGLISH)) as Mode;
+  s.latin = num(st, LATIN, num(p, LATIN, Mode.ENGLISH)) as Mode;
   s.learnedClearedAt = num(p, LEARNED_CLEARED_AT, 0);
   return s;
 }
 
 export function saveBool(ctx: common.Context, key: string, value: boolean): void {
-  const p = store(ctx);
-  p.putSync(key, value);
-  p.flush();
+  write(ctx, key, value);
 }
 
 export function saveString(ctx: common.Context, key: string, value: string): void {
-  const p = store(ctx);
-  p.putSync(key, value);
-  p.flush();
+  write(ctx, key, value);
 }
 
 export function saveStrings(ctx: common.Context, key: string, value: string[]): void {
-  const p = store(ctx);
-  p.putSync(key, value);
-  p.flush();
+  write(ctx, key, value);
 }
 
 export function saveNumber(ctx: common.Context, key: string, value: number): void {
-  const p = store(ctx);
-  p.putSync(key, value);
-  p.flush();
+  write(ctx, key, value);
 }
 
 export function saveMode(ctx: common.Context, mode: Mode): void {
-  const p = store(ctx);
-  p.putSync(MODE, mode);
-  if (mode !== Mode.CHINESE) {
-    p.putSync(LATIN, mode);
+  try {
+    const p = state(ctx);
+    p.putSync(MODE, mode);
+    if (mode !== Mode.CHINESE) {
+      p.putSync(LATIN, mode);
+    }
+    p.flush().catch(() => {
+    });
+  } catch (e) {
+    logError(`cannot save the mode: ${JSON.stringify(e)}`);
   }
-  p.flush();
 }

@@ -66,6 +66,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     }
 
     companion object {
+        private val WHITESPACE = Regex("\\s+")
         const val PICK_VIEN = 0
         const val PICK_CHINESE = 1
         const val PICK_OTHER_KEYBOARD = 2
@@ -93,10 +94,12 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
 
     var layout = Layout.LETTERS
         set(v) { if (field != v) { field = v; buildRows(); dirty() } }
+    /** Lớp phím của ô nhập này (ô số: bàn số): phím cách ở lớp khác quay về đây, không phải luôn về bàn chữ. */
+    var baseLayout = Layout.LETTERS
     var shift = Shift.OFF
         set(v) { if (field != v) { field = v; dirty() } }
     var mode = InputMode.VIETNAMESE
-        set(v) { if (field != v) { val old = field; field = v; crossfade(old) } }
+        set(v) { if (field != v) { val old = field; field = v; if (chinese(old) != chinese(v)) crossfade(old) } }   // Việt ↔ Anh: nhãn phím không đổi
     var action = Action.RETURN
         set(v) { if (field != v) { field = v; dirty() } }
     /** Ô mật khẩu / số: chỉ tiếng Anh, menu chỉ còn bàn phím khác và cài đặt. */
@@ -802,7 +805,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             RectF(x, cy - 18 * dp, x + w, cy + 18 * dp).also { x += w + 4 * dp }
         }
         stripContentWidth = x - midL
-        layoutGrid()
+        if (gridOpen) layoutGrid()   // lưới chỉ xếp khi mở, không phải mỗi phím
     }
 
     private fun drawBar(canvas: Canvas, p: Palette) {
@@ -924,7 +927,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     // MARK: - Lưới ứng viên: thay chỗ các hàng phím, cuộn dọc
 
     private var gridOpen = false
-        set(v) { if (field != v) { field = v; gridScroll = 0f; dirty() } }
+        set(v) { if (field != v) { field = v; gridScroll = 0f; if (v) layoutGrid(); dirty() } }
     private var gridRects: List<RectF> = emptyList()
     private var gridScroll = 0f
     private var gridContentHeight = 0f
@@ -977,6 +980,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     private var clipHold: Runnable? = null
 
     private fun layoutClips() {
+        // chỉ dựng khi bảng đang mở (hàm này chạy mỗi lần đổi lớp phím), và chỉ đo phần đầu của mục dài
+        if (!clipOpen) { clipRects = emptyList(); clipLayouts = emptyList(); return }
         val gap = 6 * dp
         val n = min(clips.size, ClipHistory.MAX)
         val w = (blockR - blockL - gap) / 2
@@ -991,7 +996,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         // hai dòng chữ cần ô cao ~70 dp (cùng dòng thời gian); điện thoại xoay ngang chỉ đủ một dòng
         val lines = if (h >= 68 * dp) 2 else 1
         clipLayouts = (0 until n).map { i ->
-            val t = clips[i].text.replace(Regex("\\s+"), " ").trim()
+            val t = clips[i].text.take(300).replace(WHITESPACE, " ").trim()
             StaticLayout.Builder.obtain(t, 0, t.length, paint, inner)
                 .setMaxLines(lines).setEllipsize(TextUtils.TruncateAt.END).setIncludePad(false)
                 .setAlignment(TextLayout.Alignment.ALIGN_NORMAL).build()
@@ -1033,6 +1038,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
 
     private class Touch(var key: Key, val startX: Float, var lastX: Float, val startY: Float = 0f) {
         var trackpad = false
+        var moved = false
         var longFired = false
         var longPress: Runnable? = null
     }
@@ -1255,8 +1261,11 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                             while (x - t.lastX > step) { listener.onCursor(1); t.lastX += step }
                             while (t.lastX - x > step) { listener.onCursor(-1); t.lastX -= step }
                         }
-                    } else if (t.key.kind == Kind.CHAR && !t.longFired && hypot(x - t.startX, y - t.startY) > t.key.rect.width() * 0.5f) {
-                        // chỉ đổi phím khi trượt hẳn sang phím khác (quá nửa phím); lệch vài dp khi gõ nhanh vẫn là phím đã chạm
+                    } else if (t.key.kind == Kind.CHAR && !t.longFired &&
+                        (t.moved || hypot(x - t.startX, y - t.startY) > t.key.rect.width() * 0.5f)) {
+                        // chỉ đổi phím khi trượt hẳn sang phím khác (quá nửa phím); lệch vài dp khi gõ nhanh vẫn là phím đã chạm.
+                        // Đã sang phím khác rồi thì theo ngón tay, kể cả khi quay lại gần chỗ chạm đầu
+                        t.moved = true
                         val k = hit(x, y)
                         if (k != null && k !== t.key && k.kind == Kind.CHAR) {
                             t.longPress?.let { handler.removeCallbacks(it) }
@@ -1401,27 +1410,28 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         postInvalidateOnAnimation()
     }
 
+    /** Hai lần chạm Shift liền nhau là khoá, kể cả khi Shift đang bật sẵn do tự viết hoa đầu câu. */
     private fun tapShift() {
         val now = SystemClock.uptimeMillis()
-        shift = when (shift) {
-            Shift.LOCK -> Shift.OFF
-            Shift.OFF -> Shift.ONCE
-            Shift.ONCE -> if (now - lastShiftTap < 350) Shift.LOCK else Shift.OFF
+        shift = when {
+            shift == Shift.LOCK -> { lastShiftTap = 0; Shift.OFF }
+            now - lastShiftTap < 350 -> { lastShiftTap = 0; Shift.LOCK }
+            else -> { lastShiftTap = now; if (shift == Shift.OFF) Shift.ONCE else Shift.OFF }
         }
-        lastShiftTap = now
     }
 
     private fun fire(k: Key) {
+        lastShiftTap = 0   // phím khác chen giữa hai lần chạm Shift: không phải chạm đúp
         when (k.kind) {
             Kind.CHAR -> {
                 val s = if (layout == Layout.LETTERS && shift != Shift.OFF && !k.punct) k.label.uppercase() else k.label
                 if (shift == Shift.ONCE && layout == Layout.LETTERS && !k.punct) shift = Shift.OFF
                 listener.onKey(KeyInput.Text(s))
-                if (layout != Layout.LETTERS && s == "'") layout = Layout.LETTERS
+                if (layout != baseLayout && s == "'") layout = baseLayout
             }
             Kind.SPACE -> {
                 listener.onKey(KeyInput.Space)
-                if (layout != Layout.LETTERS) layout = Layout.LETTERS
+                if (layout != baseLayout) layout = baseLayout
             }
             Kind.RETURN -> listener.onKey(KeyInput.Enter)
             Kind.NUMBERS -> layout = Layout.NUMBERS

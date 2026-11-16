@@ -13,7 +13,7 @@ import {
 
 /** Lớp Canvas của trang bàn phím; trang đăng ký khi đã sẵn sàng. */
 export interface KeyboardView {
-  draw(staticLayer: boolean, dynamicLayer: boolean): void;
+  draw: (staticLayer: boolean, dynamicLayer: boolean) => void;
 }
 
 const PREVIEW_ALL: inputMethodEngine.Range = { start: -1, end: -1 };
@@ -42,6 +42,9 @@ class KeyboardController implements BoardListener {
   private previewActive: boolean = false;
   private last: Outcome = vipi.state();
   private lastOwnEdit: number = 0;
+  private hapticFailed: boolean = false;   // tiến trình bàn phím không gọi được dịch vụ rung: thôi hỏi mỗi phím
+  private settingsReadAt: number = 0;
+  private fieldReadable: boolean = false;  // ô nhập này đã từng trả lại chữ quanh con trỏ
   private lastSpaceAt: number = 0;
   private systemDark: boolean = false;
   private hapticPreset: boolean = false;
@@ -169,6 +172,7 @@ class KeyboardController implements BoardListener {
     });
     ima.on('inputStop', this.onInputStop);
     ima.on('keyboardShow', () => {
+      this.hapticFailed = false;   // thử lại một lần mỗi lần hiện bàn phím
       this.reloadSettings();
       this.redraw(true);
     });
@@ -219,6 +223,7 @@ class KeyboardController implements BoardListener {
   // MARK: - Ô nhập
 
   private startInput(attr: inputMethodEngine.EditorAttribute): void {
+    this.fieldReadable = false;
     const p = attr.inputPattern;
     const password = p === inputMethodEngine.PATTERN_PASSWORD || p === inputMethodEngine.PATTERN_PASSWORD_NUMBER ||
       p === inputMethodEngine.PATTERN_PASSWORD_SCREEN_LOCK || p === inputMethodEngine.PATTERN_NEW_PASSWORD;
@@ -232,7 +237,8 @@ class KeyboardController implements BoardListener {
     this.previewSupported = attr.isTextPreviewSupported === true && !this.passthrough;
     this.previewActive = false;
     vipi.cancel();
-    this.board.layout = numeric ? Layout.NUMBERS : Layout.LETTERS;
+    this.board.baseLayout = numeric ? Layout.NUMBERS : Layout.LETTERS;
+    this.board.layout = this.board.baseLayout;
     this.board.action = this.actionFor(attr.enterKeyType);
     this.board.modeLocked = this.passthrough;
     this.board.shift = Shift.OFF;
@@ -260,10 +266,15 @@ class KeyboardController implements BoardListener {
 
   // MARK: - Cài đặt
 
-  private reloadSettings(): void {
+  private reloadSettings(force: boolean = false): void {
     if (this.ctx === undefined) {
       return;
     }
+    const now = Date.now();
+    if (!force && now - this.settingsReadAt < 500) {
+      return;   // inputStart và keyboardShow tới liền nhau: đọc file một lần
+    }
+    this.settingsReadAt = now;
     try {
       this.settings = loadSettings(this.ctx, true);
     } catch (e) {
@@ -302,11 +313,37 @@ class KeyboardController implements BoardListener {
 
   // MARK: - Phím
 
+  /**
+   * App xoá ô nhập (nút gửi của Telegram) mà thông báo tới lúc bàn phím còn bỏ qua (300 ms sau phím vừa gõ, xem
+   * selectionChange): ô đã trống thì bỏ chữ đang soạn, không thì phím sau tính lại cả chữ cũ và chèn nó vào ô
+   * trống ("đúngđúng"). Chỉ xét ô trống, và chỉ chữ Việt/Anh (pinyin là chữ tạm, có ô không tính nó là chữ).
+   * Ô nào chưa từng trả lại chữ quanh con trỏ (ô tự vẽ không cho đọc) thì không coi "rỗng" là đã bị xoá.
+   */
+  private syncWithField(client: inputMethodEngine.InputClient): void {
+    if (!this.engineOk || this.passthrough || this.last.word.length === 0 || this.last.composingChinese) {
+      return;
+    }
+    try {
+      if (client.getForwardSync(1).length > 0 || client.getBackwardSync(1).length > 0) {
+        this.fieldReadable = true;
+        return;
+      }
+    } catch (e) {
+      return;
+    }
+    if (!this.fieldReadable) {
+      return;
+    }
+    vipi.cancel();
+    this.refresh(vipi.state());
+  }
+
   onKey(key: KeyInput): void {
     const client = this.client;
     if (client === undefined) {
       return;
     }
+    this.syncWithField(client);
     this.lastOwnEdit = Date.now();
     try {
       if (!this.engineOk || this.passthrough) {
@@ -508,6 +545,10 @@ class KeyboardController implements BoardListener {
     if (client === undefined || !this.engineOk) {
       return;
     }
+    this.syncWithField(client);
+    if (this.last.word.length === 0) {
+      return;
+    }
     this.lastOwnEdit = Date.now();
     try {
       const word = this.last.word;
@@ -547,7 +588,7 @@ class KeyboardController implements BoardListener {
   }
 
   feedback(): void {
-    if (!this.settings.haptics) {
+    if (!this.settings.haptics || this.hapticFailed) {
       return;
     }
     try {
@@ -556,9 +597,10 @@ class KeyboardController implements BoardListener {
         { type: 'time', duration: 8 } as vibrator.VibrateTime;
       const attribute: vibrator.VibrateAttribute = { id: 0, usage: 'touch' };
       vibrator.startVibration(effect, attribute).catch(() => {
+        this.hapticFailed = true;
       });
     } catch (e) {
-      // máy không rung được
+      this.hapticFailed = true;
     }
   }
 
@@ -589,7 +631,7 @@ class KeyboardController implements BoardListener {
       case PICK_TRADITIONAL:
         if (this.ctx !== undefined) {
           saveBool(this.ctx, TRADITIONAL, !this.settings.traditional);
-          this.reloadSettings();
+          this.reloadSettings(true);
         }
         break;
       case PICK_OTHER_KEYBOARD:

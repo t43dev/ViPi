@@ -49,6 +49,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
     private let local = UserDefaults.standard
 
     private var shown = ""
+    private var fieldType: UIKeyboardType?
     private var passthrough = false
     private var lastSpaceAt: TimeInterval = 0
     private var lastOwnEdit: TimeInterval = 0
@@ -92,6 +93,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
     override func viewWillDisappear(_ animated: Bool) {
         endComposition()
         keyboard.reset()
+        fieldType = nil
         super.viewWillDisappear(animated)
     }
 
@@ -117,7 +119,9 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
     private func cursorMaybeMoved() {
         guard ProcessInfo.processInfo.systemUptime - lastOwnEdit > 0.3 else { return }
         let before = textDocumentProxy.documentContextBeforeInput ?? ""
-        if !shown.isEmpty && !before.hasSuffix(shown) {
+        // không có chữ đang soạn trong ô (đang gõ tiếng Anh, hoặc vừa tự đổi xong) thì lõi vẫn nhớ từ tiếng Anh đang
+        // gõ và lần hoàn tác bằng Backspace: con trỏ đã dời thì bỏ, không sẽ sửa nhầm chữ ở chỗ mới
+        if shown.isEmpty ? composer?.isComposingChinese() == false : !before.hasSuffix(shown) {
             shown = ""
             composer?.cancel()
             refreshUI()
@@ -134,8 +138,13 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
         passthrough = composer == nil || proxy.isSecureTextEntry == true || numeric.contains(type)
         if passthrough && !wasPassthrough { endComposition() }
         keyboard.modeLocked = passthrough
-        if numeric.contains(type) || type == .numbersAndPunctuation {
-            if keyboard.layout == .letters { keyboard.layout = .numbers }
+        // hàm này chạy sau mỗi lần ô nhập đổi chữ (kể cả do chính bàn phím gõ): chỉ mở sẵn bàn số một lần cho
+        // mỗi ô, không thì người dùng vừa về bàn chữ gõ một phím là bị đẩy lại bàn số
+        if type != fieldType {
+            fieldType = type
+            if numeric.contains(type) || type == .numbersAndPunctuation {
+                if keyboard.layout == .letters { keyboard.layout = .numbers }
+            }
         }
         keyboard.returnKey = KeyboardView.ReturnKey(proxy.returnKeyType ?? .default)
         let appearance: UIUserInterfaceStyle
@@ -213,7 +222,8 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
     /// cursorMaybeMoved): ô đã trống thì bỏ chữ đang soạn, không thì phím sau tính lại cả chữ cũ và chèn nó vào ô
     /// trống ("dúngddunf"). Chỉ xét ô trống: so nội dung ô có thể nhầm khi gõ nhanh.
     private func syncWithField() {
-        guard !shown.isEmpty, !textDocumentProxy.hasText else { return }
+        // pinyin đang soạn nằm trên thanh gợi ý, không nằm trong ô: ô trống lúc đó là bình thường
+        guard !textDocumentProxy.hasText, composer?.isComposingChinese() != true else { return }
         shown = ""
         composer?.cancel()
         refreshUI()
@@ -287,7 +297,13 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
     private func applyVietnamese(_ key: KeyInput, _ r: KeyOutcome, hadWord: Bool, wordLength: Int) {
         guard let c = composer else { return }
         if case .text(let t) = key, t.count == 1, let ch = t.first, ch.isASCII, ch.isLetter {
-            setComposing(c.currentWord())
+            let word = c.currentWord()
+            // chữ dính sau số ("abc1def", "65w") lõi cho đi thẳng, không vào từ đang soạn: gửi nguyên phím
+            if word.isEmpty { finishComposing(); deliver(key) } else {
+                // gõ tiếp vào chữ vừa tự sửa ("vây" ⌫ "j"): chữ đó đã nằm trong ô, bỏ đi để soạn lại cả từ
+                if r.reopened > 0 { deleteBefore(Int(r.reopened)) }
+                setComposing(word)
+            }
             return
         }
         if case .backspace = key {

@@ -71,6 +71,9 @@ pub struct KeyResult {
     pub switched_to: Option<Mode>,
     /// Khung chọn chữ Hán cần vẽ lại (`panel()`), hoặc ẩn nếu `panel()` là None.
     pub panel_changed: bool,
+    /// Khác 0: chừng ấy ký tự ngay trước con trỏ (chữ vừa tự sửa) lại là từ đang gõ, tính trước khi áp `edit`.
+    /// Nền tảng có vùng soạn thảo riêng (Android, iOS) phải đưa chúng vào vùng soạn; nền tảng áp `edit` thì bỏ qua.
+    pub reopened: usize,
 }
 
 impl KeyResult {
@@ -97,9 +100,12 @@ pub struct Panel {
 
 const WORD_END_FOR_AUTO_SWITCH: &str = " \r\t,.;!?)'\"";
 
-/// Ngay sau một lần tự đổi: Backspace xoá chữ đã sửa cùng phím kết thúc từ (`remove`), gõ lại `text`
-/// (chữ trước khi sửa) và về chế độ cũ, như Vikey.
+/// Ngay sau một lần tự đổi (Vikey D61): Backspace đầu chỉ xoá phím kết thúc từ, chữ đã sửa giữ nguyên
+/// ("được " ⌫ "," → "được,"); Backspace thứ hai liền sau xoá chữ đã sửa (`remove`), gõ lại `text`
+/// (chữ trước khi sửa) và về chế độ cũ.
 struct Undo {
+    break_gone: bool,
+    fixed: String, // chữ đã sửa đang nằm trên màn hình
     remove: usize,
     text: String,
     keys: Vec<char>,
@@ -343,16 +349,55 @@ impl Composer {
     // MARK: - Phím
 
     pub fn handle_key(&mut self, key: Key) -> KeyResult {
-        if key == Key::Backspace {
-            if let Some(u) = self.undo.take() {
-                return self.undo_auto_switch(u);
+        // Backspace đầu sau một lần tự đổi đi qua như phím xoá thường và giữ lại cơ hội hoàn tác; Backspace thứ hai
+        // hoàn tác; chữ cái gõ tiếp sau Backspace đầu thì chữ vừa sửa lại là từ đang gõ
+        let mut keep = None;
+        let mut reopened = 0;
+        if let Some(mut u) = self.undo.take() {
+            match key {
+                Key::Backspace if u.break_gone => return self.undo_auto_switch(u),
+                Key::Backspace => {
+                    u.break_gone = true;
+                    u.remove -= 1;
+                    keep = Some(u);
+                }
+                Key::Char(c) if u.break_gone && c.is_ascii_alphabetic() => reopened = self.reopen(&u),
+                _ => {}
             }
         }
-        self.undo = None;
-        match self.mode {
+        let mut r = match self.mode {
             Mode::English => self.handle_english(key),
             Mode::Vietnamese => self.handle_vietnamese(key),
             Mode::Chinese => self.handle_chinese(key),
+        };
+        if keep.is_some() {
+            self.undo = keep;
+        }
+        r.reopened = reopened;
+        r
+    }
+
+    /// Dấu cách sau chữ vừa tự sửa đã bị xoá và người dùng gõ tiếp chữ cái: chữ đó lại là từ đang gõ, để thêm
+    /// được dấu ("vaay " → "vây ", ⌫ rồi "j" → "vậy", như Vikey). Trả về số ký tự trên màn hình thuộc về từ đó
+    /// khi đang gõ tiếng Việt (tiếng Anh không sửa gì trên màn hình).
+    fn reopen(&mut self, u: &Undo) -> usize {
+        match self.mode {
+            Mode::Vietnamese => {
+                self.telex.reset();
+                for &k in &u.keys {
+                    self.telex.type_key(k);
+                }
+                if self.telex.output() != u.fixed {
+                    self.telex.reset();
+                    return 0;
+                }
+                u.remove
+            }
+            Mode::English => {
+                self.english_word = u.keys.clone();
+                0
+            }
+            Mode::Chinese => 0,
         }
     }
 
@@ -370,7 +415,7 @@ impl Composer {
         }
     }
 
-    /// Backspace ngay sau một lần tự đổi: bỏ chữ đã sửa và phím kết thúc từ, gõ lại chữ trước đó, về chế độ cũ.
+    /// Backspace thứ hai ngay sau một lần tự đổi: bỏ chữ đã sửa, gõ lại chữ trước đó, về chế độ cũ.
     /// Về tiếng Anh thì các phím đó lại là từ đang gõ ("vaay" ⌫ rồi "j" → "vậy"); kết thúc lại y nguyên thì giữ.
     fn undo_auto_switch(&mut self, u: Undo) -> KeyResult {
         self.set_mode(u.mode);
@@ -389,6 +434,11 @@ impl Composer {
 
     fn handle_vietnamese(&mut self, key: Key) -> KeyResult {
         if key == Key::Backspace {
+            // xoá ra ngoài từ đang gõ: từ đã nhớ làm ngữ cảnh không còn chắc đứng ngay trước con trỏ, quên nó đi
+            // (không thì sửa ngược "thí makes" sẽ xoá lùi vào chữ khác)
+            if self.telex.is_empty() {
+                self.remember(None, false, None);
+            }
             self.telex.backspace();
             return KeyResult::pass();
         }
@@ -476,7 +526,14 @@ impl Composer {
         if let Some(m) = switch_to {
             self.set_mode(m);
             if let Some((text, keys, mode)) = undo {
-                self.undo = Some(Undo { remove: edit.insert.chars().count() + 1, text, keys, mode });
+                self.undo = Some(Undo {
+                    break_gone: false,
+                    fixed: edit.insert.clone(),
+                    remove: edit.insert.chars().count() + 1,
+                    text,
+                    keys,
+                    mode,
+                });
             }
         }
         KeyResult {
@@ -486,6 +543,7 @@ impl Composer {
             repost_key: true,
             switched_to: switch_to,
             panel_changed: false,
+            reopened: 0,
         }
     }
 
@@ -495,7 +553,9 @@ impl Composer {
             return KeyResult::pass();
         }
         if key == Key::Backspace {
-            self.english_word.pop();
+            if self.english_word.pop().is_none() {
+                self.remember(None, false, None);
+            }
             return KeyResult::pass();
         }
         let typed = key.typed();
@@ -541,6 +601,8 @@ impl Composer {
             match key {
                 Key::Backspace => {
                     py.backspace();
+                    self.page = 0;
+                    self.highlight = 0;
                     return self.panel_result();
                 }
                 Key::Escape => {
@@ -705,6 +767,7 @@ fn merge(first: KeyResult, then: KeyResult) -> KeyResult {
         whole_word: false,
         switched_to: None,
         panel_changed: first.panel_changed || then.panel_changed,
+        reopened: 0,
     }
     .normalized()
 }

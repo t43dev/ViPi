@@ -521,9 +521,9 @@ impl Syllable {
         let mut s = Syllable { initial: String::new(), vowels: vec![], final_: String::new(), ok: true };
         let mut i = 0;
         for cons in INITIALS {
-            let cc: Vec<char> = cons.chars().collect();
-            if b.len() >= cc.len() && b[..cc.len()] == cc[..] {
-                let mut n = cc.len();
+            let len = cons.chars().count();
+            if b.len() >= len && b[..len].iter().copied().eq(cons.chars()) {
+                let mut n = len;
                 if *cons == "gi" && !(b.len() > 2 && cs[2].is_vowel()) {
                     n = 1; // "gì": i là nguyên âm
                 }

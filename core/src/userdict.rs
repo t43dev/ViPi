@@ -36,7 +36,11 @@ impl PinyinUserDictionary {
         std::thread::Builder::new()
             .name("vipi-userdict".into())
             .spawn(move || {
-                for w in rx {
+                for mut w in rx.iter() {
+                    // nhiều lần ghi dồn lại (chọn cụm = 2 lần học liền nhau): chỉ ghi bản mới nhất
+                    while let Ok(newer) = rx.try_recv() {
+                        w = newer;
+                    }
                     match w {
                         Write::Save(json) => {
                             if let Some(dir) = file.parent() {

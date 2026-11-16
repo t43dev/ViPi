@@ -65,10 +65,15 @@ impl PinyinDictionary {
     }
 
     pub fn lookup(&self, key: &str) -> Vec<PinyinEntry> {
+        self.lookup_top(key, usize::MAX)
+    }
+
+    /// Như `lookup` nhưng chỉ giải mã `limit` mục đầu (nặng nhất trước).
+    fn lookup_top(&self, key: &str, limit: usize) -> Vec<PinyinEntry> {
         let Some(v) = self.words.get(key) else { return vec![] };
         let mut out = vec![];
         let mut o = 0;
-        while o < v.len() {
+        while o < v.len() && out.len() < limit {
             out.push(Self::entry(v, &mut o));
         }
         out
@@ -408,10 +413,12 @@ fn words_from(
     s: &[char],
     dict: &PinyinDictionary,
     aliases: &HashMap<String, Vec<String>>,
+    limit: usize,
 ) -> Vec<WordMatch> {
     let mut out = vec![];
     fn walk(
         pos: usize,
+        limit: usize,
         prefix: &mut Vec<String>,
         s: &[char],
         dict: &PinyinDictionary,
@@ -449,7 +456,7 @@ fn words_from(
                 prefix.push(syllable.to_string());
                 let joined = prefix.join(" ");
                 if dict.has_key_prefix(&joined) {
-                    let found = dict.lookup(&joined);
+                    let found = dict.lookup_top(&joined, limit);
                     if !found.is_empty() {
                         let entries = if fuzzy {
                             found.into_iter().map(|e| PinyinEntry { word: e.word, weight: e.weight / 8 }).collect()
@@ -458,7 +465,7 @@ fn words_from(
                         };
                         out.push(WordMatch { end, entries });
                     }
-                    walk(end, prefix, s, dict, aliases, out);
+                    walk(end, limit, prefix, s, dict, aliases, out);
                 }
                 prefix.pop();
             }
@@ -467,7 +474,7 @@ fn words_from(
                 let mut found: Vec<PinyinEntry> = vec![];
                 for comp in dict.completions(&syl) {
                     prefix.push(comp.clone());
-                    found.extend(dict.lookup(&prefix.join(" ")).into_iter().take(20));
+                    found.extend(dict.lookup_top(&prefix.join(" "), 20));
                     prefix.pop();
                 }
                 if !found.is_empty() {
@@ -478,14 +485,14 @@ fn words_from(
             len += 1;
         }
     }
-    walk(start, &mut vec![], s, dict, aliases, &mut out);
+    walk(start, limit, &mut vec![], s, dict, aliases, &mut out);
     out
 }
 
-#[derive(Clone)]
-struct Hyp {
+#[derive(Clone, Copy)]
+struct Hyp<'a> {
     score: f64,
-    word: String,
+    word: &'a str,
     prev: Option<(usize, usize)>,
     words: usize,
 }
@@ -515,12 +522,14 @@ pub(crate) fn candidates(
 
     // Ghép câu: Viterbi trái→phải trên lưới từ, mỗi vị trí giữ `beam` giả thuyết tốt nhất;
     // điểm = Σ log P(w | từ trước) (bigram, hoặc chỉ unigram khi không có mô hình).
-    let matches_at: Vec<Vec<WordMatch>> = (0..n).map(|i| words_from(i, s, dict, aliases)).collect();
     let beam = 8;
     let alternatives = if bigram.is_none() { 1 } else { 5 };
+    // từ bắt đầu ở đầu chuỗi còn dùng cho danh sách ứng viên (60 mục mỗi độ dài); các vị trí sau chỉ cho Viterbi
+    let matches_at: Vec<Vec<WordMatch>> =
+        (0..n).map(|i| words_from(i, s, dict, aliases, if i == 0 { usize::MAX } else { alternatives })).collect();
     let mut hyps: Vec<Vec<Hyp>> = vec![vec![]; n + 1];
-    hyps[0] = vec![Hyp { score: 0.0, word: String::new(), prev: None, words: 0 }];
-    fn push(hyps: &mut [Vec<Hyp>], h: Hyp, pos: usize, beam: usize) {
+    hyps[0] = vec![Hyp { score: 0.0, word: "", prev: None, words: 0 }];
+    fn push<'a>(hyps: &mut [Vec<Hyp<'a>>], h: Hyp<'a>, pos: usize, beam: usize) {
         let list = &mut hyps[pos];
         if list.len() >= beam {
             // giả thuyết kém nhất đầu tiên (như min(by:) của Swift)
@@ -554,12 +563,12 @@ pub(crate) fn candidates(
                 let p = e.weight.max(1) as f64 / dict.total_weight;
                 for (hi, h) in here.iter().enumerate() {
                     let lp = match (h.prev, bigram) {
-                        (Some(_), Some(b)) => b.log_prob(&h.word, &e.word, p),
+                        (Some(_), Some(b)) => b.log_prob(h.word, &e.word, p),
                         _ => p.ln(),
                     };
                     push(
                         &mut hyps,
-                        Hyp { score: h.score + lp, word: e.word.clone(), prev: Some((i, hi)), words: h.words + 1 },
+                        Hyp { score: h.score + lp, word: &e.word, prev: Some((i, hi)), words: h.words + 1 },
                         m.end,
                         beam,
                     );
@@ -579,7 +588,7 @@ pub(crate) fn candidates(
         let mut cur = Some(last);
         while let Some(h) = cur {
             let Some((pos, idx)) = h.prev else { break };
-            parts.push(&h.word);
+            parts.push(h.word);
             cur = Some(&hyps[pos][idx]);
         }
         parts.reverse();

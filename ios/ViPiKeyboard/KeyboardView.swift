@@ -498,6 +498,7 @@ final class KeyboardView: UIView {
         var lastX: CGFloat
         let order: Int
         var trackpad = false
+        var moved = false
         var longFired = false
         /// đã gửi phím trước khi nhấc (ngón khác chạm xuống)
         var done = false
@@ -561,13 +562,10 @@ final class KeyboardView: UIView {
             }
         case .shift:
             let now = ProcessInfo.processInfo.systemUptime
-            // như Android: đang Shift một lần mà chạm lại nhanh thì khoá chữ hoa
-            switch shift {
-            case .lock: shift = .off
-            case .off: shift = .once
-            case .once: shift = now - lastShiftTap < 0.35 ? .lock : .off
-            }
-            lastShiftTap = now
+            // như Android: hai lần chạm Shift liền nhau là khoá, kể cả khi Shift đang bật sẵn do tự viết hoa đầu câu
+            if shift == .lock { shift = .off; lastShiftTap = 0 }
+            else if now - lastShiftTap < 0.35 { shift = .lock; lastShiftTap = 0 }
+            else { shift = shift == .off ? .once : .off; lastShiftTap = now }
         case .char:
             if keyPopup { popup.show(label(k), over: k.frame.insetBy(dx: metrics(traitCollection).gapX / 2, dy: metrics(traitCollection).gapY / 2), palette: popupPalette) }
             if let h = k.hint, layout == .letters || padSpec != nil {
@@ -599,10 +597,13 @@ final class KeyboardView: UIView {
                     while p.x - s.lastX > step { delegate?.keyboardMoveCursor(1); s.lastX += step }
                     while s.lastX - p.x > step { delegate?.keyboardMoveCursor(-1); s.lastX -= step }
                 }
-            } else if k.kind == .char && !s.longFired && !isFlick(k, s, p), hypot(p.x - s.start.x, p.y - s.start.y) > k.frame.width * 0.5,
+            } else if k.kind == .char && !s.longFired && !isFlick(k, s, p),
+                      s.moved || hypot(p.x - s.start.x, p.y - s.start.y) > k.frame.width * 0.5,
                       let i = keyIndex(at: p), i != s.key, keys[i].kind == .char {
                 // trượt hẳn sang phím khác trước khi nhấc: lấy phím mới (như bàn phím iOS);
-                // lệch vài điểm khi gõ nhanh thì vẫn là phím đã chạm
+                // lệch vài điểm khi gõ nhanh thì vẫn là phím đã chạm. Đã sang phím khác rồi thì theo ngón tay,
+                // kể cả khi quay lại gần chỗ chạm đầu
+                s.moved = true
                 s.timer?.invalidate()
                 pressed.remove(s.key)
                 s.key = i
@@ -650,6 +651,7 @@ final class KeyboardView: UIView {
     }
 
     private func fire(_ k: Key) {
+        if k.kind != .shift { lastShiftTap = 0 }   // phím khác chen giữa hai lần chạm Shift: không phải chạm đúp
         switch k.kind {
         case .char:
             let isLetter = k.label.first?.isLetter == true

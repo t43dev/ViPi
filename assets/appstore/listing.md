@@ -126,8 +126,31 @@ ViPi 是遵循 GPL-3.0 的自由软件。源代码：github.com/t43dev/ViPi。
 
 ## Notes for App Review
 
-```
-ViPi is a custom keyboard. To use it: Settings > General > Keyboard > Keyboards > Add New Keyboard > ViPi. Then tap or hold the globe key in any text field and choose ViPi, or open the ViPi app and use the "Try it here" field. No login is needed.
+Answers the six questions App Review asks of a new app (purpose, setup, external services, regions, third-party material), plus a screen recording from an iPhone that is uploaded as an attachment to the review information.
 
-Full Access is optional and only used to vibrate on key presses; the keyboard types fully without it. The keyboard has no network code. Settings chosen in the app reach the keyboard through an App Group that the keyboard only reads.
+```
+1. SCREEN RECORDING
+A screen recording made on an iPhone running the latest iOS is attached to this submission. It starts by launching ViPi, adds the keyboard in Settings, and then types Vietnamese, English and Chinese with it in Notes and Messages.
+
+2. PURPOSE AND AUDIENCE
+ViPi is a custom keyboard for people who write Vietnamese, Chinese and English every day, such as Vietnamese students and workers who use Chinese, and Vietnamese speakers abroad. With the system keyboards they have to switch keyboards for every English word or Chinese phrase. ViPi types Vietnamese with Telex and recognizes English words on its own ("treen" becomes "trên", "server" stays "server"), and one tap switches to Chinese Pinyin. It is free, with no ads, accounts or in-app purchases.
+
+3. SETUP AND MAIN FEATURES
+No login, account or sample files are needed.
+a. Open the ViPi app: it shows the setup steps, the settings and a "Try it here" field.
+b. Settings > General > Keyboard > Keyboards > Add New Keyboard > ViPi. Full Access is optional and only used to vibrate on key presses.
+c. In any text field (or "Try it here"), hold the globe key and choose ViPi.
+d. Vietnamese: type "Vieejt Nam" to get "Việt Nam". English words stay as typed, e.g. "server". The bar above the keys offers the word with marks or exactly the keys typed.
+e. Chinese: tap the "VI" key next to the space bar (it changes to "拼"), type "nihao" and tap 你好 in the bar above the keys.
+f. Hold a key on the top row for its number. On iPad, flick a key down for its second character.
+g. Options in the app: Simplified or Traditional characters, fuzzy Pinyin, full-width punctuation, the suggestion bar, and full or split layout on iPad.
+
+4. EXTERNAL SERVICES
+None. ViPi uses no external services, SDKs, analytics, advertising, authentication, payment or AI services. The dictionaries are bundled in the app and everything runs on the device. The keyboard extension has no network code.
+
+5. REGIONAL DIFFERENCES
+The app works the same in every region where it is offered (all App Store regions except mainland China). The interface is in English; the App Store listing is in English, Vietnamese and Simplified Chinese.
+
+6. REGULATED INDUSTRY AND THIRD-PARTY MATERIAL
+ViPi is not in a regulated industry and contains no protected third-party content. The word lists for spell checking and Pinyin come from open-source projects and are used under their licenses. ViPi itself is open source under GPL-3.0: github.com/t43dev/ViPi
 ```

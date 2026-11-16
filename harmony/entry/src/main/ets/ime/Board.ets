@@ -127,21 +127,94 @@ class Rect {
   }
 }
 
-/** Biểu tượng trong ô 24×24 như SVG của thiết kế, phóng theo cỡ khi vẽ. */
+/** Một lệnh vẽ của biểu tượng: M/L (x y), Q (x1 y1 x y), C (x1 y1 x2 y2 x y), A (rx ry xoay lớn chiều x y), Z. */
+class IconOp {
+  op: string;
+  v: number[];
+
+  constructor(op: string, v: number[]) {
+    this.op = op;
+    this.v = v;
+  }
+}
+
+/**
+ * Biểu tượng viết như đường SVG trong ô 24×24, vẽ bằng lệnh của canvas (đơn vị vp như phím và chữ). Không dùng
+ * Path2D: trên máy thật (HarmonyOS 7) Path2D dựng từ chuỗi SVG tính toạ độ theo px, biểu tượng nhỏ đi ~3 lần và
+ * lệch lên góc trái phím. Cung (A) chỉ dùng nửa vòng tròn giữa hai điểm đối nhau.
+ */
+class IconPath {
+  readonly ops: IconOp[] = [];
+
+  constructor(d: string) {
+    const m = d.match(/[MLQCAZ]|-?\d*\.?\d+/g);
+    const t: string[] = m !== null ? m : [];
+    let op = 'M';
+    let i = 0;
+    while (i < t.length) {
+      const tok = t[i];
+      if (/[MLQCAZ]/.test(tok)) {
+        op = tok;
+        i++;
+        if (op === 'Z') {
+          this.ops.push(new IconOp('Z', []));
+        }
+        continue;
+      }
+      const n = op === 'Q' ? 4 : op === 'C' ? 6 : op === 'A' ? 7 : 2;
+      const v: number[] = [];
+      while (v.length < n && i < t.length) {
+        v.push(Number(t[i]));
+        i++;
+      }
+      this.ops.push(new IconOp(op, v));
+    }
+  }
+
+  trace(ctx: CanvasRenderingContext2D): void {
+    ctx.beginPath();
+    let x = 0;
+    let y = 0;
+    for (const o of this.ops) {
+      const v = o.v;
+      if (o.op === 'M') {
+        ctx.moveTo(v[0], v[1]);
+      } else if (o.op === 'L') {
+        ctx.lineTo(v[0], v[1]);
+      } else if (o.op === 'Q') {
+        ctx.quadraticCurveTo(v[0], v[1], v[2], v[3]);
+      } else if (o.op === 'C') {
+        ctx.bezierCurveTo(v[0], v[1], v[2], v[3], v[4], v[5]);
+      } else if (o.op === 'A') {
+        const cx = (x + v[5]) / 2;
+        const cy = (y + v[6]) / 2;
+        const a = Math.atan2(y - cy, x - cx);
+        const clockwise = v[4] === 1;
+        ctx.arc(cx, cy, v[0], a, a + (clockwise ? Math.PI : -Math.PI), !clockwise);
+      } else {
+        ctx.closePath();
+        continue;
+      }
+      x = v[v.length - 2];
+      y = v[v.length - 1];
+    }
+  }
+}
+
 class Icons {
-  static readonly shift = new Path2D('M12 4 L20 12 L15 12 L15 20 L9 20 L9 12 L4 12 Z');
-  static readonly backspace = new Path2D('M9 5 L20 5 Q22 5 22 7 L22 17 Q22 19 20 19 L9 19 L3 12 Z M12 9 L17 15 M17 9 L12 15');
-  static readonly enter = new Path2D('M20 5 L20 11 Q20 13 18 13 L6 13 M9 9 L5 13 L9 17');
-  static readonly send = new Path2D('M4 4 L20 12 L4 20 L7 12 Z');
-  static readonly search = new Path2D('M17.5 11 A6.5 6.5 0 1 1 4.5 11 A6.5 6.5 0 1 1 17.5 11 M16 16 L20 20');
-  static readonly arrow = new Path2D('M5 12 L19 12 M13 6 L19 12 L13 18');
-  static readonly check = new Path2D('M5 12 L10 17 L20 7');
-  static readonly globe = new Path2D('M21 12 A9 9 0 1 1 3 12 A9 9 0 1 1 21 12 M3 12 L21 12 M12 3 C15 6 15 18 12 21 M12 3 C9 6 9 18 12 21');
-  static readonly clipboard = new Path2D('M7 4 L17 4 Q19 4 19 6 L19 19 Q19 21 17 21 L7 21 Q5 21 5 19 L5 6 Q5 4 7 4 Z M9 4 L9 2.5 L15 2.5 L15 4 M9 10 L15 10 M9 14 L13 14');
-  static readonly chevronDown = new Path2D('M6 9 L12 15 L18 9');
-  static readonly chevronUp = new Path2D('M6 15 L12 9 L18 15');
-  static readonly sliders = new Path2D('M4 7 L12 7 M18 7 L20 7 M4 17 L6 17 M12 17 L20 17 M17.5 7 A2.5 2.5 0 1 1 12.5 7 A2.5 2.5 0 1 1 17.5 7 M11.5 17 A2.5 2.5 0 1 1 6.5 17 A2.5 2.5 0 1 1 11.5 17');
-  static readonly keyboard = new Path2D('M4.5 5.5 L19.5 5.5 Q21.5 5.5 21.5 7.5 L21.5 16.5 Q21.5 18.5 19.5 18.5 L4.5 18.5 Q2.5 18.5 2.5 16.5 L2.5 7.5 Q2.5 5.5 4.5 5.5 Z M6 10 L7 10 M10 10 L11 10 M14 10 L15 10 M18 10 L19 10 M8 14.5 L16 14.5');
+  static readonly shift = new IconPath('M12 4 L20 12 L15 12 L15 20 L9 20 L9 12 L4 12 Z');
+  static readonly backspace = new IconPath('M9 5 L20 5 Q22 5 22 7 L22 17 Q22 19 20 19 L9 19 L3 12 Z M12 9 L17 15 M17 9 L12 15');
+  static readonly enter = new IconPath('M20 5 L20 11 Q20 13 18 13 L6 13 M9 9 L5 13 L9 17');
+  static readonly send = new IconPath('M4 4 L20 12 L4 20 L7 12 Z');
+  static readonly search = new IconPath('M17.5 11 A6.5 6.5 0 1 1 4.5 11 A6.5 6.5 0 1 1 17.5 11 M16 16 L20 20');
+  static readonly arrow = new IconPath('M5 12 L19 12 M13 6 L19 12 L13 18');
+  static readonly check = new IconPath('M5 12 L10 17 L20 7');
+  static readonly globe = new IconPath('M21 12 A9 9 0 1 1 3 12 A9 9 0 1 1 21 12 M3 12 L21 12 M12 3 C15 6 15 18 12 21 M12 3 C9 6 9 18 12 21');
+  static readonly clipboard = new IconPath('M7 4 L17 4 Q19 4 19 6 L19 19 Q19 21 17 21 L7 21 Q5 21 5 19 L5 6 Q5 4 7 4 Z M9 4 L9 2.5 L15 2.5 L15 4 M9 10 L15 10 M9 14 L13 14');
+  static readonly chevronDown = new IconPath('M6 9 L12 15 L18 9');
+  static readonly chevronUp = new IconPath('M6 15 L12 9 L18 15');
+  static readonly sliders = new IconPath('M4 7 L12 7 M18 7 L20 7 M4 17 L6 17 M12 17 L20 17 M17.5 7 A2.5 2.5 0 1 1 12.5 7 A2.5 2.5 0 1 1 17.5 7 M11.5 17 A2.5 2.5 0 1 1 6.5 17 A2.5 2.5 0 1 1 11.5 17');
+  static readonly keyboard = new IconPath('M4.5 5.5 L19.5 5.5 Q21.5 5.5 21.5 7.5 L21.5 16.5 Q21.5 18.5 19.5 18.5 L4.5 18.5 Q2.5 18.5 2.5 16.5 L2.5 7.5 Q2.5 5.5 4.5 5.5 Z M6 10 L7 10 M10 10 L11 10 M14 10 L15 10 M18 10 L19 10 M8 14.5 L16 14.5');
 }
 
 enum Row { HEADER, ITEM, DIVIDER, SWITCH, ACTION }
@@ -152,10 +225,10 @@ class MenuItem {
   title: string;
   subtitle: string;
   checked: boolean;
-  icon: Path2D | null;
+  icon: IconPath | null;
 
   constructor(row: Row, choice: number = -1, title: string = '', subtitle: string = '', checked: boolean = false,
-    icon: Path2D | null = null) {
+    icon: IconPath | null = null) {
     this.row = row;
     this.choice = choice;
     this.title = title;
@@ -171,6 +244,7 @@ class Touch {
   startY: number;
   lastX: number;
   trackpad: boolean = false;
+  moved: boolean = false;
   longFired: boolean = false;
   longPress: number = -1;
 
@@ -237,6 +311,9 @@ export class Board {
     this.listener = listener;
     this.buildRows();
   }
+
+  /** Lớp phím của ô nhập này (ô số: bàn số): phím cách ở lớp khác quay về đây, không phải luôn về bàn chữ. */
+  baseLayout: Layout = Layout.LETTERS;
 
   get layout(): Layout {
     return this.layoutValue;
@@ -389,6 +466,7 @@ export class Board {
 
   setMeasurer(ctx: CanvasRenderingContext2D): void {
     this.measurer = ctx;
+    this.digitWidths = [];
     this.layoutCandidates();
   }
 
@@ -434,7 +512,7 @@ export class Board {
       const top: Key[] = [];
       const q = 'qwertyuiop';
       for (let i = 0; i < q.length; i++) {
-        top.push(new Key(Kind.CHAR, q[i], 1, `${(i + 1) % 10}`));
+        top.push(new Key(Kind.CHAR, q.charAt(i), 1, `${(i + 1) % 10}`));
       }
       this.rows = [
         top,
@@ -473,11 +551,11 @@ export class Board {
       const left = 'qwert';
       const right = 'yuiop';
       for (let i = 0; i < 5; i++) {
-        top.push(new Key(Kind.CHAR, left[i], 1, this.numberRow ? '' : `${i + 1}`));
+        top.push(new Key(Kind.CHAR, left.charAt(i), 1, this.numberRow ? '' : `${i + 1}`));
       }
       top.push(gap());
       for (let i = 0; i < 5; i++) {
-        top.push(new Key(Kind.CHAR, right[i], 1, this.numberRow ? '' : `${(i + 6) % 10}`));
+        top.push(new Key(Kind.CHAR, right.charAt(i), 1, this.numberRow ? '' : `${(i + 6) % 10}`));
       }
       const rows: Key[][] = this.numberRow ? [digits()] : [];
       rows.push(top);
@@ -565,7 +643,7 @@ export class Board {
     return `normal ${weight} ${size}vp ${FONT}`;
   }
 
-  private drawIcon(ctx: CanvasRenderingContext2D, path: Path2D, cx: number, cy: number, size: number, color: number,
+  private drawIcon(ctx: CanvasRenderingContext2D, path: IconPath, cx: number, cy: number, size: number, color: number,
     filled: boolean = false, alpha: number = 1): void {
     const s = size / 24;
     ctx.save();
@@ -575,11 +653,12 @@ export class Board {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.strokeStyle = css(color, alpha);
+    path.trace(ctx);
     if (filled) {
       ctx.fillStyle = css(color, alpha);
-      ctx.fill(path);
+      ctx.fill();
     }
-    ctx.stroke(path);
+    ctx.stroke();
     ctx.restore();
   }
 
@@ -715,7 +794,7 @@ export class Board {
     }
   }
 
-  private returnIcon(): Path2D {
+  private returnIcon(): IconPath {
     switch (this.actionValue) {
       case Action.SEND:
         return Icons.send;
@@ -778,6 +857,8 @@ export class Board {
   private candidateRects: Rect[] = [];
   private stripScroll: number = 0;
   private stripContentWidth: number = 0;
+  private stripNext: number = 0;          // x của ứng viên kế tiếp chưa xếp
+  private digitWidths: number[] = [];
   private preeditWidth: number = 0;
 
   private get midL(): number {
@@ -791,20 +872,44 @@ export class Board {
   private layoutCandidates(): void {
     // pinyin đang gõ khi ô nhập không hiện được chữ tạm: ghi ở đầu thanh, trước các ứng viên
     this.preeditWidth = this.preedit.length > 0 ? this.measure(this.preedit, 14) + 16 : 0;
-    let x = this.midL + 2 + this.preeditWidth;
+    this.candidateRects = [];
+    this.stripNext = this.midL + 2 + this.preeditWidth;
+    this.extendStrip(this.stripScroll);
+    if (this.gridOpen) {
+      this.layoutGrid();
+    }
+  }
+
+  /**
+   * Lõi trả tới 200 ứng viên mỗi phím mà thanh chỉ hiện vài cái: chỉ đo và xếp tới một màn sau chỗ đang cuộn
+   * (`scroll`), phần còn lại xếp tiếp khi người dùng kéo thanh.
+   */
+  private extendStrip(scroll: number): void {
+    const view = this.midR - this.midL;
+    const until = this.midL + scroll + 2 * view;
     const cy = this.barH / 2;
-    const rects: Rect[] = [];
-    for (let i = 0; i < this.candidates.length; i++) {
+    let x = this.stripNext;
+    for (let i = this.candidateRects.length; i < this.candidates.length && x <= until; i++) {
       let w = this.measure(this.candidates[i], 19, '500') + 24;
       if (i < 9) {
-        w += this.measure(`${i + 1}`, 11) + 5;
+        w += this.digitWidth(i) + 5;
       }
-      rects.push(new Rect(x, cy - 18, x + w, cy + 18));
+      this.candidateRects.push(new Rect(x, cy - 18, x + w, cy + 18));
       x += w + 4;
     }
-    this.candidateRects = rects;
-    this.stripContentWidth = x - this.midL;
-    this.layoutGrid();
+    this.stripNext = x;
+    // còn ứng viên chưa xếp: chừa thêm một màn để vẫn kéo được và mép phải vẫn mờ
+    this.stripContentWidth = x - this.midL + (this.candidateRects.length < this.candidates.length ? view : 0);
+  }
+
+  /** Bề rộng số thứ tự 1–9 trước ứng viên: đo một lần cho mỗi cỡ chữ của thiết bị. */
+  private digitWidth(i: number): number {
+    if (this.digitWidths.length === 0 && this.measurer !== null) {
+      for (let n = 1; n <= 9; n++) {
+        this.digitWidths.push(this.measure(`${n}`, 11));
+      }
+    }
+    return i < this.digitWidths.length ? this.digitWidths[i] : this.measure(`${i + 1}`, 11);
   }
 
   private drawBar(ctx: CanvasRenderingContext2D): void {
@@ -866,7 +971,7 @@ export class Board {
         ctx.textBaseline = 'alphabetic';
         ctx.fillStyle = first ? css(p.onContainer, 0.8) : css(p.faint);
         ctx.fillText(n, x, cy + 5.5);
-        x += ctx.measureText(n).width + 5;
+        x += this.digitWidth(i) + 5;
       }
       this.text(ctx, this.candidates[i], x, cy, 19, first ? p.onContainer : p.text, '500', 'left');
     }
@@ -956,6 +1061,9 @@ export class Board {
     if (this.gridOpen !== v) {
       this.gridOpen = v;
       this.gridScroll = 0;
+      if (v) {
+        this.layoutGrid();   // lưới chỉ xếp khi mở, không phải mỗi phím
+      }
       this.dirty();
     }
   }
@@ -1202,6 +1310,7 @@ export class Board {
           this.pressedCandidate = -1;
         }
         if (this.barDragged) {
+          this.extendStrip(this.barDownScroll - dx);
           this.stripScroll = Math.max(0, Math.min(Math.max(0, this.stripContentWidth - (this.midR - this.midL)), this.barDownScroll - dx));
           this.listener.redraw(false);
         }
@@ -1241,8 +1350,11 @@ export class Board {
           t.lastX -= step;
         }
       }
-    } else if (t.key.kind === Kind.CHAR && !t.longFired && Math.hypot(x - t.startX, y - t.startY) > t.key.w * 0.5) {
-      // chỉ đổi phím khi trượt hẳn sang phím khác (quá nửa phím); lệch vài vp khi gõ nhanh vẫn là phím đã chạm
+    } else if (t.key.kind === Kind.CHAR && !t.longFired &&
+      (t.moved || Math.hypot(x - t.startX, y - t.startY) > t.key.w * 0.5)) {
+      // chỉ đổi phím khi trượt hẳn sang phím khác (quá nửa phím); lệch vài vp khi gõ nhanh vẫn là phím đã chạm.
+      // Đã sang phím khác rồi thì theo ngón tay, kể cả khi quay lại gần chỗ chạm đầu
+      t.moved = true;
       const k = this.hit(x, y);
       if (k !== null && k !== t.key && k.kind === Kind.CHAR) {
         if (t.longPress >= 0) {
@@ -1379,19 +1491,23 @@ export class Board {
     return cells[i].length > 0 ? i : -1;
   }
 
+  /** Hai lần chạm Shift liền nhau là khoá, kể cả khi Shift đang bật sẵn do tự viết hoa đầu câu. */
   private tapShift(): void {
     const now = Date.now();
     if (this.shiftValue === Shift.LOCK) {
       this.shift = Shift.OFF;
-    } else if (this.shiftValue === Shift.OFF) {
-      this.shift = Shift.ONCE;
+      this.lastShiftTap = 0;
+    } else if (now - this.lastShiftTap < 350) {
+      this.shift = Shift.LOCK;
+      this.lastShiftTap = 0;
     } else {
-      this.shift = now - this.lastShiftTap < 350 ? Shift.LOCK : Shift.OFF;
+      this.shift = this.shiftValue === Shift.OFF ? Shift.ONCE : Shift.OFF;
+      this.lastShiftTap = now;
     }
-    this.lastShiftTap = now;
   }
 
   private fire(k: Key): void {
+    this.lastShiftTap = 0;   // phím khác chen giữa hai lần chạm Shift: không phải chạm đúp
     switch (k.kind) {
       case Kind.CHAR: {
         const letters = this.layoutValue === Layout.LETTERS;
@@ -1400,15 +1516,15 @@ export class Board {
           this.shift = Shift.OFF;
         }
         this.listener.onKey(KeyInput.char(s));
-        if (!letters && s === '\'') {
-          this.layout = Layout.LETTERS;
+        if (this.layoutValue !== this.baseLayout && s === '\'') {
+          this.layout = this.baseLayout;
         }
         break;
       }
       case Kind.SPACE:
         this.listener.onKey(new KeyInput(KeyKind.SPACE));
-        if (this.layoutValue !== Layout.LETTERS) {
-          this.layout = Layout.LETTERS;
+        if (this.layoutValue !== this.baseLayout) {
+          this.layout = this.baseLayout;
         }
         break;
       case Kind.RETURN:

@@ -2,6 +2,26 @@
 
 What changed in each ViPi release. Download the latest from [Releases](../../releases/latest).
 
+## Unreleased
+
+### Changed
+- **Backspace after an automatic switch now works in two steps** (all platforms, following Vikey 1.0.33). The first Backspace only takes the space back and keeps the corrected word, so you can add a comma: `được ` ⌫ `,` gives `được,`. A second Backspace right after it puts the word back as you typed it. Typing a letter after the first Backspace goes on with the corrected word, so a missing tone can still be added: `vây ` ⌫ `j` gives `vậy`.
+
+### Fixed
+- **Letters typed right after a digit are no longer lost in Vietnamese** on Android, iPhone and iPad: `abc1def`, `h2o` and `65w` come out whole.
+- **Double-tapping Shift at the start of a sentence turns on caps lock** (Android, iPhone, iPad, HarmonyOS). Shift was already on there, so it took three taps.
+- **Sliding to the next key and back types the key under your finger,** not the neighbour (Android, iPhone, iPad, HarmonyOS).
+- **Number, phone and date fields stay on the number keys after a space** (Android, HarmonyOS).
+- **Android:** a dead key on a hardware keyboard (`^`, `´`, `~` on international layouts) no longer crashes the keyboard; the clipboard history skips passwords marked by password managers on Android 12 and earlier, and copied images or files; two spaces in a password field stay two spaces.
+- **iPhone and iPad:** the keyboard no longer comes up as a blank panel after about a day of use (it ran out of address space because the drawings of earlier keyboards were never released, then crashed when opening); it no longer crashes when you type a space and then tap 123 before the first finger has lifted; moving the cursor or sending a message while typing English no longer changes text in the wrong place; a field that opens on the number keys no longer jumps back to them after every letter.
+- **HarmonyOS:** settings changed in the app are no longer overwritten by the keyboard (and the other way round); Clear learned words works when learning is off, and the count is current; typing Chinese lays out only the candidates you can see; the keyboard stops asking for vibration on every key when the system refuses it.
+- **macOS:** after the system pauses the keyboard listener, the word in progress is dropped, so the next tone key cannot edit the wrong letters.
+
+## Android 0.3.6 · 2026-11-11
+
+### Fixed
+- **Sending a message right after typing no longer brings the last word back.** In apps that clear the text box the moment you tap Send (such as Telegram), the next word you typed came out with the previous one in front of it.
+
 ## Android 0.3.5 · 2026-11-11
 
 ### Changed

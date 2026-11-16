@@ -136,8 +136,9 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         applyPrefs()
         val kb = keyboard ?: return
         val cls = info.inputType and InputType.TYPE_MASK_CLASS
-        kb.layout = if (cls == InputType.TYPE_CLASS_NUMBER || cls == InputType.TYPE_CLASS_PHONE || cls == InputType.TYPE_CLASS_DATETIME)
+        kb.baseLayout = if (cls == InputType.TYPE_CLASS_NUMBER || cls == InputType.TYPE_CLASS_PHONE || cls == InputType.TYPE_CLASS_DATETIME)
             KeyboardView.Layout.NUMBERS else KeyboardView.Layout.LETTERS
+        kb.layout = kb.baseLayout
         kb.action = when (enterAction) {
             EditorInfo.IME_ACTION_GO -> KeyboardView.Action.GO
             EditorInfo.IME_ACTION_SEARCH -> KeyboardView.Action.SEARCH
@@ -179,8 +180,22 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
 
     // MARK: - Phím
 
+    /**
+     * App xoá ô nhập (nút gửi của Telegram) mà thông báo tới lúc bàn phím còn bỏ qua (300 ms sau phím vừa gõ, xem
+     * onUpdateSelection): ô đã trống thì bỏ chữ đang soạn, không thì phím sau tính lại cả chữ cũ và chèn nó vào ô
+     * trống ("đúngđúng"). Chỉ xét ô trống (chữ đang soạn nằm trong ô nên ô còn soạn thì không trống).
+     */
+    private fun syncWithField(ic: InputConnection) {
+        val c = composer ?: return
+        if (passthrough || (c.currentWord().isEmpty() && !c.isComposingChinese())) return
+        if (ic.getTextBeforeCursor(1, 0)?.isEmpty() != true || ic.getTextAfterCursor(1, 0)?.isEmpty() != true) return
+        c.cancel()
+        refreshUi()
+    }
+
     override fun onKey(key: KeyInput) {
         val ic = currentInputConnection ?: return
+        syncWithField(ic)
         val c = composer
         lastOwnEdit = SystemClock.uptimeMillis()
         if (c == null || passthrough) {
@@ -188,11 +203,15 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
             updateShift()
             return
         }
+        // mỗi lần hỏi lõi là vài lượt gọi qua JNA: đọc một lần rồi dùng lại. Chữ Telex chỉ có ở chế độ tiếng Việt,
+        // pinyin chỉ có ở tiếng Trung (đổi chế độ là bỏ phần đang gõ)
         val before = c.mode()
-        val wordLength = c.currentWord().length
+        val wordLength = if (before == InputMode.VIETNAMESE) c.currentWord().length else 0
         val hadWord = wordLength > 0
-        val wasComposingChinese = c.isComposingChinese()
+        val wasComposingChinese = before == InputMode.CHINESE && c.isComposingChinese()
         val r = c.handleKey(key)
+        val mode = r.switchedTo ?: before
+        val word = if (mode == InputMode.VIETNAMESE) c.currentWord() else ""
         ic.beginBatchEdit()
         val undo = r.edit
         if (key is KeyInput.Backspace && undo != null) {
@@ -201,24 +220,29 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
             ic.deleteSurroundingText(undo.backspaces.toInt(), 0)
             ic.commitText(undo.insert, 1)
         } else when (before) {
-            InputMode.VIETNAMESE -> applyVietnamese(ic, key, r, hadWord, wordLength)
+            InputMode.VIETNAMESE -> applyVietnamese(ic, key, r, hadWord, wordLength, word)
             InputMode.ENGLISH -> applyEnglish(ic, key, r)
             InputMode.CHINESE -> applyChinese(ic, key, r, wasComposingChinese)
         }
         ic.endBatchEdit()
         r.switchedTo?.let { prefs.mode = it }
-        refreshUi()
-        updateShift()
+        refreshUi(mode, word)
+        updateShift(mode, word)
     }
 
-    private fun applyVietnamese(ic: InputConnection, key: KeyInput, r: KeyOutcome, hadWord: Boolean, wordLength: Int) {
-        val c = composer ?: return
+    /** `word`: chữ đang soạn sau phím này. */
+    private fun applyVietnamese(ic: InputConnection, key: KeyInput, r: KeyOutcome, hadWord: Boolean, wordLength: Int, word: String) {
         val isLetter = key is KeyInput.Text && key.text.length == 1 && key.text[0].let { it in 'a'..'z' || it in 'A'..'Z' }
         when {
-            isLetter -> ic.setComposingText(c.currentWord(), 1)
+            // chữ dính sau số ("abc1def", "65w") lõi cho đi thẳng, không vào từ đang soạn: gửi nguyên phím
+            isLetter -> if (word.isEmpty()) deliver(ic, key) else {
+                // gõ tiếp vào chữ vừa tự sửa ("vây" ⌫ "j"): chữ đó đã nằm trong ô, đưa nó trở lại vùng soạn
+                if (r.reopened > 0u) ic.deleteSurroundingText(r.reopened.toInt(), 0)
+                ic.setComposingText(word, 1)
+            }
             key is KeyInput.Backspace -> if (hadWord) {
-                ic.setComposingText(c.currentWord(), 1)
-                if (c.currentWord().isEmpty()) ic.finishComposingText()
+                ic.setComposingText(word, 1)
+                if (word.isEmpty()) ic.finishComposingText()
             } else deliver(ic, key)
             else -> {
                 val edit = r.edit
@@ -282,7 +306,7 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
     /** Hai lần cách liền nhau sau một chữ: ". " (như iOS). */
     private fun space(ic: InputConnection) {
         val now = SystemClock.uptimeMillis()
-        if (prefs.doubleSpacePeriod && now - lastSpaceAt < 600) {
+        if (!passthrough && prefs.doubleSpacePeriod && now - lastSpaceAt < 600) {
             val before = ic.getTextBeforeCursor(2, 0)
             if (before != null && before.length == 2 && before[1] == ' ' && before[0].isLetterOrDigit()) {
                 ic.deleteSurroundingText(1, 0)
@@ -298,6 +322,8 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
     override fun onCandidate(index: Int) {
         val c = composer ?: return
         val ic = currentInputConnection ?: return
+        syncWithField(ic)
+        if (!c.isComposingChinese()) return
         lastOwnEdit = SystemClock.uptimeMillis()
         val r = c.selectCandidate(index.toUInt())
         ic.beginBatchEdit()
@@ -310,6 +336,8 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
     override fun onSuggestion(index: Int) {
         val c = composer ?: return
         val ic = currentInputConnection ?: return
+        syncWithField(ic)
+        if (c.currentWord().isEmpty()) return
         lastOwnEdit = SystemClock.uptimeMillis()
         val text = if (index == 0) c.currentKeys() else c.currentWord()
         ic.beginBatchEdit()
@@ -331,10 +359,11 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
     private fun captureClip() {
         val clip = runCatching { clipboard.primaryClip }.getOrNull() ?: return
         if (clip.itemCount == 0) return
-        val sensitive = android.os.Build.VERSION.SDK_INT >= 33 &&
-            clip.description.extras?.getBoolean(ClipDescription.EXTRA_IS_SENSITIVE) == true
+        // trình quản lý mật khẩu đặt cờ này cả trên Android cũ hơn 13 (hằng số chỉ là một chuỗi)
+        val sensitive = clip.description.extras?.getBoolean("android.content.extra.IS_SENSITIVE") == true
         if (sensitive) return
-        val text = clip.getItemAt(0).coerceToText(this)?.toString() ?: return
+        // chỉ lấy chữ: ảnh/tệp được chép (content://…) không phải thứ để dán lại bằng bàn phím
+        val text = clip.getItemAt(0).text?.toString() ?: return
         if (clipHistory.add(text)) showClips()
     }
 
@@ -421,28 +450,38 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         refreshUi()
     }
 
-    private fun refreshUi() {
+    /** `knownMode`, `knownWord`: chế độ và chữ đang soạn nếu nơi gọi vừa đọc từ lõi (đỡ hỏi lại). */
+    private fun refreshUi(knownMode: InputMode? = null, knownWord: String? = null) {
         val kb = keyboard ?: return
         val c = composer
-        kb.mode = if (passthrough || c == null) InputMode.ENGLISH else c.mode()
-        val chinese = c != null && !passthrough && c.isComposingChinese()
-        kb.setCandidates(if (chinese) c!!.candidates().map { it.text } else emptyList())
-        val viet = c != null && !passthrough && c.mode() == InputMode.VIETNAMESE
-        kb.setSuggestions(if (viet) c!!.currentKeys() else "", if (viet) c!!.currentWord() else "")
+        if (c == null || passthrough) {
+            kb.mode = InputMode.ENGLISH
+            kb.setCandidates(emptyList())
+            kb.setSuggestions("", "")
+            return
+        }
+        val mode = knownMode ?: c.mode()
+        kb.mode = mode
+        kb.setCandidates(if (mode == InputMode.CHINESE && c.isComposingChinese()) c.candidates().map { it.text } else emptyList())
+        val word = if (mode == InputMode.VIETNAMESE) knownWord ?: c.currentWord() else ""
+        kb.setSuggestions(if (word.isEmpty()) "" else c.currentKeys(), word)
     }
 
-    private fun updateShift() {
+    private fun updateShift(knownMode: InputMode? = null, knownWord: String? = null) {
         val kb = keyboard ?: return
         if (kb.shift == KeyboardView.Shift.LOCK || kb.layout != KeyboardView.Layout.LETTERS) return
         // tiếng Trung: không tự viết hoa (chữ hoa không phải pinyin, sẽ đi thẳng vào ô nhập)
-        val chinese = !passthrough && composer?.mode() == InputMode.CHINESE
+        val chinese = !passthrough && (knownMode ?: composer?.mode()) == InputMode.CHINESE
         if (!prefs.autoCap || chinese) {
             if (chinese && kb.shift == KeyboardView.Shift.ONCE) kb.shift = KeyboardView.Shift.OFF
             return
         }
         val info = currentInputEditorInfo ?: return
-        val caps = currentInputConnection?.getCursorCapsMode(info.inputType) ?: 0
-        kb.shift = if (caps != 0 && composer?.currentWord().isNullOrEmpty()) KeyboardView.Shift.ONCE else KeyboardView.Shift.OFF
+        // hỏi ô nhập là một lượt chờ app trả lời: bỏ qua khi ô không bật viết hoa, hoặc đang giữa một từ
+        val capFlags = InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS or InputType.TYPE_TEXT_FLAG_CAP_WORDS or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+        val midWord = !(knownWord ?: composer?.currentWord()).isNullOrEmpty()
+        val caps = if (info.inputType and capFlags == 0 || midWord) 0 else currentInputConnection?.getCursorCapsMode(info.inputType) ?: 0
+        kb.shift = if (caps != 0) KeyboardView.Shift.ONCE else KeyboardView.Shift.OFF
     }
 
     // MARK: - Con trỏ bị di chuyển ngoài bàn phím: bỏ phần đang gõ
@@ -485,7 +524,7 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
             KeyEvent.KEYCODE_PAGE_DOWN -> if (chinese) KeyInput.PageDown else return passKey(keyCode, event)
             else -> {
                 val u = event.unicodeChar
-                if (u == 0 || Character.isISOControl(u)) return passKey(keyCode, event)
+                if (u <= 0 || Character.isISOControl(u)) return passKey(keyCode, event)   // u < 0: phím chết (^ ´ ` ~)
                 KeyInput.Text(String(Character.toChars(u)))
             }
         }

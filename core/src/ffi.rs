@@ -99,6 +99,7 @@ pub struct KeyOutcome {
     pub repost_key: bool,
     pub switched_to: Option<InputMode>,
     pub panel_changed: bool,
+    pub reopened: u32,
 }
 
 impl From<composer::KeyResult> for KeyOutcome {
@@ -110,6 +111,7 @@ impl From<composer::KeyResult> for KeyOutcome {
             repost_key: r.repost_key,
             switched_to: r.switched_to.map(Into::into),
             panel_changed: r.panel_changed,
+            reopened: r.reopened as u32,
         }
     }
 }
