@@ -11,7 +11,7 @@ What changed in each ViPi release. Download the latest from [Releases](../../rel
 ### Fixed
 - **Deleting the digits of a code brings Vietnamese back** (all platforms): after `a1` and two Backspaces, `vieejt` gives `việt` again.
 - **Android and HarmonyOS:** an English word in progress is forgotten when the app empties the text box right after a key (Send in chat apps), so the next word is not judged together with it.
-- **HarmonyOS:** a word in progress survives the app changing its Enter key while you type (chat boxes that enable Send once there is text); the settings app no longer copies 23 MB of dictionaries into its own storage and removes the copy earlier versions left there.
+- **HarmonyOS:** the second letter of a sentence is no longer capitalised too (`HEllo`); a word in progress survives the app changing its Enter key while you type (chat boxes that enable Send once there is text); the settings app no longer copies 23 MB of dictionaries into its own storage and removes the copy earlier versions left there.
 
 ### Faster
 - **iPhone and iPad:** a key press redraws only that key, the key callout is a small view, and pinyin candidates reuse their buttons from one key to the next. Not measured on a device.

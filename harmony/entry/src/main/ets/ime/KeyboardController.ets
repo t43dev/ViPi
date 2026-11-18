@@ -197,6 +197,8 @@ class KeyboardController implements BoardListener {
         if (newBegin === 0 && newEnd === 0) {
           this.maybeEmptied = true;
         }
+        // ô nhập vừa báo đã nhận phím: lúc này chữ quanh con trỏ mới đúng (đọc ngay sau khi chèn còn là chữ cũ)
+        this.updateShift();
         return;
       }
       if (oldBegin === newBegin && oldEnd === newEnd) {
@@ -406,7 +408,7 @@ class KeyboardController implements BoardListener {
     } catch (e) {
       logError(`key: ${JSON.stringify(e)}`);
     }
-    this.updateShift();
+    this.updateShift(key);
   }
 
   /** Việt / Anh: phím đi qua, hoặc xoá lùi rồi chèn chữ của lõi, rồi gửi lại phím gốc nếu cần. */
@@ -749,9 +751,16 @@ class KeyboardController implements BoardListener {
   }
 
   /** Tự viết hoa đầu câu: đầu ô nhập, sau ". ", "? ", "! " hoặc xuống dòng. */
-  private updateShift(): void {
+  /** `typed`: phím vừa gõ, nếu gọi ngay sau một phím. */
+  private updateShift(typed?: KeyInput): void {
     const board = this.board;
     if (board.shift === Shift.LOCK || board.layout !== Layout.LETTERS) {
+      return;
+    }
+    // vừa gõ một chữ: chắc chắn không còn ở đầu câu. Không đọc ô nhập ở đây: ô nhận phím không đồng bộ, đọc ngay
+    // còn thấy ô như trước phím đó và chữ thứ hai lại bị viết hoa ("HEllo")
+    if (typed !== undefined && typed.kind === KeyKind.TEXT && typed.text.trim().length > 0) {
+      board.shift = Shift.OFF;
       return;
     }
     // tiếng Trung: không tự viết hoa (chữ hoa không phải pinyin, sẽ đi thẳng vào ô nhập)

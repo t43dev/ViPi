@@ -135,6 +135,10 @@ c.text = ''; c.cursor = 0;
 handlers['kd:selectionChange'](12, 12, 0, 0);   // app xoá ô ngay sau phím
 type('treen ');
 expect('English word dropped when the app empties the field', c.text, 'trên ');
+c = start({});
+(c as any).getForwardSync = () => '';   // ô nhận phím không đồng bộ: đọc ngay sau khi chèn còn thấy ô trống
+type('h');
+expect('no second capital when the field read is stale', String(keyboardController.board.shift), String(Shift.OFF));
 
 toChinese();
 c = start({ isTextPreviewSupported: true });
