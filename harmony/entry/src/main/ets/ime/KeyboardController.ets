@@ -4,7 +4,9 @@ import { ConfigurationConstant, Configuration, EnvironmentCallback, Want } from 
 import { BusinessError } from '@kit.BasicServicesKit';
 import { KeyCode, KeyEvent, Action as KeyAction } from '@kit.InputKit';
 import { vibrator } from '@kit.SensorServiceKit';
-import { KeyInput, KeyKind, Mode, Outcome, vipi, openEngine, learnedWordsFile, log, logError } from '../common/Engine';
+import { KeyInput, KeyKind, Mode, Outcome, vipi, openEngine, learnedWordsFile, log, logError
+} from '../common/Engine';
+import { fileIo as fs } from '@kit.CoreFileKit';
 import { Settings, loadSettings, saveBool, saveMode, TRADITIONAL } from '../common/Prefs';
 import {
   Action, Board, BoardListener, Layout, Shift, PICK_CHINESE, PICK_OTHER_KEYBOARD, PICK_SETTINGS, PICK_TOGGLE,
@@ -282,13 +284,21 @@ class KeyboardController implements BoardListener {
     }
     const s = this.settings;
     if (this.engineOk) {
-      if (this.learnedClearedAt >= 0 && this.learnedClearedAt !== s.learnedClearedAt) {
-        // màn hình cài đặt vừa xoá từ đã học: bỏ bản trong bộ nhớ, đọc lại file
-        vipi.configure(s.modernTone, s.spellCheck, s.restore, s.fullWidth, s.traditional, false, '', s.fuzzy);
+      const file = learnedWordsFile(this.ctx);
+      if (s.learnedClearedAt !== this.learnedClearedAt) {
+        this.learnedClearedAt = s.learnedClearedAt;
+        // app cài đặt không thấy file của bàn phím (khác sandbox), chỉ ghi lúc bấm Clear: file cũ hơn mốc đó thì
+        // xoá (nạp file kể cả khi đang tắt học từ; cùng đường dẫn thì lần configure sau không đọc lại file)
+        try {
+          if (fs.accessSync(file) && fs.statSync(file).mtime * 1000 < s.learnedClearedAt) {
+            vipi.configure(s.modernTone, s.spellCheck, s.restore, s.fullWidth, s.traditional, true, file, s.fuzzy);
+            vipi.clearLearned();
+          }
+        } catch (e) {
+          logError(`cannot check learned words: ${JSON.stringify(e)}`);
+        }
       }
-      this.learnedClearedAt = s.learnedClearedAt;
-      vipi.configure(s.modernTone, s.spellCheck, s.restore, s.fullWidth, s.traditional, s.learn,
-        learnedWordsFile(this.ctx), s.fuzzy);
+      vipi.configure(s.modernTone, s.spellCheck, s.restore, s.fullWidth, s.traditional, s.learn, file, s.fuzzy);
       if (vipi.state().mode !== s.mode) {
         vipi.setMode(s.mode);
       }

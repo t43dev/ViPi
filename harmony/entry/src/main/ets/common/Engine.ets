@@ -114,6 +114,10 @@ export function openEngine(ctx: common.Context): boolean {
   }
 }
 
+/** Nhóm dữ liệu chung giữa app cài đặt và bàn phím (hai sandbox khác nhau), xem Prefs.ets. */
+export const DATA_GROUP = 'group.dev.t43.vipi';
+
+/** File từ đã học: chỉ bàn phím đọc/ghi, trong sandbox riêng của nó (nhóm chung chỉ đọc ở chế độ cơ bản). */
 export function learnedWordsFile(ctx: common.Context): string {
   return `${ctx.filesDir}/pinyin-user.json`;
 }

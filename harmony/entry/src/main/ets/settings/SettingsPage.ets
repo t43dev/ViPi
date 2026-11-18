@@ -2,14 +2,15 @@ import { common, Want } from '@kit.AbilityKit';
 import { inputMethod } from '@kit.IMEKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { FuzzyOption } from 'libvipi.so';
-import { vipi, openEngine, learnedWordsFile, logError } from '../common/Engine';
+import { vipi, openEngine, logError } from '../common/Engine';
 import {
   Settings, loadSettings, saveBool, saveString, saveStrings, saveNumber, MODERN_TONE, SPELL_CHECK, RESTORE,
   TRADITIONAL, LEARN, FULL_WIDTH, HAPTICS, AUTO_CAP, DOUBLE_SPACE, KEY_POPUP, THEME, FUZZY, LEARNED_CLEARED_AT,
-  LARGE_LAYOUT
+  LARGE_LAYOUT, PRIVACY_ACCEPTED, applyAppTheme
 } from '../common/Prefs';
 
 const RED = '#C8102E';
+const PRIVACY_URL = 'https://vipi.t43.app/privacy';
 
 class ToggleRow {
   title: string;
@@ -67,7 +68,7 @@ const THEMES: ThemeChoice[] = [new ThemeChoice('System', 'SYSTEM'), new ThemeCho
 struct SettingsPage {
   @State settings: Settings = new Settings();
   @State status: string = '';
-  @State learned: string = '';
+  @State cleared: boolean = false;
   @State fuzzyOptions: FuzzyOption[] = [];
   @State tryText: string = '';
   private ctx: common.UIAbilityContext = AppStorage.get<common.UIAbilityContext>('abilityContext') as common.UIAbilityContext;
@@ -85,15 +86,6 @@ struct SettingsPage {
   }
 
   private refresh(): void {
-    let n = 0;
-    if (vipi.isOpen()) {
-      // file từ đã học do tiến trình bàn phím ghi: bỏ bản trong bộ nhớ rồi đọc lại. Luôn nạp ở đây, kể cả khi
-      // đang tắt học từ, để số đếm đúng và nút Clear xoá được file
-      vipi.configure(false, true, true, true, false, false, '', []);
-      vipi.configure(false, true, true, true, false, true, learnedWordsFile(this.ctx), []);
-      n = vipi.learnedCount();
-    }
-    this.learned = n === 0 ? 'No learned words yet.' : `${n} learned words and phrases.`;
     this.refreshStatus().catch(() => {
       this.status = 'Open Settings and search for "keyboard" to turn on ViPi.';
     });
@@ -139,19 +131,33 @@ struct SettingsPage {
     }
   }
 
+  /**
+   * Sau mỗi lần đổi cài đặt: đóng bàn phím đang mở ở ô "Try it here". Bàn phím chạy ở tiến trình khác và chỉ đọc
+   * lại cài đặt khi hiện lên, nên nếu để nó mở thì tắt rung hay đổi giao diện chưa có tác dụng tới lần mở sau.
+   */
+  private saved(): void {
+    this.settings = loadSettings(this.ctx, false);
+    try {
+      this.getUIContext().getFocusController().clearFocus();
+    } catch (e) {
+      logError(`clear focus: ${JSON.stringify(e)}`);
+    }
+  }
+
   private set(key: string, on: boolean): void {
     saveBool(this.ctx, key, on);
-    this.settings = loadSettings(this.ctx, false);
+    this.saved();
   }
 
   private setTheme(value: string): void {
     saveString(this.ctx, THEME, value);
-    this.settings = loadSettings(this.ctx, false);
+    applyAppTheme(this.ctx, value);
+    this.saved();
   }
 
   private setLarge(value: string): void {
     saveString(this.ctx, LARGE_LAYOUT, value);
-    this.settings = loadSettings(this.ctx, false);
+    this.saved();
   }
 
   private setFuzzy(id: string, on: boolean): void {
@@ -160,16 +166,14 @@ struct SettingsPage {
       list.push(id);
     }
     saveStrings(this.ctx, FUZZY, list);
-    this.settings = loadSettings(this.ctx, false);
+    this.saved();
   }
 
+  /** File từ đã học nằm trong sandbox của bàn phím: ghi mốc thời gian, bàn phím tự xoá lần hiện tiếp theo. */
   private clearLearned(): void {
-    if (vipi.isOpen()) {
-      vipi.clearLearned();
-    }
-    // bàn phím chạy ở tiến trình khác: nó thấy mốc này lần mở sau thì đọc lại file đã xoá
     saveNumber(this.ctx, LEARNED_CLEARED_AT, Date.now());
-    this.learned = 'No learned words yet.';   // file bị xoá ở luồng nền, đọc lại ngay có thể còn thấy
+    this.cleared = true;
+    this.saved();
   }
 
   private switchToViPi(): void {
@@ -189,13 +193,81 @@ struct SettingsPage {
     }
   }
 
-  private openSource(): void {
+  private openUrl(uri: string): void {
     const want: Want = {
       action: 'ohos.want.action.viewData',
       entities: ['entity.system.browsable'],
-      uri: 'https://github.com/t43dev/ViPi'
+      uri: uri
     };
     this.ctx.startAbility(want).catch((e: BusinessError) => logError(`browser: ${e.code} ${e.message}`));
+  }
+
+  private acceptPrivacy(): void {
+    saveBool(this.ctx, PRIVACY_ACCEPTED, true);
+    this.settings = loadSettings(this.ctx, false);
+  }
+
+  /** Không đồng ý: đóng app, lần mở sau hỏi lại. */
+  private declinePrivacy(): void {
+    this.ctx.terminateSelf().catch((e: BusinessError) => logError(`exit: ${e.code} ${e.message}`));
+  }
+
+  /** Hộp thoại chính sách quyền riêng tư, hiện lần mở đầu tiên cho tới khi người dùng đồng ý. */
+  @Builder
+  privacyDialog() {
+    Column() {
+      Column() {
+        Text('Welcome to ViPi').fontSize(20).fontWeight(FontWeight.Bold).width('100%')
+        Text('Before you start, please read the ViPi Privacy Policy. ViPi turns your keystrokes into text on ' +
+          'this device. It does not collect your typing or send it anywhere, and it has no internet access. ' +
+          'Words you pick while typing Chinese are learned and stored only on this device. ViPi asks for the ' +
+          'vibrate permission for key press feedback, which you can turn off in these settings.')
+          .fontSize(15)
+          .margin({ top: 12 })
+          .width('100%')
+        Text('Read the Privacy Policy')
+          .fontSize(15)
+          .fontColor(RED)
+          .decoration({ type: TextDecorationType.Underline })
+          .margin({ top: 12 })
+          .width('100%')
+          .onClick(() => this.openUrl(PRIVACY_URL))
+        Text('Tap Agree to accept the Privacy Policy and continue.')
+          .fontSize(13)
+          .opacity(0.75)
+          .margin({ top: 12 })
+          .width('100%')
+        Row() {
+          Button('Disagree')
+            .type(ButtonType.Capsule)
+            .backgroundColor(Color.Transparent)
+            .fontColor(RED)
+            .layoutWeight(1)
+            .onClick(() => this.declinePrivacy())
+          Button('Agree')
+            .type(ButtonType.Capsule)
+            .backgroundColor(RED)
+            .fontColor(Color.White)
+            .layoutWeight(1)
+            .margin({ left: 12 })
+            .onClick(() => this.acceptPrivacy())
+        }
+        .width('100%')
+        .margin({ top: 20 })
+      }
+      .padding(24)
+      .borderRadius(24)
+      .backgroundColor($r('sys.color.ohos_id_color_dialog_bg'))
+      .width('88%')
+      .constraintSize({ maxWidth: 480 })
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .backgroundColor('#99000000')
+    .onClick(() => {
+      // chặn chạm xuyên xuống trang cài đặt
+    })
   }
 
   @Builder
@@ -245,90 +317,103 @@ struct SettingsPage {
   }
 
   build() {
-    Scroll() {
-      Column() {
-        Text('ViPi').fontSize(30).fontWeight(FontWeight.Bold).width('100%')
-        this.note('Vietnamese Telex and Chinese Pinyin on one keyboard.')
+    Stack() {
+      Scroll() {
+        Column() {
+          Text('ViPi').fontSize(30).fontWeight(FontWeight.Bold).width('100%')
+          this.note('Vietnamese Telex and Chinese Pinyin on one keyboard.')
 
-        this.section('Set up')
-        this.note(this.status)
-        this.button('Switch to ViPi', () => this.switchToViPi())
-        TextArea({ placeholder: 'Try it here', text: this.tryText })
-          .onChange((v: string) => {
-            this.tryText = v;
-          })
-          .height(80)
-          .margin({ top: 8 })
+          this.section('Set up')
+          this.note(this.status)
+          this.button('Switch to ViPi', () => this.switchToViPi())
+          TextArea({ placeholder: 'Try it here', text: this.tryText })
+            .onChange((v: string) => {
+              this.tryText = v;
+            })
+            .height(80)
+            .margin({ top: 8 })
 
-        this.section('Vietnamese')
-        this.note('Vietnamese and English are one keyboard: ViPi tells them apart as you type, so treen becomes trên and server stays server. Tap the globe key to switch to Chinese and back; hold it for more choices and these settings. Hold a key on the top row for its number. Word lists from Vikey.')
-        ForEach(VIETNAMESE, (row: ToggleRow) => {
-          this.toggle(row)
-        }, (row: ToggleRow) => row.key)
+          this.section('Vietnamese')
+          this.note('Vietnamese and English are one keyboard: ViPi tells them apart as you type, so treen becomes trên and server stays server. Tap the globe key to switch to Chinese and back; hold it for more choices and these settings. Hold a key on the top row for its number. Word lists from Vikey.')
+          ForEach(VIETNAMESE, (row: ToggleRow) => {
+            this.toggle(row)
+          }, (row: ToggleRow) => row.key)
 
-        this.section('Chinese')
-        ForEach(CHINESE, (row: ToggleRow) => {
-          this.toggle(row)
-        }, (row: ToggleRow) => row.key)
-        this.note(this.learned)
-        this.button('Clear learned words', () => this.clearLearned())
-        Text('Fuzzy pinyin').fontSize(14).opacity(0.75).width('100%').margin({ top: 10 })
-        ForEach(this.fuzzyOptions, (o: FuzzyOption) => {
+          this.section('Chinese')
+          ForEach(CHINESE, (row: ToggleRow) => {
+            this.toggle(row)
+          }, (row: ToggleRow) => row.key)
+          if (this.cleared) {
+            this.note('Learned words cleared.')
+          }
+          this.button('Clear learned words', () => this.clearLearned())
+          Text('Fuzzy pinyin').fontSize(14).opacity(0.75).width('100%').margin({ top: 10 })
+          ForEach(this.fuzzyOptions, (o: FuzzyOption) => {
+            Row() {
+              Checkbox({ name: o.id })
+                .select(this.settings.fuzzy.includes(o.id))
+                .selectedColor(RED)
+                .onChange((on: boolean) => this.setFuzzy(o.id, on))
+              Text(o.label).fontSize(15)
+            }
+            .width('100%')
+          }, (o: FuzzyOption) => o.id)
+
+          this.section('Appearance')
+          this.note('For the keyboard and this screen.')
           Row() {
-            Checkbox({ name: o.id })
-              .select(this.settings.fuzzy.includes(o.id))
-              .selectedColor(RED)
-              .onChange((on: boolean) => this.setFuzzy(o.id, on))
-            Text(o.label).fontSize(15)
+            ForEach(THEMES, (t: ThemeChoice) => {
+              Row() {
+                Radio({ value: t.value, group: 'theme' })
+                  .checked(this.settings.theme === t.value)
+                  .onChange((on: boolean) => {
+                    if (on) {
+                      this.setTheme(t.value);
+                    }
+                  })
+                Text(t.label).fontSize(15).margin({ right: 16 })
+              }
+            }, (t: ThemeChoice) => t.value)
           }
           .width('100%')
-        }, (o: FuzzyOption) => o.id)
 
-        this.section('Appearance')
-        Row() {
-          ForEach(THEMES, (t: ThemeChoice) => {
+          this.section('Keyboard')
+          Text('On large screens (an unfolded phone or a tablet)').fontSize(14).opacity(0.75).width('100%').margin({ top: 6 })
+          ForEach(LARGE, (t: ThemeChoice) => {
             Row() {
-              Radio({ value: t.value, group: 'theme' })
-                .checked(this.settings.theme === t.value)
+              Radio({ value: t.value, group: 'large' })
+                .checked(this.settings.largeLayout === t.value)
                 .onChange((on: boolean) => {
                   if (on) {
-                    this.setTheme(t.value);
+                    this.setLarge(t.value);
                   }
                 })
-              Text(t.label).fontSize(15).margin({ right: 16 })
+              Text(t.label).fontSize(15)
             }
+            .width('100%')
           }, (t: ThemeChoice) => t.value)
+          ForEach(KEYBOARD, (row: ToggleRow) => {
+            this.toggle(row)
+          }, (row: ToggleRow) => row.key)
+
+          this.section('About')
+          this.note('ViPi is free software under GPL-3.0. Typing stays on this device.')
+          this.button('Privacy Policy', () => this.openUrl(PRIVACY_URL))
+          this.button('Source code on GitHub', () => this.openUrl('https://github.com/t43dev/ViPi'))
         }
+        .padding({ left: 20, right: 20, top: 28, bottom: 28 })
         .width('100%')
-
-        this.section('Keyboard')
-        Text('On large screens (an unfolded phone or a tablet)').fontSize(14).opacity(0.75).width('100%').margin({ top: 6 })
-        ForEach(LARGE, (t: ThemeChoice) => {
-          Row() {
-            Radio({ value: t.value, group: 'large' })
-              .checked(this.settings.largeLayout === t.value)
-              .onChange((on: boolean) => {
-                if (on) {
-                  this.setLarge(t.value);
-                }
-              })
-            Text(t.label).fontSize(15)
-          }
-          .width('100%')
-        }, (t: ThemeChoice) => t.value)
-        ForEach(KEYBOARD, (row: ToggleRow) => {
-          this.toggle(row)
-        }, (row: ToggleRow) => row.key)
-
-        this.section('About')
-        this.note('ViPi is free software under GPL-3.0. Typing stays on this device.')
-        this.button('Source code on GitHub', () => this.openSource())
       }
-      .padding({ left: 20, right: 20, top: 28, bottom: 28 })
       .width('100%')
+      .height('100%')
+      .align(Alignment.Top)
+
+      if (!this.settings.privacyAccepted) {
+        this.privacyDialog()
+      }
     }
     .width('100%')
     .height('100%')
-    .align(Alignment.Top)
+    .backgroundColor($r('sys.color.ohos_id_color_background'))
   }
 }
