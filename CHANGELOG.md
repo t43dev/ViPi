@@ -2,6 +2,20 @@
 
 What changed in each ViPi release. Download the latest from [Releases](../../releases/latest).
 
+## Unreleased
+
+### Changed
+- **iPhone and iPad: the 123 and #+= pages go back to letters after a space or an apostrophe,** like the Apple keyboard. Number fields stay on the page you chose.
+- **A doubled tone key is read more carefully** (all platforms). It counts as an undo only right before a consonant and when the word then reads as English: `tesstflight` → `testflight`, `gesstures` → `gestures`. Real doubled letters stay, also in words the built-in list does not know: `correlate`, `assail`, `riffle`. Checked against a 236,000-word dictionary: version 0.5.5 changed 743 of them in the English state, now 1.
+
+### Fixed
+- **Deleting the digits of a code brings Vietnamese back** (all platforms): after `a1` and two Backspaces, `vieejt` gives `việt` again.
+- **Android and HarmonyOS:** an English word in progress is forgotten when the app empties the text box right after a key (Send in chat apps), so the next word is not judged together with it.
+- **HarmonyOS:** a word in progress survives the app changing its Enter key while you type (chat boxes that enable Send once there is text); the settings app no longer copies 23 MB of dictionaries into its own storage and removes the copy earlier versions left there.
+
+### Faster
+- **iPhone and iPad:** a key press redraws only that key, the key callout is a small view, and pinyin candidates reuse their buttons from one key to the next. Not measured on a device.
+
 ## 0.5.5 · 2026-11-18
 
 macOS 0.5.5. The same fixes reach iPhone, iPad, Android and HarmonyOS with their next store builds.
