@@ -140,6 +140,9 @@ fn auto_switch_from_vietnamese() {
             ("tesstflight ", "testflight ", true),
             ("posstgres ", "postgres ", true),
             ("USSD ", "USSD ", false),
+            // chữ gõ đôi thật, không có dấu hiệu đang gõ Telex: giữ như đã gõ
+            ("ussd ", "ussd ", false),
+            ("Ussd ", "Ussd ", false),
             ("mirrorless ", "mirrorless ", false),
             ("terrorizer ", "terrorizer ", false),
             ("cheese, ", "cheese, ", false),

@@ -105,7 +105,8 @@ public final class AutoSwitch {
             // ("ASUS") hay từ không thể là một âm tiết, trừ khi chữ còn lại đã là tiếng Anh ("tessting" → "testing")
             if shown != String(keys) {
                 return en != nil || Self.capitals(keys) >= 2
-                    || (english(shown.lowercased()) == nil && Self.literalShape(keys, zIsTone: false)
+                    || (english(shown.lowercased()) == nil
+                        && (Self.literalShape(keys, zIsTone: false) || !Self.typingTelex(keys))
                         && !undoWasMeant(keys, shown))
             }
             // kiểm tra chính tả đã giữ nguyên phím ngay khi gõ ("server", "testflight"): Telex lẽ ra đã thêm dấu,
@@ -224,6 +225,13 @@ public final class AutoSwitch {
 
     /// Dáng không thể là một âm tiết tiếng Việt: chữ hoa giữa từ, hoặc hai cụm nguyên âm cách nhau bởi phụ âm thật
     /// (phím thanh và w không tính; `zIsTone`: z đang là phím bỏ dấu). Có w hay aa/ee/oo/dd thì vẫn là người đang gõ Telex.
+    /// Có aa/ee/oo/dd hay w: người gõ đang gõ Telex ("aaaaa", "choooong"), phím gõ đôi là để bỏ dấu.
+    /// Không có ("ussd", "USSD") thì đó là chữ gõ đôi thật.
+    static func typingTelex(_ keys: [Character]) -> Bool {
+        let low = keys.map { Character($0.lowercased()) }
+        return zip(low, low.dropFirst()).contains { $1 == "w" || ($0 == $1 && "aeod".contains($0)) }
+    }
+
     static func literalShape(_ keys: [Character], zIsTone: Bool) -> Bool {
         let low = keys.map { Character($0.lowercased()) }
         let capital = zip(keys, keys.dropFirst()).contains { !$0.isUppercase && $1.isUppercase }

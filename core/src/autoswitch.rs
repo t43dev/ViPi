@@ -163,7 +163,7 @@ impl AutoSwitch {
                 return en.is_some()
                     || capitals(keys) >= 2
                     || (self.english(&shown.to_lowercase()).is_none()
-                        && literal_shape(keys, false)
+                        && (literal_shape(keys, false) || !typing_telex(keys))
                         && !self.undo_was_meant(keys, shown));
             }
             // kiểm tra chính tả đã giữ nguyên phím ngay khi gõ ("server", "testflight"): Telex lẽ ra đã thêm dấu,
@@ -328,6 +328,13 @@ fn telex_marked(raw: &str) -> bool {
 
 /// Dáng không thể là một âm tiết tiếng Việt: chữ hoa giữa từ, hoặc hai cụm nguyên âm cách nhau bởi phụ âm thật
 /// (phím thanh và w không tính; `z_is_tone`: z đang là phím bỏ dấu). Có w hay aa/ee/oo/dd thì vẫn là người đang gõ Telex.
+/// Có aa/ee/oo/dd hay w: người gõ đang gõ Telex ("aaaaa", "choooong"), phím gõ đôi là để bỏ dấu.
+/// Không có ("ussd", "USSD") thì đó là chữ gõ đôi thật.
+fn typing_telex(keys: &[char]) -> bool {
+    let low: Vec<char> = keys.iter().map(|&c| lower(c)).collect();
+    low.windows(2).any(|w| w[1] == 'w' || (w[0] == w[1] && "aeod".contains(w[0])))
+}
+
 fn literal_shape(keys: &[char], z_is_tone: bool) -> bool {
     let low: Vec<char> = keys.iter().map(|&c| lower(c)).collect();
     let capital = keys.windows(2).any(|w| w[1].is_uppercase() && !w[0].is_uppercase());

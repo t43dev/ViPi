@@ -115,6 +115,9 @@ final class AutoSwitchTests: XCTestCase {
             // gõ đôi để bỏ dấu trong từ ghép tiếng Anh không có trong danh sách: giữ chữ đang hiện
             ("tesstflight ", "testflight ", true),
             ("posstgres ", "postgres ", true),
+            // chữ gõ đôi thật, không có dấu hiệu đang gõ Telex: giữ như đã gõ
+            ("ussd ", "ussd ", false),
+            ("Ussd ", "Ussd ", false),
             ("mirrorless ", "mirrorless ", false),
             ("cheese, ", "cheese, ", false),
             ("ASUS ", "ASUS ", false),
