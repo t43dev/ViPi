@@ -105,7 +105,8 @@ public final class AutoSwitch {
             // ("ASUS") hay từ không thể là một âm tiết, trừ khi chữ còn lại đã là tiếng Anh ("tessting" → "testing")
             if shown != String(keys) {
                 return en != nil || Self.capitals(keys) >= 2
-                    || (english(shown.lowercased()) == nil && Self.literalShape(keys, zIsTone: false))
+                    || (english(shown.lowercased()) == nil && Self.literalShape(keys, zIsTone: false)
+                        && !undoWasMeant(keys, shown))
             }
             // kiểm tra chính tả đã giữ nguyên phím ngay khi gõ ("server", "testflight"): Telex lẽ ra đã thêm dấu,
             // nên đây là từ nước ngoài → sang tiếng Anh. Từ viết giống nhau ở hai chế độ ("deploy", "ban"): ở lại.
@@ -194,6 +195,21 @@ public final class AutoSwitch {
     static func telexMarked(_ raw: String) -> Bool {
         let a = Array(raw)
         return zip(a, a.dropFirst()).contains { ($0 == $1 && "aeod".contains($0)) || ($1 == "w" && "aou".contains($0)) }
+    }
+
+    /// Phím gõ đôi để bỏ dấu ("tesst" → "test"): chữ đang hiện đọc tiếp thành tiếng Anh xa hơn các phím đã gõ
+    /// ("testflight": test, phím chỉ có tess) thì người gõ cố ý, giữ chữ đang hiện; "currentState": phím đọc được
+    /// tới current, chữ hiện chỉ tới cure, nên trả lại phím.
+    private func undoWasMeant(_ keys: [Character], _ shown: String) -> Bool {
+        let k = keys.map { Character($0.lowercased()) }, s = shown.map { Character($0.lowercased()) }
+        guard let i = zip(k, s).enumerated().first(where: { $0.element.0 != $0.element.1 })?.offset else { return false }
+        // độ dài phần sau chỗ khác nhau của tiền tố tiếng Anh dài nhất vượt qua chỗ đó
+        func reach(_ w: [Character], _ from: Int) -> Int {
+            guard from < w.count else { return 0 }
+            for n in stride(from: w.count, through: from + 1, by: -1) where english(String(w[..<n])) != nil { return n - from }
+            return 0
+        }
+        return reach(s, i) > reach(k, i + 1)
     }
 
     /// Dáng không thể là một âm tiết tiếng Việt: chữ hoa giữa từ, hoặc hai cụm nguyên âm cách nhau bởi phụ âm thật

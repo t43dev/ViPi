@@ -162,7 +162,9 @@ impl AutoSwitch {
             if shown.chars().ne(keys.iter().copied()) {
                 return en.is_some()
                     || capitals(keys) >= 2
-                    || (self.english(&shown.to_lowercase()).is_none() && literal_shape(keys, false));
+                    || (self.english(&shown.to_lowercase()).is_none()
+                        && literal_shape(keys, false)
+                        && !self.undo_was_meant(keys, shown));
             }
             // kiểm tra chính tả đã giữ nguyên phím ngay khi gõ ("server", "testflight"): Telex lẽ ra đã thêm dấu,
             // nên đây là từ nước ngoài → sang tiếng Anh. Từ viết giống nhau ở hai chế độ ("deploy", "ban"): ở lại.
@@ -206,6 +208,23 @@ impl AutoSwitch {
             }
         }
         vn < VIETNAMESE_FLOOR && en - vn >= PREFER
+    }
+
+    /// Phím gõ đôi để bỏ dấu ("tesst" → "test"): chữ đang hiện đọc tiếp thành tiếng Anh xa hơn các phím đã gõ
+    /// ("testflight": test, phím chỉ có tess) thì người gõ cố ý, giữ chữ đang hiện; "currentState": phím đọc được
+    /// tới current, chữ hiện chỉ tới cure, nên trả lại phím.
+    fn undo_was_meant(&self, keys: &[char], shown: &str) -> bool {
+        let k: Vec<char> = keys.iter().map(|&c| lower(c)).collect();
+        let s: Vec<char> = shown.chars().map(lower).collect();
+        let Some(i) = k.iter().zip(&s).position(|(a, b)| a != b) else { return false };
+        // độ dài phần sau chỗ khác nhau của tiền tố tiếng Anh dài nhất vượt qua chỗ đó
+        let reach = |w: &[char], from: usize| {
+            (from + 1..=w.len())
+                .rev()
+                .find(|&n| self.english(&w[..n].iter().collect::<String>()).is_some())
+                .map_or(0, |n| n - from)
+        };
+        reach(&s, i) > reach(&k, i + 1)
     }
 
     /// Đang gõ tiếng Việt, kiểm tra chính tả đã trả lại các phím của một từ không có thật: từ nước ngoài

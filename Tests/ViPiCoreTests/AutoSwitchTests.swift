@@ -110,6 +110,9 @@ final class AutoSwitchTests: XCTestCase {
             // Telex nuốt phím, dạng từ tiếng Anh, tên riêng, đ viết tắt (D18, D19, D23, D27, D60)
             ("currentState ", "currentState ", false),
             ("currentWindow ", "currentWindow ", false),
+            // gõ đôi để bỏ dấu trong từ ghép tiếng Anh không có trong danh sách: giữ chữ đang hiện
+            ("tesstflight ", "testflight ", true),
+            ("posstgres ", "postgres ", true),
             ("mirrorless ", "mirrorless ", false),
             ("cheese, ", "cheese, ", false),
             ("ASUS ", "ASUS ", false),

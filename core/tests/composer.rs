@@ -136,6 +136,9 @@ fn auto_switch_from_vietnamese() {
             // Telex nuốt phím: tên biến, từ nhiều âm tiết, viết tắt, tên riêng (D18, D19, D23)
             ("currentState ", "currentState ", false),
             ("currentWindow ", "currentWindow ", false),
+            // gõ đôi để bỏ dấu trong từ ghép tiếng Anh không có trong danh sách: giữ chữ đang hiện
+            ("tesstflight ", "testflight ", true),
+            ("posstgres ", "postgres ", true),
             ("mirrorless ", "mirrorless ", false),
             ("terrorizer ", "terrorizer ", false),
             ("cheese, ", "cheese, ", false),
