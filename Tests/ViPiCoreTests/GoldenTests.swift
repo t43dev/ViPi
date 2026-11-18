@@ -136,6 +136,13 @@ final class GoldenTests: XCTestCase {
         var words = sets.english + vi + sets.lexicon
         words += sets.english.enumerated().filter { $0.offset % 9 == 0 }.map { $0.element.prefix(1).uppercased() + $0.element.dropFirst() }
         words += ["NAS", "HDD", "VĐV", "USA", "IRS", "obj", "a1", "x"]
+        // phím thanh gõ đôi (thói quen Telex, hoặc chữ đôi thật): gõ đôi phím thanh đầu tiên đứng sau nguyên âm
+        words += sets.english.enumerated().filter { $0.offset % 4 == 0 }.compactMap { _, w -> String? in
+            let c = Array(w)
+            guard let i = c.indices.dropFirst().first(where: { "sfrxj".contains(c[$0]) && "aeiouy".contains(c[$0 - 1]) }) else { return nil }
+            return String(c[...i]) + String(c[i...])
+        }
+        words += ["tesstflight", "posstgres", "ussd", "Ussd", "USSD", "USS", "correlate", "assail", "riffle", "currentState", "Raanan"]
         var lines: [String] = []
         for (i, w) in words.enumerated() {
             let keys = Array(w)
@@ -149,7 +156,8 @@ final class GoldenTests: XCTestCase {
                 auto.remember(p, vietnamese: false)     // đang gõ tiếng Anh
                 let vn = auto.vietnamese(for: keys, modern: false) ?? "-"
                 let vnm = auto.vietnamese(for: keys, modern: true) ?? "-"
-                lines.append([prev, w, shown, pe ? "1" : "0", fo ? "1" : "0", vn, vnm].joined(separator: "\t"))
+                let en = auto.english(for: keys) ?? "-"
+                lines.append([prev, w, shown, pe ? "1" : "0", fo ? "1" : "0", vn, vnm, en].joined(separator: "\t"))
             }
         }
         try write(dir, "autoswitch.txt", lines)

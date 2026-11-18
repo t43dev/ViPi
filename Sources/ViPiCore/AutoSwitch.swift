@@ -157,10 +157,12 @@ public final class AutoSwitch {
     /// thì thành chữ tiếng Anh → dùng chữ đó, ở lại tiếng Anh. Tên biến có chữ gõ đôi thật ("currentState") giữ nguyên.
     public func english(for keys: [Character]) -> String? {
         // viết tắt (USS, USSD, CSS): giữ như đã gõ
-        guard keys.count >= 3, Self.capitals(keys) < 2, let raw = Self.letters(keys), english(raw) == nil else { return nil }
+        guard keys.count >= 3, Self.capitals(keys) < 2, let raw = Self.letters(keys), english(raw) == nil,
+              !Self.typingTelex(keys) else { return nil }
         let shown = TelexEngine.render(keys, modern: false)
-        guard !shown.unicodeScalars.contains(where: { !$0.isASCII }), shown != String(keys) else { return nil }
-        return english(shown.lowercased()) != nil || undoWasMeant(keys, shown) ? shown : nil
+        let low = shown.lowercased()
+        guard !shown.unicodeScalars.contains(where: { !$0.isASCII }), Self.doubledBeforeConsonant(raw, low) else { return nil }
+        return english(low) != nil || undoWasMeant(keys, shown) ? shown : nil
     }
 
     /// Đang gõ tiếng Anh: chữ tiếng Việt thay cho các phím đã gõ ("treen" → "trên"), nil = giữ tiếng Anh.
@@ -208,23 +210,33 @@ public final class AutoSwitch {
         return zip(a, a.dropFirst()).contains { ($0 == $1 && "aeod".contains($0)) || ($1 == "w" && "aou".contains($0)) }
     }
 
-    /// Phím gõ đôi để bỏ dấu ("tesst" → "test"): chữ đang hiện đọc tiếp thành tiếng Anh xa hơn các phím đã gõ
-    /// ("testflight": test, phím chỉ có tess) thì người gõ cố ý, giữ chữ đang hiện; "currentState": phím đọc được
-    /// tới current, chữ hiện chỉ tới cure, nên trả lại phím.
+    /// Phím gõ đôi để bỏ dấu ("tesst" → "test"): chữ đang hiện ghép trọn từ hai từ tiếng Anh ("testflight" = test +
+    /// flight) mà các phím đã gõ thì không, nên người gõ cố ý bỏ dấu: giữ chữ đang hiện. Một tiền tố tiếng Anh
+    /// thôi thì chưa đủ ("africate" đọc được "africa" nhưng từ đã gõ là "affricate").
     private func undoWasMeant(_ keys: [Character], _ shown: String) -> Bool {
-        let k = keys.map { Character($0.lowercased()) }, s = shown.map { Character($0.lowercased()) }
-        guard let i = zip(k, s).enumerated().first(where: { $0.element.0 != $0.element.1 })?.offset else { return false }
-        // độ dài phần sau chỗ khác nhau của tiền tố tiếng Anh dài nhất vượt qua chỗ đó
-        func reach(_ w: [Character], _ from: Int) -> Int {
-            guard from < w.count else { return 0 }
-            for n in stride(from: w.count, through: from + 1, by: -1) where english(String(w[..<n])) != nil { return n - from }
-            return 0
-        }
-        return reach(s, i) > reach(k, i + 1)
+        let k = String(keys).lowercased(), s = shown.lowercased()
+        return Self.doubledBeforeConsonant(k, s) && compound(s) && !compound(k)
     }
 
-    /// Dáng không thể là một âm tiết tiếng Việt: chữ hoa giữa từ, hoặc hai cụm nguyên âm cách nhau bởi phụ âm thật
-    /// (phím thanh và w không tính; `zIsTone`: z đang là phím bỏ dấu). Có w hay aa/ee/oo/dd thì vẫn là người đang gõ Telex.
+    /// Ghép từ hai từ tiếng Anh, mỗi từ ít nhất 4 chữ.
+    private func compound(_ word: String) -> Bool {
+        let w = Array(word.utf8), min = 4
+        guard w.allSatisfy({ $0 < 0x80 }), w.count >= 2 * min else { return false }
+        return (min...(w.count - min)).contains { n in
+            english(String(decoding: w[..<n], as: UTF8.self)) != nil && english(String(decoding: w[n...], as: UTF8.self)) != nil
+        }
+    }
+
+    /// `shown` là `keys` bỏ đi một phím thanh gõ đôi (ss ff rr xx jj) đứng ngay trước một phụ âm ("tesstflight" →
+    /// "testflight"). Chữ đôi thật trong tiếng Anh gần như luôn đứng trước nguyên âm hoặc cuối từ ("correlate",
+    /// "assail", "riffle", "boss"), nên chỉ dạng này mới là thói quen gõ Telex.
+    static func doubledBeforeConsonant(_ keys: String, _ shown: String) -> Bool {
+        let k = Array(keys.utf8), s = Array(shown.utf8)
+        guard let i = zip(k, s).enumerated().first(where: { $0.element.0 != $0.element.1 })?.offset,
+              i > 0, k[i] == k[i - 1], "sfrxj".utf8.contains(k[i]), i + 1 < k.count else { return false }
+        return !"aeiouylr".utf8.contains(k[i + 1])
+    }
+
     /// Có aa/ee/oo/dd hay w: người gõ đang gõ Telex ("aaaaa", "choooong"), phím gõ đôi là để bỏ dấu.
     /// Không có ("ussd", "USSD") thì đó là chữ gõ đôi thật.
     static func typingTelex(_ keys: [Character]) -> Bool {

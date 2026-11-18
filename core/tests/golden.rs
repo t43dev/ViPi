@@ -122,7 +122,8 @@ fn auto_switch_matches_swift() {
         auto.remember(prev, false, None); // đang gõ tiếng Anh
         let vn = auto.vietnamese_for(&keys, false).unwrap_or_else(|| "-".into());
         let vnm = auto.vietnamese_for(&keys, true).unwrap_or_else(|| "-".into());
-        let got = [f[0], f[1], &shown, pe, fo, &vn, &vnm].join("\t");
+        let en = auto.english_for(&keys).unwrap_or_else(|| "-".into());
+        let got = [f[0], f[1], &shown, pe, fo, &vn, &vnm, &en].join("\t");
         r.check(&line, &got, &format!("prev={} {}", f[0], f[1]));
     }
     r.finish();

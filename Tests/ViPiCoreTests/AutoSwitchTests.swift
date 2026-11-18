@@ -118,6 +118,8 @@ final class AutoSwitchTests: XCTestCase {
             // chữ gõ đôi thật, không có dấu hiệu đang gõ Telex: giữ như đã gõ
             ("ussd ", "ussd ", false),
             ("Ussd ", "Ussd ", false),
+            // chữ đôi thật trước nguyên âm, kể cả từ không có trong danh sách: giữ như đã gõ
+            ("correlate assail ", "correlate assail ", false),
             ("mirrorless ", "mirrorless ", false),
             ("cheese, ", "cheese, ", false),
             ("ASUS ", "ASUS ", false),
@@ -142,6 +144,8 @@ final class AutoSwitchTests: XCTestCase {
             ("currentState ", "currentState ", false),
             ("boss pass ", "boss pass ", false),
             ("USS USSD ", "USS USSD ", false),
+            // chữ đôi thật trước nguyên âm, kể cả từ không có trong danh sách: giữ như đã gõ
+            ("correlate assail ", "correlate assail ", false),
             ("con ban an ", "con ban an ", false),
             ("the theme of rust and axis ", "the theme of rust and axis ", false),
             ("i must trust the rest of the list ", "i must trust the rest of the list ", false),

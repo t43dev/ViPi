@@ -210,21 +210,21 @@ impl AutoSwitch {
         vn < VIETNAMESE_FLOOR && en - vn >= PREFER
     }
 
-    /// Phím gõ đôi để bỏ dấu ("tesst" → "test"): chữ đang hiện đọc tiếp thành tiếng Anh xa hơn các phím đã gõ
-    /// ("testflight": test, phím chỉ có tess) thì người gõ cố ý, giữ chữ đang hiện; "currentState": phím đọc được
-    /// tới current, chữ hiện chỉ tới cure, nên trả lại phím.
+    /// Phím gõ đôi để bỏ dấu ("tesst" → "test"): chữ đang hiện ghép trọn từ hai từ tiếng Anh ("testflight" = test +
+    /// flight) mà các phím đã gõ thì không, nên người gõ cố ý bỏ dấu: giữ chữ đang hiện. Một tiền tố tiếng Anh
+    /// thôi thì chưa đủ ("africate" đọc được "africa" nhưng từ đã gõ là "affricate").
     fn undo_was_meant(&self, keys: &[char], shown: &str) -> bool {
-        let k: Vec<char> = keys.iter().map(|&c| lower(c)).collect();
-        let s: Vec<char> = shown.chars().map(lower).collect();
-        let Some(i) = k.iter().zip(&s).position(|(a, b)| a != b) else { return false };
-        // độ dài phần sau chỗ khác nhau của tiền tố tiếng Anh dài nhất vượt qua chỗ đó
-        let reach = |w: &[char], from: usize| {
-            (from + 1..=w.len())
-                .rev()
-                .find(|&n| self.english(&w[..n].iter().collect::<String>()).is_some())
-                .map_or(0, |n| n - from)
-        };
-        reach(&s, i) > reach(&k, i + 1)
+        let k: String = keys.iter().map(|&c| lower(c)).collect();
+        let s = shown.to_lowercase();
+        doubled_before_consonant(&k, &s) && self.compound(&s) && !self.compound(&k)
+    }
+
+    /// Ghép từ hai từ tiếng Anh, mỗi từ ít nhất MIN chữ.
+    fn compound(&self, word: &str) -> bool {
+        const MIN: usize = 4;
+        word.is_ascii()
+            && (MIN..=word.len().saturating_sub(MIN))
+                .any(|n| self.english(&word[..n]).is_some() && self.english(&word[n..]).is_some())
     }
 
     /// Đang gõ tiếng Việt, kiểm tra chính tả đã trả lại các phím của một từ không có thật: từ nước ngoài
@@ -250,14 +250,15 @@ impl AutoSwitch {
     pub fn english_for(&self, keys: &[char]) -> Option<String> {
         let raw = letters_of(keys)?;
         // viết tắt (USS, USSD, CSS): giữ như đã gõ
-        if keys.len() < 3 || capitals(keys) >= 2 || self.english(&raw).is_some() {
+        if keys.len() < 3 || capitals(keys) >= 2 || self.english(&raw).is_some() || typing_telex(keys) {
             return None;
         }
         let shown = render(keys, false, true);
-        if !shown.is_ascii() || shown.chars().eq(keys.iter().copied()) {
+        let low = shown.to_lowercase();
+        if !shown.is_ascii() || !doubled_before_consonant(&raw, &low) {
             return None;
         }
-        (self.english(&shown.to_lowercase()).is_some() || self.undo_was_meant(keys, &shown)).then_some(shown)
+        (self.english(&low).is_some() || self.undo_was_meant(keys, &shown)).then_some(shown)
     }
 
     /// Đang gõ tiếng Anh: chữ tiếng Việt thay cho các phím đã gõ ("treen" → "trên"), None = giữ tiếng Anh.
@@ -328,6 +329,15 @@ fn telex_marked(raw: &str) -> bool {
 
 /// Dáng không thể là một âm tiết tiếng Việt: chữ hoa giữa từ, hoặc hai cụm nguyên âm cách nhau bởi phụ âm thật
 /// (phím thanh và w không tính; `z_is_tone`: z đang là phím bỏ dấu). Có w hay aa/ee/oo/dd thì vẫn là người đang gõ Telex.
+/// `shown` là `keys` bỏ đi một phím thanh gõ đôi (ss ff rr xx jj) đứng ngay trước một phụ âm ("tesstflight" →
+/// "testflight"). Chữ đôi thật trong tiếng Anh gần như luôn đứng trước nguyên âm hoặc cuối từ ("correlate",
+/// "assail", "riffle", "boss"), nên chỉ dạng này mới là thói quen gõ Telex.
+fn doubled_before_consonant(keys: &str, shown: &str) -> bool {
+    let (k, s) = (keys.as_bytes(), shown.as_bytes());
+    let Some(i) = k.iter().zip(s).position(|(a, b)| a != b) else { return false };
+    i > 0 && k[i] == k[i - 1] && b"sfrxj".contains(&k[i]) && k.get(i + 1).is_some_and(|c| !b"aeiouylr".contains(c))
+}
+
 /// Có aa/ee/oo/dd hay w: người gõ đang gõ Telex ("aaaaa", "choooong"), phím gõ đôi là để bỏ dấu.
 /// Không có ("ussd", "USSD") thì đó là chữ gõ đôi thật.
 fn typing_telex(keys: &[char]) -> bool {
