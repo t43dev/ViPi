@@ -2,13 +2,18 @@
 
 What changed in each ViPi release. Download the latest from [Releases](../../releases/latest).
 
-## Unreleased
+## 0.5.4 · 2026-11-18
+
+macOS 0.5.4. The iPhone, iPad, Android and HarmonyOS fixes below reach those apps with their next store builds.
 
 ### Changed
 - **Backspace after an automatic switch now works in two steps** (all platforms, following Vikey 1.0.33). The first Backspace only takes the space back and keeps the corrected word, so you can add a comma: `được ` ⌫ `,` gives `được,`. A second Backspace right after it puts the word back as you typed it. Typing a letter after the first Backspace goes on with the corrected word, so a missing tone can still be added: `vây ` ⌫ `j` gives `vậy`.
 
 ### Fixed
 - **Letters typed right after a digit are no longer lost in Vietnamese** on Android, iPhone and iPad: `abc1def`, `h2o` and `65w` come out whole.
+- **An English word ended by a digit or a symbol comes back as typed, like with a space** (all platforms): `pass1`, `affair-based` and `access_token` no longer lose a doubled letter.
+- **A doubled tone key typed on purpose stays undone in English words** (all platforms): `tesstflight` gives `testflight` and `posstgres` gives `postgres`, also after VE has switched to English. Names with real doubled letters stay as typed: `currentState`, `boss`.
+- **Typing a digit while the pinyin has no candidate no longer swallows the keys that follow** (all platforms): `java2` in Chinese mode gives `java2`.
 - **Double-tapping Shift at the start of a sentence turns on caps lock** (Android, iPhone, iPad, HarmonyOS). Shift was already on there, so it took three taps.
 - **Sliding to the next key and back types the key under your finger,** not the neighbour (Android, iPhone, iPad, HarmonyOS).
 - **Number, phone and date fields stay on the number keys after a space** (Android, HarmonyOS).
