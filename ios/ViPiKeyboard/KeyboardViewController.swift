@@ -102,6 +102,15 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
         keyboard.releaseSurfaces()
     }
 
+    /// iOS tạo một controller mới cho mỗi lần bàn phím hiện lên, trong cùng tiến trình. Nó bỏ controller cũ nhưng
+    /// còn giữ view gốc của controller đó: gỡ các view con ra thì bàn phím, thanh gợi ý và các nút ứng viên của lần
+    /// mở trước mới được giải phóng (Vikey D67 đo: mỗi lần mở giữ lại ~0,5 MB, tới giới hạn bộ nhớ thì iOS tắt bàn phím).
+    deinit {
+        MainActor.assumeIsolated {
+            viewIfLoaded?.subviews.forEach { $0.removeFromSuperview() }
+        }
+    }
+
     // MARK: - Ô nhập
 
     override func textWillChange(_ textInput: UITextInput?) {}
