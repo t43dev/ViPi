@@ -19,6 +19,10 @@ enum Prefs {
     static let keyPopup = "keyPopup"
     /// Thanh gợi ý khi gõ Việt · Anh (tiếng Trung luôn có thanh ứng viên)
     static let vietnameseBar = "vietnameseBar"
+    /// Gợi ý từ trên thanh (hoàn thành từ đang gõ, từ tiếp theo) khi gõ Việt · Anh
+    static let suggestions = "suggestions"
+    /// Tự sửa lỗi chạm lệch phím lúc kết thúc từ tiếng Anh, và vùng chạm phím theo câu đang gõ
+    static let autoCorrect = "autoCorrect"
     static let fuzzy = "fuzzy"
     /// "system" | "light" | "dark"
     static let theme = "theme"
@@ -29,7 +33,8 @@ enum Prefs {
 
     private static let defaults: [String: Any] = [
         modernTone: false, spellCheck: true, restore: true, traditional: false, learn: true, fullWidth: true,
-        haptics: true, autoCap: true, doubleSpace: true, keyPopup: true, vietnameseBar: true, theme: "system", largeLayout: "wide",
+        haptics: true, autoCap: true, doubleSpace: true, keyPopup: true, vietnameseBar: true, suggestions: true, autoCorrect: true,
+        theme: "system", largeLayout: "wide",
     ]
 
     static func bool(_ key: String) -> Bool {

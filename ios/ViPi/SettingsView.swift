@@ -11,6 +11,8 @@ struct SettingsView: View {
     @AppStorage(Prefs.fullWidth, store: Prefs.shared) private var fullWidth = true
     @AppStorage(Prefs.theme, store: Prefs.shared) private var theme = "system"
     @AppStorage(Prefs.keyPopup, store: Prefs.shared) private var keyPopup = true
+    @AppStorage(Prefs.suggestions, store: Prefs.shared) private var suggestions = true
+    @AppStorage(Prefs.autoCorrect, store: Prefs.shared) private var autoCorrect = true
     @AppStorage(Prefs.vietnameseBar, store: Prefs.shared) private var vietnameseBar = true
     @AppStorage(Prefs.largeLayout, store: Prefs.shared) private var largeLayout = "wide"
     @AppStorage(Prefs.haptics, store: Prefs.shared) private var haptics = true
@@ -54,6 +56,8 @@ struct SettingsView: View {
                 option("Restore non-Vietnamese words", "When a word ends and is not Vietnamese, put back the keys you typed: user, data, more.", $restore)
                 option("Modern tone placement", "hoà, khoẻ, thuý instead of hòa, khỏe, thúy.", $modernTone)
                 option("Suggestion bar", "Show the bar above the keys with the keys you typed and the word with marks. Off: the keyboard is shorter, and the bar only shows for Chinese.", $vietnameseBar)
+                option("Word suggestions", "Show ways to finish the word and likely next words on the bar. Needs the suggestion bar.", $suggestions)
+                option("Auto-correct typos", "Fix an English word typed with a slip onto a neighbouring key when you press space, and let the keys follow the sentence: a touch between two keys types the likelier letter. Backspace right after a fix puts your word back.", $autoCorrect)
             } header: {
                 Text("Vietnamese")
             }

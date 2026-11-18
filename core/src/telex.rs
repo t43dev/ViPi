@@ -204,6 +204,15 @@ impl TelexEngine {
 // MARK: - Render
 
 /// Dựng chuỗi hiển thị từ chuỗi phím thô.
+/// Các phím (Telex) có gõ ra một âm tiết đúng chính tả tiếng Việt không ("thanhj", "ban"; "peop" thì không).
+pub fn spells_vietnamese(keys: &[char]) -> bool {
+    let mut s = State { spell_check: true, chars: vec![], tone: Tone::None, literal: false };
+    for &k in keys {
+        s.apply(k);
+    }
+    !s.literal && !Syllable::new(&s.chars).vowels.is_empty() && s.is_valid()
+}
+
 pub fn render(keys: &[char], modern: bool, spell_check: bool) -> String {
     let mut s = State { spell_check, chars: vec![], tone: Tone::None, literal: false };
     for &k in keys {

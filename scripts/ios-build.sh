@@ -13,6 +13,7 @@ if [ "${1:-}" = "--core" ] || [ ! -f "$stamp" ] || [ -n "$(find core/src core/Ca
   scripts/ios-core.sh
 fi
 
+scripts/ios-suggest-models.sh
 cd ios
 xcodegen generate --quiet
 LOG=build/xcodebuild.log

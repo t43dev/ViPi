@@ -8,7 +8,12 @@ protocol KeyboardViewDelegate: AnyObject {
     func keyboardPickCandidate(_ index: Int)
     func keyboardPickSuggestion(_ index: Int)
     func keyboardTypePunctuation(_ text: String)
+    func keyboardPickWord(_ index: Int)
     func keyboardDismiss()
+    /// Xác suất của phím kế tiếp (a…z rồi "từ kết thúc") khi một từ đang gõ dở; nil: chọn phím theo chỗ chạm.
+    func keyboardTouchOdds() -> (odds: [Double], vietnamese: Bool)?
+    /// Từ đang gõ đã trọn và không từ nào gõ tiếp bằng `letter`: chạm vào khe phía trên phím cách là dấu cách.
+    func keyboardWordEnds(before letter: String) -> Bool
 }
 
 /// Bàn phím vẽ tay bằng Core Graphics (như Canvas của bản Android): ít view, ít bộ nhớ, hợp giới hạn của keyboard extension.
@@ -125,6 +130,7 @@ final class KeyboardView: UIView {
         bar.onPick = { [weak self] in self?.delegate?.keyboardPickCandidate($0) }
         bar.onSuggestion = { [weak self] in self?.delegate?.keyboardPickSuggestion($0) }
         bar.onPunctuation = { [weak self] in self?.delegate?.keyboardTypePunctuation($0) }
+        bar.onWord = { [weak self] in self?.delegate?.keyboardPickWord($0) }
         addSubview(bar)
         nextKeyboardButton.isHidden = true
         addSubview(nextKeyboardButton)
@@ -513,6 +519,52 @@ final class KeyboardView: UIView {
 
     private var touchCount = 0
 
+    /// Chỗ ngón tay chạm của phím vừa gửi đi (để đọc lại các lần chạm của một từ khi tự sửa lỗi gõ).
+    private(set) var lastTap: CGPoint?
+
+    /// Ô vẽ và chữ của các phím chữ trên trang đang hiện.
+    var letterRects: [KeyRect] {
+        guard layout == .letters else { return [] }
+        let m = metrics(traitCollection)
+        return keys.compactMap { k in
+            guard k.kind == .char, k.label.count == 1, let a = k.label.unicodeScalars.first, (97...122).contains(a.value) else { return nil }
+            let r = k.frame.insetBy(dx: m.gapX / 2, dy: m.gapY / 2)
+            return KeyRect(x: Float(r.minX), y: Float(r.minY), w: Float(r.width), h: Float(r.height), letter: CChar(a.value))
+        }
+    }
+
+    private func tapKind(_ k: Key) -> TapModel.Kind? {
+        switch k.kind {
+        case .char:
+            guard k.label.count == 1, let a = k.label.unicodeScalars.first, (97...122).contains(a.value) else { return nil }
+            return .letter(Int(a.value) - 97)
+        case .space: return .space
+        case .backspace: return .backspace
+        case .shift: return .shift
+        default: return nil
+        }
+    }
+
+    /// Phím mà một lần chạm xuống gõ. Trên bàn chữ của điện thoại, khi một từ đang gõ dở: chạm gần ranh giới hai phím
+    /// thì theo chữ nào hay đi tiếp hơn (TapModel), và chạm vào khe phía trên phím cách sau một từ đã trọn là dấu cách.
+    /// Các trường hợp khác (trang số, iPad, tiếng Trung, ô mật khẩu): phím ở chỗ chạm.
+    private func pickKey(at p: CGPoint) -> Int? {
+        guard let i = keyIndex(at: p) else { return nil }
+        guard layout == .letters, padSpec == nil, !isSplit, !chinese, !modeLocked, let kind = tapKind(keys[i]) else { return i }
+        let m = metrics(traitCollection)
+        let drawn = { (k: Key) in k.frame.insetBy(dx: m.gapX / 2, dy: m.gapY / 2) }
+        if let o = delegate?.keyboardTouchOdds() {
+            let candidates = keys.enumerated().compactMap { j, k in self.tapKind(k).map { (index: j, kind: $0, frame: drawn(k)) } }
+            if let j = TapModel.pick(p, keys: candidates, odds: o.odds, o.vietnamese ? TapModel.vietnamese : TapModel.english) { return j }
+        }
+        if case .letter = kind, let sp = keys.firstIndex(where: { $0.kind == .space }), keys[i].row + 1 == keys[sp].row,
+           p.y > drawn(keys[i]).maxY, p.x >= drawn(keys[sp]).minX, p.x <= drawn(keys[sp]).maxX,
+           delegate?.keyboardWordEnds(before: keys[i].label) == true {
+            return sp
+        }
+        return i
+    }
+
     private var touchStates: [ObjectIdentifier: TouchState] = [:]
     private var repeatTimer: Timer?
 
@@ -540,10 +592,11 @@ final class KeyboardView: UIView {
             s.timer?.invalidate()
             s.done = true
             setPressed(s.key, false)
+            lastTap = s.start
             fire(keys[s.key], rollover: true)
         }
         for t in touches {
-            guard let i = keyIndex(at: t.location(in: self)) else { continue }
+            guard let i = pickKey(at: t.location(in: self)) else { continue }
             touchCount += 1
             let state = TouchState(key: i, at: t.location(in: self), order: touchCount)
             touchStates[ObjectIdentifier(t)] = state
@@ -634,6 +687,8 @@ final class KeyboardView: UIView {
             setPressed(s.key, false)
             if s.done { continue }
             if k.kind == .backspace { repeatTimer?.invalidate(); repeatTimer = nil }
+            // trượt sang phím khác thì chỗ chạm là chỗ nhấc ngón
+            lastTap = s.moved ? t.location(in: self) : s.start
             if (s.longFired || isFlick(k, s, t.location(in: self))), let h = k.hint { delegate?.keyboardDidType(.text(text: h)) }
             else if !s.trackpad { fire(k) }
         }

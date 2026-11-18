@@ -300,6 +300,13 @@ impl Composer {
         self.telex.keys().iter().collect()
     }
 
+    /// Từ đã biết (danh sách tiếng Anh, bảng tiếng Việt theo phím Telex, chữ chat) hoặc các phím gõ ra một âm tiết
+    /// đúng chính tả tiếng Việt. Bàn phím có tự sửa lỗi gõ hỏi câu này: từ như vậy không bao giờ bị sửa.
+    pub fn knows_word(&self, letters: &str) -> bool {
+        let keys: Vec<char> = letters.chars().collect();
+        self.auto_switch_tables.as_ref().is_some_and(|t| t.knows(letters)) || crate::telex::spells_vietnamese(&keys)
+    }
+
     pub fn is_composing_chinese(&self) -> bool {
         self.pinyin.as_ref().is_some_and(|p| p.is_composing())
     }

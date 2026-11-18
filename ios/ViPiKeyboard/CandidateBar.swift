@@ -9,11 +9,14 @@ final class CandidateBar: UIView {
         case vietnamese(keys: String, word: String)
         /// tiếng Trung khi chưa gõ gì: dấu câu (như bàn phím Trung của Apple)
         case punctuation([String])
+        /// gõ Việt · Anh: từ đã gõ (trong ngoặc kép), chữ dấu cách sẽ đưa vào, cách hoàn thành từ, hoặc từ tiếp theo
+        case suggestions([Suggestion])
     }
 
     var onPick: ((Int) -> Void)?
     var onSuggestion: ((Int) -> Void)?
     var onPunctuation: ((String) -> Void)?
+    var onWord: ((Int) -> Void)?
     var content: Content = .empty { didSet { if content != oldValue { reload() } } }
 
     private let preedit = UILabel()
@@ -57,7 +60,7 @@ final class CandidateBar: UIView {
             scroll.frame = bounds
         }
         let size = stack.systemLayoutSizeFitting(CGSize(width: UIView.layoutFittingCompressedSize.width, height: h))
-        stack.frame = CGRect(x: 0, y: 0, width: max(size.width, content.isVietnamese ? scroll.bounds.width : 0), height: h)
+        stack.frame = CGRect(x: 0, y: 0, width: max(size.width, content.fillsBar ? scroll.bounds.width : 0), height: h)
         scroll.contentSize = stack.frame.size
     }
 
@@ -99,6 +102,15 @@ final class CandidateBar: UIView {
             stack.distribution = .fillEqually
             stack.addArrangedSubview(button("\"\(keys)\"", size: 17, weight: .regular) { [weak self] in self?.onSuggestion?(0) })
             stack.addArrangedSubview(button(word, size: 17, weight: .semibold) { [weak self] in self?.onSuggestion?(1) })
+        case .suggestions(let cells):
+            preedit.text = nil
+            stack.distribution = .fillEqually
+            for (i, c) in cells.enumerated() {
+                let b = button(c.quoted ? "\"\(c.text)\"" : c.text, size: 17, weight: c.highlighted ? .semibold : .regular) { [weak self] in self?.onWord?(i) }
+                b.configuration?.titleLineBreakMode = .byTruncatingTail
+                if c.quoted { b.configuration?.baseForegroundColor = .secondaryLabel }
+                stack.addArrangedSubview(b)
+            }
         case .punctuation(let marks):
             preedit.text = nil
             stack.distribution = .fill
@@ -127,8 +139,11 @@ private extension CandidateBar {
 }
 
 private extension CandidateBar.Content {
-    var isVietnamese: Bool {
-        if case .vietnamese = self { return true }
-        return false
+    /// các ô chia đều cả bề ngang thanh
+    var fillsBar: Bool {
+        switch self {
+        case .vietnamese, .suggestions: return true
+        default: return false
+        }
     }
 }

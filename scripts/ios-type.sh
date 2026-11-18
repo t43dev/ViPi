@@ -16,6 +16,7 @@ UDID=$(xcrun simctl list devices available | grep -F "    $SIM (" | head -1 | se
 [ -n "$UDID" ] || { echo "no simulator named $SIM"; exit 1; }
 mkdir -p build/shots
 xcrun simctl boot "$UDID" 2>/dev/null; xcrun simctl bootstatus "$UDID" -b >/dev/null
+../scripts/ios-suggest-models.sh
 xcodegen generate --quiet
 LOG=build/test.log
 ARGS=(-project ViPi.xcodeproj -scheme ViPi -destination "id=$UDID" -derivedDataPath build/dd CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual)

@@ -77,6 +77,17 @@ fn vietnamese_words_and_restore() {
 }
 
 #[test]
+fn known_words() {
+    let c = composer();
+    for w in ["think", "Server", "ban", "thanhj", "ko", "bdds", "goif", "vieejt"] {
+        assert!(c.knows_word(w), "{w}");
+    }
+    for w in ["rhonk", "peop", "thanknyou", "wrold"] {
+        assert!(!c.knows_word(w), "{w}");
+    }
+}
+
+#[test]
 fn shortcuts_only_for_standalone_words() {
     let mut c = composer();
     let pairs = vec![("vn".to_string(), "Việt Nam".to_string()), ("đc".to_string(), "được".to_string())];

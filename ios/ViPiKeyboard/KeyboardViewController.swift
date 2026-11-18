@@ -57,6 +57,13 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
     private var lastOwnEdit: TimeInterval = 0
     private let haptic = UIImpactFeedbackGenerator(style: .light)
 
+    // gợi ý từ, tự sửa lỗi gõ, vùng chạm theo câu (Suggest/Suggester.swift)
+    private let suggester = Suggester()
+    private var suggestions: [Suggestion] = []
+    private var suggestionsDirty = false
+    /// Ô nhập này có nhận gợi ý và tự sửa không (như bàn phím hệ thống: không ở ô địa chỉ, email, số, ô tắt tự sửa).
+    private var suggestsHere = false
+
     // MARK: - Vòng đời
 
     override func viewDidLoad() {
@@ -92,10 +99,21 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
         heightConstraint?.constant = keyboard.preferredHeight(traits: traitCollection)
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        // mô hình gợi ý (65 MB, đọc bằng mmap) chỉ được nạp sau khi bàn phím đã hiện, ở hàng đợi nền (Vikey D64):
+        // đọc lúc mở làm bàn phím lên chậm, iOS có lúc bỏ cuộc và hiện bàn phím của nó. Chưa sẵn thì thanh để trống.
+        guard suggester.suggestionsOn || suggester.autoCorrectOn else { return }
+        SuggestLM.warmUp(vietnameseFirst: composer?.mode() == .vietnamese) { [weak self] in self?.scheduleSuggestions() }
+    }
+
     override func viewWillDisappear(_ animated: Bool) {
         endComposition()
         keyboard.reset()
         fieldType = nil
+        SuggestLM.coolDown()
+        suggester.reset()
+        suggestions = []
         super.viewWillDisappear(animated)
     }
 
@@ -135,9 +153,11 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
         if shown.isEmpty ? composer?.isComposingChinese() == false : !before.hasSuffix(shown) {
             shown = ""
             composer?.cancel()
+            suggester.endWord()
             refreshUI()
         }
         updateShift()
+        scheduleSuggestions()
     }
 
     /// Đọc loại ô nhập: ô số đi thẳng không qua lõi, phím Return theo hành động của ô.
@@ -160,6 +180,8 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
         keyboard.returnKey = KeyboardView.ReturnKey(proxy.returnKeyType ?? .default)
         enterSubmitsSearch = [.go, .search, .google, .yahoo].contains(proxy.returnKeyType ?? .default)
             || type == .URL || type == .webSearch
+        suggestsHere = !passthrough && proxy.autocorrectionType != .no && proxy.spellCheckingType != .no
+            && ![.URL, .emailAddress, .webSearch].contains(type)
         let appearance: UIUserInterfaceStyle
         switch Prefs.string(Prefs.theme) {
         case "light": appearance = .light
@@ -174,6 +196,9 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
     private func applyPrefs() {
         keyboard.keyPopup = Prefs.bool(Prefs.keyPopup)
         vietnameseBar = Prefs.bool(Prefs.vietnameseBar)
+        suggester.suggestionsOn = vietnameseBar && Prefs.bool(Prefs.suggestions)
+        suggester.autoCorrectOn = Prefs.bool(Prefs.autoCorrect)
+        suggester.knows = { [weak self] in self?.composer?.knowsWord(letters: $0) ?? true }
         keyboard.fullWidth = Prefs.bool(Prefs.fullWidth)
         keyboard.splitOnPad = Prefs.string(Prefs.largeLayout) != "wide"
         guard let c = composer else { return }
@@ -210,8 +235,10 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
         endComposition()
         c.setMode(mode: mode)
         saveMode(mode)
+        suggester.endWord()
         refreshUI()
         updateShift()
+        scheduleSuggestions()
     }
 
     // MARK: - KeyboardViewDelegate
@@ -250,6 +277,20 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
             updateShift()
             return
         }
+        // Backspace ngay sau một lần tự sửa lỗi gõ: trả lại từ đã gõ và giữ nó (trước cả lõi: lõi không biết lần sửa này)
+        if case .backspace = key {
+            if let undo = suggester.undoCorrection(context: textDocumentProxy.documentContextBeforeInput ?? "") {
+                deleteBefore(undo.delete)
+                textDocumentProxy.insertText(undo.insert)
+                c.cancel()
+                refreshUI()
+                updateShift()
+                scheduleSuggestions()
+                return
+            }
+        } else {
+            suggester.forgetCorrection()
+        }
         let before = c.mode()
         // Enter mở địa chỉ / tìm kiếm gửi đúng chữ đang thấy (Vikey D62): chữ trên màn hình còn y như phím đã gõ thì
         // không đổi nó nữa. Đổi lúc này làm mất phần trình duyệt đang gợi ý ("ver" + Enter mở vercel.com, không
@@ -261,9 +302,17 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
             updateShift()
             return
         }
+        // tiếng Anh, phím kết thúc từ: chữ sẽ thay cho từ gõ lệch phím, quyết định trên cả từ (thanh gợi ý tính sau
+        // mỗi phím, gõ nhanh hơn thế thì tính ngay bây giờ)
+        var correction: (typed: String, word: String, end: String)?
+        if before == .english, suggestsHere, let end = Self.breakText(key) {
+            if suggestionsDirty { updateSuggestions() }
+            if let word = suggester.correction() { correction = (suggester.shownWord, word, end) }
+        }
         let wordLength = c.currentWord().count
         let hadWord = wordLength > 0
         let r = c.handleKey(key: key)
+        trackWord(key)
         if case .backspace = key, let undo = r.edit {
             // Backspace ngay sau một lần tự đổi: trả lại chữ trước đó (lõi đã về chế độ cũ)
             finishComposing()
@@ -272,13 +321,102 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
         } else {
             switch before {
             case .vietnamese: applyVietnamese(key, r, hadWord: hadWord, wordLength: wordLength)
-            case .english: applyEnglish(key, r)
+            case .english:
+                // lõi có sửa gì (tự đổi sang tiếng Việt, gõ tắt) thì lõi thắng; không thì mới tới lượt sửa lỗi gõ
+                if let fix = correction, r.edit == nil {
+                    deleteBefore(fix.typed.count)
+                    textDocumentProxy.insertText(fix.word)
+                    deliver(key)
+                    suggester.didCorrect(typed: fix.typed, inserted: fix.word + fix.end)
+                } else {
+                    applyEnglish(key, r)
+                }
             case .chinese: applyChinese(key, r)
             }
         }
         if let m = r.switchedTo { saveMode(m) }
         refreshUI()
         updateShift()
+        scheduleSuggestions()
+    }
+
+    /// Chữ của một phím kết thúc từ mà tự sửa lỗi gõ nhận (dấu cách và dấu câu), nil nếu không phải.
+    private static func breakText(_ key: KeyInput) -> String? {
+        switch key {
+        case .space: return " "
+        case .text(let t) where [".", ",", "?", "!", ";", ":"].contains(t): return t
+        default: return nil
+        }
+    }
+
+    /// Báo cho bộ gợi ý phím vừa gõ: chữ cái (kèm chỗ chạm) vào từ đang gõ, Backspace bỏ chữ cuối, phím khác kết thúc từ.
+    private func trackWord(_ key: KeyInput) {
+        switch key {
+        case .text(let t) where t.count == 1 && t.first!.isASCII && t.first!.isLetter: suggester.letter(t.first!, at: keyboard.lastTap)
+        case .backspace: suggester.backspace()
+        default: suggester.endWord()
+        }
+    }
+
+    // MARK: - Gợi ý từ
+
+    /// Thanh gợi ý được tính sau khi chữ của phím đã vào ô nhập, nên không làm chậm phím; gõ nhanh hơn thế thì bỏ
+    /// qua các bước ở giữa.
+    private func scheduleSuggestions() {
+        guard !suggestionsDirty else { return }
+        suggestionsDirty = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.suggestionsDirty else { return }
+            self.updateSuggestions()
+            self.refreshUI()
+        }
+    }
+
+    private func updateSuggestions() {
+        suggestionsDirty = false
+        guard let c = composer, suggestsHere, c.mode() != .chinese, suggester.suggestionsOn || suggester.autoCorrectOn,
+              textDocumentProxy.selectedText == nil else {
+            suggestions = []
+            suggester.endWord()
+            return
+        }
+        let english = c.mode() == .english
+        suggestions = suggester.update(context: textDocumentProxy.documentContextBeforeInput ?? "", english: english,
+                                       telexKeys: english ? "" : c.currentKeys(), keys: keyboard.letterRects,
+                                       capitalize: keyboard.shift != .off)
+    }
+
+    func keyboardTouchOdds() -> (odds: [Double], vietnamese: Bool)? {
+        suggestionsDirty || !suggestsHere ? nil : suggester.touchOdds()
+    }
+
+    func keyboardWordEnds(before letter: String) -> Bool {
+        !suggestionsDirty && suggestsHere && suggester.wordEnds(before: letter)
+    }
+
+    /// Chạm một ô trên thanh gợi ý Việt · Anh.
+    func keyboardPickWord(_ index: Int) {
+        guard let c = composer, index < suggestions.count else { return }
+        let cell = suggestions[index]
+        keyboardWillPress()
+        markOwnEdit()
+        suggester.forgetCorrection()
+        if cell.quoted {
+            // giữ đúng từ đã gõ: một dấu cách, và không sửa nó
+            suggester.keepShown()
+            keyboardDidType(.space)
+            return
+        }
+        finishComposing()
+        if !cell.next { deleteBefore(suggester.shownWord.count) }
+        textDocumentProxy.insertText(cell.text + " ")
+        lastSpaceAt = ProcessInfo.processInfo.systemUptime
+        c.cancel()
+        suggester.endWord()
+        suggestions = []
+        refreshUI()
+        updateShift()
+        scheduleSuggestions()
     }
 
     func keyboardPickCandidate(_ index: Int) {
@@ -452,6 +590,8 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
             kb.bar.content = .vietnamese(keys: c.currentKeys(), word: c.currentWord())
         } else if let c, !passthrough, c.mode() == .chinese {
             kb.bar.content = .punctuation(keyboard.fullWidth ? ["，", "。", "？", "！", "、", "……"] : [",", ".", "?", "!"])
+        } else if !passthrough, !suggestions.isEmpty {
+            kb.bar.content = .suggestions(suggestions)
         } else {
             kb.bar.content = .empty
         }

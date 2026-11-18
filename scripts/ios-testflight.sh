@@ -52,6 +52,10 @@ done
 cd $W
 command -v xcodegen >/dev/null || brew install xcodegen >/dev/null
 scripts/ios-core.sh >$W/core.log 2>&1 || { echo CORE_FAIL; tail -20 $W/core.log; exit 1; }
+# mô hình gợi ý từ không nằm trong git: dùng lại bản đã tải của lần build trước nếu có (65 MB)
+mkdir -p ios/Suggest ~/vipi-suggest-cache && cp -n ~/vipi-suggest-cache/*.bin ios/Suggest/ 2>/dev/null || true
+scripts/ios-suggest-models.sh || { echo MODELS_FAIL; exit 1; }
+cp -n ios/Suggest/*.bin ~/vipi-suggest-cache/ 2>/dev/null || true
 cd ios
 xcodegen generate --quiet
 cat > $W/ExportOptions.plist <<PLIST

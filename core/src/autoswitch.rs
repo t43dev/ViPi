@@ -96,6 +96,13 @@ impl AutoSwitch {
         Some((p.shown.clone()?, p.keys.iter().collect()))
     }
 
+    /// Chuỗi chữ cái này là một từ đã biết: từ tiếng Anh trong danh sách, hoặc phím Telex của một từ tiếng Việt
+    /// (kể cả chữ chat). Bàn phím hỏi trước khi tự sửa lỗi gõ: từ đã biết thì không bao giờ sửa.
+    pub fn knows(&self, letters: &str) -> bool {
+        let low = letters.to_lowercase();
+        self.english(&low).is_some() || self.vietnamese(&low).is_some() || self.chat_form(&low).is_some()
+    }
+
     /// "ddc" → "đc": viết tắt chỉ có đ và phụ âm mà tin nhắn hay dùng (D27). Và chữ chat trong
     /// `autoswitch-vi-chat.tsv` (viết tắt có đ như "bđs", teencode có dấu như "gòi", "zậy"): kiểm tra chính tả
     /// không coi chúng là tiếng Việt, nên lúc kết thúc từ các phím được đổi thành chữ đó.

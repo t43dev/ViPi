@@ -205,6 +205,10 @@ impl ViPiComposer {
         self.lock().is_composing_chinese()
     }
 
+    pub fn knows_word(&self, letters: String) -> bool {
+        self.lock().knows_word(&letters)
+    }
+
     pub fn candidates(&self) -> Vec<Candidate> {
         self.lock().candidates().iter().map(|c| Candidate { text: c.text.clone(), length: c.length as u32 }).collect()
     }
