@@ -200,6 +200,10 @@ final class InputController {
             // gõ tắt chỉ khi từ đứng riêng và kết thúc bằng Space/Enter/Tab: "call2vn@" giữ nguyên
             let macro = isSpace && atWordStart ? macros.flatMap(telex.expandMacro) : nil
             let auto = atWordStart ? activeAutoSwitch(typed) : nil
+            // số và các dấu khác cũng kết thúc từ: từ tiếng Anh Telex gõ sai vẫn được trả lại ("pass1" không thành
+            // "pas1", "affair-" không thành "afair-"); gõ tắt và đổi chế độ khi chữ không phải tiếng Việt thì không
+            let englishEnd = atWordStart && typed.count == 1 && typed.first.map { $0.isASCII && ($0.isNumber || $0.isPunctuation || $0.isSymbol) } == true
+                ? autoSwitch : nil
             atWordStart = isSpace || ascii == 0x28 || ascii == 0x22   // ( "
             let digit = ascii.map { (0x30...0x39).contains($0) } ?? false
             inCode = digit && (inCode || !word.isEmpty)
@@ -207,7 +211,7 @@ final class InputController {
             if let ascii, (0x20...0x7E).contains(ascii) || isSpace {
                 var edit = macro, switchTo: InputMode?, undoable = true
                 // tự đổi: từ tiếng Anh gõ ở chế độ tiếng Việt ("server", "more") → trả lại phím đã gõ, sang tiếng Anh
-                if edit == nil, let auto, auto.prefersEnglish(keys: word, shown: shown) {
+                if edit == nil, let auto = auto ?? englishEnd, auto.prefersEnglish(keys: word, shown: shown) {
                     // từ ngay trước cũng là tiếng Anh ("thí makes"): sửa luôn; sửa hai từ thì Backspace không hoàn tác (D20)
                     if let back = auto.lookBack(keys: word) {
                         edit = TextEdit(backspaces: back.shown.count + 1 + shown.count, insert: back.keys + " " + String(word))
@@ -346,7 +350,8 @@ final class InputController {
             }
             if let ch {
                 if ("a"..."z").contains(ch) || ch == "'" { py.type(ch); page = 0; highlight = 0; refreshPanel(); return true }
-                if let d = ch.wholeNumberValue, (1...9).contains(d) { choose(page * pageSize + d - 1); return true }
+                // chưa có ứng viên nào ("java"): số không chọn được gì, gửi pinyin như đã gõ rồi cho số đi qua
+                if let d = ch.wholeNumberValue, (1...9).contains(d), !py.candidates.isEmpty { choose(page * pageSize + d - 1); return true }
                 if ch == "-" || ch == "[" { turnPage(-1); return true }
                 if ch == "=" || ch == "]" { turnPage(1); return true }
             }

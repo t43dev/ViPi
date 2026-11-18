@@ -157,6 +157,22 @@ fn auto_switch_from_vietnamese() {
 }
 
 #[test]
+fn auto_switch_after_digits_and_symbols() {
+    // số và dấu khác dấu cách cũng kết thúc từ: từ tiếng Anh Telex gõ sai được trả lại như khi gõ dấu cách
+    check_auto(
+        &[
+            ("pass1 ", "pass1 ", false),
+            ("affair-based ", "affair-based ", false),
+            ("java2shell ", "java2shell ", true),
+            ("access_token ", "access_token ", false),
+            ("phongf2 ", "phòng2 ", true),
+            ("ddaij-hocj ", "đại-học ", true),
+        ],
+        Mode::Vietnamese,
+    );
+}
+
+#[test]
 fn auto_switch_from_english() {
     check_auto(
         &[
@@ -213,6 +229,8 @@ fn chinese_composition() {
     assert_eq!(type_all(&mut c, "woshizhongguoren\n"), "woshizhongguoren");
     assert_eq!(type_all(&mut c, "xiexie,"), "谢谢，");
     assert_eq!(type_all(&mut c, "nihao1"), "你好");
+    // pinyin không có ứng viên: số không bị nuốt
+    assert_eq!(type_all(&mut c, "java2"), "java2");
     assert_eq!(type_all(&mut c, "nihao⎋"), "");
     // chọn từng phần: "你好" dùng hết "nihao", còn "ma"
     let mut s = Screen { text: vec![] };

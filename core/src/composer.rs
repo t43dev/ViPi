@@ -402,9 +402,11 @@ impl Composer {
     }
 
     fn active_auto_switch(&self, typed: Option<char>) -> bool {
-        self.auto_switch_enabled
-            && self.auto_switch_paused_until.is_none_or(|t| Instant::now() >= t)
-            && typed.is_some_and(|c| WORD_END_FOR_AUTO_SWITCH.contains(c))
+        self.auto_switch_on() && typed.is_some_and(|c| WORD_END_FOR_AUTO_SWITCH.contains(c))
+    }
+
+    fn auto_switch_on(&self) -> bool {
+        self.auto_switch_enabled && self.auto_switch_paused_until.is_none_or(|t| Instant::now() >= t)
     }
 
     fn remember(&mut self, word: Option<Vec<char>>, vietnamese: bool, shown: Option<String>) {
@@ -457,6 +459,11 @@ impl Composer {
                 None
             };
             let auto = self.at_word_start && self.active_auto_switch(typed);
+            // số và các dấu khác cũng kết thúc từ: từ tiếng Anh Telex gõ sai vẫn được trả lại ("pass1" không thành
+            // "pas1", "affair-" không thành "afair-"); gõ tắt và đổi chế độ khi chữ không phải tiếng Việt thì không
+            let english_end = self.at_word_start
+                && self.auto_switch_on()
+                && ascii.is_some_and(|a| a.is_ascii_digit() || a.is_ascii_punctuation());
             self.at_word_start = is_space || matches!(ascii, Some('(' | '"'));
             let digit = ascii.is_some_and(|a| a.is_ascii_digit());
             self.in_code = digit && (self.in_code || !word.is_empty());
@@ -467,7 +474,7 @@ impl Composer {
                 let mut undoable = true;
                 let tables = self.auto_switch_tables.as_ref();
                 // tự đổi: từ tiếng Anh gõ ở chế độ tiếng Việt ("server", "more") → trả lại phím đã gõ, sang tiếng Anh
-                if edit.is_none() && auto && tables.is_some_and(|t| t.prefers_english(&word, &shown)) {
+                if edit.is_none() && (auto || english_end) && tables.is_some_and(|t| t.prefers_english(&word, &shown)) {
                     let keys: String = word.iter().collect();
                     // từ ngay trước cũng là tiếng Anh ("thí makes"): sửa luôn; sửa hai từ thì Backspace không hoàn tác (D20)
                     edit = Some(match tables.and_then(|t| t.look_back(&word)) {
@@ -633,7 +640,9 @@ impl Composer {
                     self.highlight = 0;
                     return self.panel_result();
                 }
-                if let Some(d) = c.to_digit(10).filter(|d| (1..=9).contains(d)) {
+                // chưa có ứng viên nào ("java"): số không chọn được gì, gửi pinyin như đã gõ rồi cho số đi qua
+                // (nuốt số thì các phím sau chỉ nằm trên thanh gợi ý, ô nhập như không gõ được gì)
+                if let Some(d) = c.to_digit(10).filter(|d| (1..=9).contains(d) && !py.candidates().is_empty()) {
                     return self.choose(self.page * self.page_size + d as usize - 1);
                 }
                 if c == '-' || c == '[' {
