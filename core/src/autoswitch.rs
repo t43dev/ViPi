@@ -96,14 +96,44 @@ impl AutoSwitch {
         Some((p.shown.clone()?, p.keys.iter().collect()))
     }
 
-    /// "ddc" → "đc": viết tắt chỉ có đ và phụ âm mà tin nhắn hay dùng (D27).
+    /// "ddc" → "đc": viết tắt chỉ có đ và phụ âm mà tin nhắn hay dùng (D27). Và chữ chat trong
+    /// `autoswitch-vi-chat.tsv` (viết tắt có đ như "bđs", teencode có dấu như "gòi", "zậy"): kiểm tra chính tả
+    /// không coi chúng là tiếng Việt, nên lúc kết thúc từ các phím được đổi thành chữ đó.
     pub fn shorthand(&self, keys: &[char]) -> Option<String> {
         let raw = letters_of(keys)?;
-        if !raw.starts_with("dd") || raw.chars().any(|c| "aeiouy".contains(c)) || self.english(&raw).is_some() {
+        if self.english(&raw).is_some() {
+            return None;
+        }
+        if let Some(form) = self.chat_form(&raw) {
+            // giữ kiểu chữ hoa của phím đã gõ: "BDDS" → "BĐS", "Gofi" → "Gòi"
+            return Some(if keys.len() >= 2 && keys.iter().all(|c| c.is_uppercase()) {
+                form.to_uppercase()
+            } else if keys[0].is_uppercase() {
+                let mut c = form.chars();
+                c.next().map(|f| f.to_uppercase().chain(c).collect()).unwrap_or_default()
+            } else {
+                form
+            });
+        }
+        if !raw.starts_with("dd") || raw.chars().any(|c| "aeiouy".contains(c)) {
             return None;
         }
         self.vietnamese(&raw)?;
         Some(render(keys, false, false))
+    }
+
+    /// Chữ chat có khoá là `raw`: giá trị trong bảng là điểm, cờ, rồi chính chữ đó. Phím thanh gõ ngay sau nguyên âm
+    /// hay cuối từ đều được ("gofi", "goif"): thử đưa từng phím thanh về cuối như khoá chuẩn hoá.
+    fn chat_form(&self, raw: &str) -> Option<String> {
+        let lookup = |k: &str| {
+            let v = self.vietnamese_table.get(k).filter(|v| v.len() > 2)?;
+            String::from_utf8(v[2..].to_vec()).ok()
+        };
+        lookup(raw).or_else(|| {
+            raw.char_indices().skip(1).filter(|&(i, c)| "sfrxj".contains(c) && i + 1 < raw.len()).find_map(|(i, c)| {
+                lookup(&format!("{}{}{c}", &raw[..i], &raw[i + 1..]))
+            })
+        })
     }
 
     /// Chữ hiện ra của các chữ cái: chính nó, hoặc cách đọc tiếng Việt (phải là từ có thật).

@@ -143,6 +143,12 @@ fn auto_switch_from_vietnamese() {
             ("tesstflight ", "testflight ", true),
             ("posstgres ", "postgres ", true),
             ("USSD ", "USSD ", false),
+            // chữ chat: viết tắt có đ, teencode có dấu (Resources/autoswitch-vi-chat.tsv)
+            ("bdds gdd sddt vndd ", "bđs gđ sđt vnđ ", true),
+            ("BDDS HDDQT ", "BĐS HĐQT ", true),
+            ("goif gofi zaayj dzoo ", "gòi gòi zậy dzô ", true),
+            ("hiur chowif rufi ", "hỉu chời rùi ", true),
+            ("gets fair zoo ", "gets fair zoo ", false),
             // chữ gõ đôi thật, không có dấu hiệu đang gõ Telex: giữ như đã gõ
             ("ussd ", "ussd ", false),
             ("Ussd ", "Ussd ", false),
@@ -198,6 +204,8 @@ fn auto_switch_from_english() {
             ("tesst1 ", "test1 ", false),
             ("currentState ", "currentState ", false),
             ("boss pass ", "boss pass ", false),
+            ("ok bdds goif ", "ok bđs gòi ", true),
+            ("NAS HDD DDR ", "NAS HDD DDR ", false),
             ("USS USSD ", "USS USSD ", false),
             // chữ đôi thật trước nguyên âm, kể cả từ không có trong danh sách: giữ như đã gõ
             ("correlate assail ", "correlate assail ", false),

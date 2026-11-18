@@ -215,7 +215,12 @@ final class InputController {
             if let ascii, (0x20...0x7E).contains(ascii) || isSpace {
                 var edit = macro, switchTo: InputMode?, undoable = true
                 // tự đổi: từ tiếng Anh gõ ở chế độ tiếng Việt ("server", "more") → trả lại phím đã gõ, sang tiếng Anh
-                if edit == nil, let auto = auto ?? englishEnd, auto.prefersEnglish(keys: word, shown: shown) {
+                // chữ chat (đc, bđs, gòi, zậy): xét trước, không thì bị coi là từ nước ngoài hoặc sai chính tả
+                let chat = edit == nil ? auto?.shorthand(keys: word) : nil
+                if let chat {
+                    // đang hiện đúng chữ đó rồi ("gòi") thì để yên, không xoá gõ lại
+                    if chat != shown { edit = TextEdit(backspaces: shown.count, insert: chat) }
+                } else if edit == nil, let auto = auto ?? englishEnd, auto.prefersEnglish(keys: word, shown: shown) {
                     // từ ngay trước cũng là tiếng Anh ("thí makes"): sửa luôn; sửa hai từ thì Backspace không hoàn tác (D20)
                     if let back = auto.lookBack(keys: word) {
                         edit = TextEdit(backspaces: back.shown.count + 1 + shown.count, insert: back.keys + " " + String(word))
@@ -224,8 +229,6 @@ final class InputController {
                         edit = TextEdit(backspaces: shown.count, insert: String(word))
                     }
                     switchTo = .english
-                } else if edit == nil, let s = auto?.shorthand(keys: word) {
-                    edit = TextEdit(backspaces: shown.count, insert: s)
                 } else if edit == nil, let restored = telex.finishWord() {
                     edit = restored
                     if auto?.isForeign(keys: word, shown: shown) == true { switchTo = .english }

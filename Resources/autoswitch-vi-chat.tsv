@@ -1,0 +1,302 @@
+# Chữ chat: viết tắt có đ và teencode có dấu mà kiểm tra chính tả không coi là tiếng Việt.
+# Mỗi dòng: chữ<TAB>nghĩa. scripts/build-tables.py gộp vào autoswitch-vi.bin (khoá Telex chuẩn hoá, có cờ "chữ chat");
+# bộ gõ giữ các chữ này khi kết thúc từ, như đc/đt/đk. Chữ đã là âm tiết thường hoặc từ tiếng Anh thì bỏ qua lúc build.
+# Thêm chữ mới: thêm một dòng, chạy python3 -I scripts/build-tables.py rồi cargo test.
+# Không có hđ, tgđ, đs, đr, đl: phím gõ của chúng là HDD, TGDD, DDS, DDR, DDL.
+# Viết tắt có đ
+bđ	bắt đầu
+bđs	bất động sản
+bgđ	ban giám đốc
+bđh	ban điều hành
+cđ	cao đẳng, cộng đồng
+cđm	cộng đồng mạng
+cđt	chủ đầu tư
+cđv	cổ động viên
+gđ	gia đình, giám đốc
+hđqt	hội đồng quản trị
+hđlđ	hợp đồng lao động
+hđxx	hội đồng xét xử
+lđ	lao động, lãnh đạo
+nđ	nghị định
+nđt	nhà đầu tư
+pgđ	phó giám đốc
+qđ	quyết định
+sđt	số điện thoại
+trđ	triệu đồng
+vđ	vấn đề
+vđv	vận động viên
+vnđ	đồng Việt Nam
+xđ	xác định
+đb	đặc biệt
+đbqh	đại biểu Quốc hội
+đg	đang, đường
+đh	đại học
+đhqg	đại học quốc gia
+đhcđ	đại hội cổ đông
+đkkd	đăng ký kinh doanh
+đm	tiếng chửi
+đmm	tiếng chửi
+đcm	tiếng chửi
+đkm	tiếng chửi
+vcđ	tiếng chửi
+đn	đăng nhập, Đà Nẵng
+đng	đang
+đsq	đại sứ quán
+đth	điện thoại
+đv	đơn vị
+đx	đề xuất
+đz	đẹp trai
+# Teencode có dấu
+gòi	rồi
+gòy	rồi
+gồy	rồi
+rùi	rồi
+ròy	rồi
+rồy	rồi
+roài	rồi
+òy	rồi
+ùi	rồi
+hỉu	hiểu
+hĩu	hiểu
+hôk	không
+hỏk	không
+hỏg	không
+hơm	không
+hõng	không
+khôg	không
+khôm	không
+khưm	không
+kó	có
+kô	không
+kơ	cơ
+kìe	kìa
+kím	kiếm
+kỉu	kiểu
+kủa	của
+kại	lại
+iêu	yêu
+iêm	em
+íu	yếu
+dỏi	giỏi
+dới	với
+dứi	với
+dất	rất
+gất	rất
+ghéc	ghét
+ghêk	ghê
+gê	ghê
+gét	ghét (gét gô)
+fải	phải
+fò	phò
+cừi	cười
+cũg	cũng
+cũm	cũng
+cưn	cưng
+cụa	của
+cị	chị
+cỵ	chị
+chụy	chị
+chời	trời
+chòy	trời
+chếc	chết
+chéc	chết
+hếc	hết
+thíc	thích
+thíu	thiếu
+thôy	thôi
+thưn	thương
+thỳ	thì
+mìh	mình
+mìnk	mình
+mừ	mà
+mừn	mình
+mừi	mười
+mịa	mẹ
+móa	má
+mèy	mày
+ngừi	người
+ngĩ	nghĩ
+nhưg	nhưng
+nhưn	nhưng
+nhữg	những
+nhữn	những
+nhỷ	nhỉ
+nhề	nhỉ
+nèk	nè
+nựa	nữa
+pé	bé
+pít	biết
+píc	biết
+pùn	buồn
+pạn	bạn
+pị	bị
+pỏ	bỏ
+qá	quá
+qé	quá
+qó	quá
+trừi	trời
+tửn	tưởng
+tũi	tuổi
+tôy	tôi
+tìnk	tình
+típ	tiếp
+vứi	với
+vỡi	vãi
+voãi	vãi
+xĩu	xỉu
+xún	xuống
+xợ	sợ
+xò	xịn xò
+êi	ơi
+êy	ơi
+êk	ê
+éy	ấy
+ưi	ơi
+ũa	ủa
+ổg	ổng
+ưn	ơn
+đag	đang
+đuy	đi
+đy	đi
+đei	đây
+đếy	đấy
+đếu	đéo
+đél	đéo
+đíu	đéo
+đók	đó
+đượk	được
+đừn	đừng
+đúg	đúng
+đỉn	đỉnh
+đỉm	điểm
+đỉnk	đỉnh
+lứm	lắm
+lớm	lắm
+okê	ok
+dảk	dark (dảk dảk bủh bủh)
+bủh	buồn (dảk dảk bủh bủh)
+kảm	cảm (trầm kảm)
+# z / dz thay d, gi, v, r và đuôi k, ie, oy (danh sách của Vikey, D53; GPL-3.0)
+bíe	
+bìk	
+đỉk	
+dzăn	
+dzạ	
+dzật	
+dzậy	
+dzàng	
+dzạy	
+dzẻ	
+dzề	
+dzép	
+dzì	
+dzị	
+dzìa	
+dzịt	
+dzợ	
+dzới	
+dzời	
+dzọ	
+dzô	
+dzồi	
+dzỗm	
+dzốn	
+dzông	
+dzọng	
+dzữ	
+dzừa	
+dzú	
+dzụ	
+ỉe	
+ík	
+lựk	
+míe	
+mịe	
+mìk	
+thík	
+tứk	
+ừk	
+zắc	
+zăn	
+zăng	
+zá	
+zà	
+zạ	
+zẫn	
+zật	
+zâu	
+zầy	
+zẫy	
+zậy	
+zái	
+zài	
+zải	
+zại	
+zàng	
+záo	
+zào	
+zão	
+záp	
+zàu	
+zạy	
+zaỵy	
+zdí	
+zé	
+zè	
+zẻ	
+zê	
+zề	
+zén	
+zép	
+zét	
+zí	
+zì	
+zị	
+zía	
+zìa	
+zích	
+ziệc	
+ziên	
+ziễn	
+ziện	
+ziêng	
+ziết	
+ziệt	
+zịk	
+zỉn	
+zĩn	
+zít	
+zịt	
+zịtt	
+zơ	
+zờ	
+zở	
+zợ	
+zơi	
+zới	
+zời	
+zõ	
+zô	
+zổ	
+zồi	
+zỗi	
+zống	
+zoăng	
+zòi	
+zòm	
+zóng	
+zọng	
+zọt	
+zư	
+zừ	
+zữ	
+zừa	
+zứi	
+zú	
+zũ	
+zụ	
+zục	
+zuíi	
+zụng	
+zút	
+zuyên	

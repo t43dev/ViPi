@@ -8,6 +8,8 @@ What changed in each ViPi release. Download the latest from [Releases](../../rel
 - **iPhone and iPad: the 123 and #+= pages go back to letters after a space or an apostrophe,** like the Apple keyboard. Number fields stay on the page you chose.
 - **A doubled tone key is read more carefully** (all platforms). It counts as an undo only right before a consonant and when the word then reads as English: `tesstflight` → `testflight`, `gesstures` → `gestures`. Real doubled letters stay, also in words the built-in list does not know: `correlate`, `assail`, `riffle`. Checked against a 236,000-word dictionary: version 0.5.5 changed 743 of them in the English state, now 1.
 
+- **Chat abbreviations and teencode stay as you mean them** (all platforms). Abbreviations with đ come out with the đ wherever it stands: `bdds` → `bđs`, `sddt` → `sđt`, `vndd` → `vnđ`, `BDDS` → `BĐS` (before, only `đc`, `đt`, `đk`). Toned chat spellings are no longer put back to their keys at the space: `gòi`, `hỉu`, `chời`, `zậy`, `dzô` and about 290 more, in `Resources/autoswitch-vi-chat.tsv`. English words typed with the same keys stay English (`gets`, `fair`, `zoo`), and so do `HDD` and `DDR`.
+
 ### Fixed
 - **Deleting the digits of a code brings Vietnamese back** (all platforms): after `a1` and two Backspaces, `vieejt` gives `việt` again.
 - **Android and HarmonyOS:** an English word in progress is forgotten when the app empties the text box right after a key (Send in chat apps), so the next word is not judged together with it.

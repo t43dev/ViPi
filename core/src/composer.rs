@@ -477,7 +477,14 @@ impl Composer {
                 let mut undoable = true;
                 let tables = self.auto_switch_tables.as_ref();
                 // tự đổi: từ tiếng Anh gõ ở chế độ tiếng Việt ("server", "more") → trả lại phím đã gõ, sang tiếng Anh
-                if edit.is_none() && (auto || english_end) && tables.is_some_and(|t| t.prefers_english(&word, &shown)) {
+                // chữ chat (đc, bđs, gòi, zậy): xét trước, không thì bị coi là từ nước ngoài hoặc sai chính tả
+                let chat = (edit.is_none() && auto).then(|| tables.and_then(|t| t.shorthand(&word))).flatten();
+                if let Some(s) = &chat {
+                    // đang hiện đúng chữ đó rồi ("gòi") thì để yên, không xoá gõ lại
+                    if *s != shown {
+                        edit = Some(TextEdit::new(shown.chars().count(), s.clone()));
+                    }
+                } else if edit.is_none() && (auto || english_end) && tables.is_some_and(|t| t.prefers_english(&word, &shown)) {
                     let keys: String = word.iter().collect();
                     // từ ngay trước cũng là tiếng Anh ("thí makes"): sửa luôn; sửa hai từ thì Backspace không hoàn tác (D20)
                     edit = Some(match tables.and_then(|t| t.look_back(&word)) {
@@ -488,8 +495,6 @@ impl Composer {
                         None => TextEdit::new(shown.chars().count(), keys),
                     });
                     switch_to = Some(Mode::English);
-                } else if let Some(s) = (edit.is_none() && auto).then(|| tables.and_then(|t| t.shorthand(&word))).flatten() {
-                    edit = Some(TextEdit::new(shown.chars().count(), s));
                 } else if edit.is_none() {
                     if let Some(restored) = self.telex.finish_word() {
                         edit = Some(restored);

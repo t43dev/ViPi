@@ -32,7 +32,11 @@ final class AutoSwitchTests: XCTestCase {
             if vi {
                 let shown = telex.output
                 kept = shown
-                if atWordStart, auto.prefersEnglish(keys: word, shown: shown) {
+                if atWordStart, let s = auto.shorthand(keys: word) {
+                    if s != shown { apply(TextEdit(backspaces: shown.count, insert: s)) }
+                    telex.reset()
+                    if s != shown { kept = nil }
+                } else if atWordStart, auto.prefersEnglish(keys: word, shown: shown) {
                     if let back = auto.lookBack(keys: word) {
                         apply(TextEdit(backspaces: back.shown.count + 1 + shown.count, insert: back.keys + " " + String(word)))
                     } else {
@@ -40,10 +44,6 @@ final class AutoSwitchTests: XCTestCase {
                     }
                     telex.reset()
                     vi = false
-                    kept = nil
-                } else if atWordStart, let s = auto.shorthand(keys: word) {
-                    apply(TextEdit(backspaces: shown.count, insert: s))
-                    telex.reset()
                     kept = nil
                 } else if let edit = telex.finishWord() {
                     apply(edit)
@@ -117,6 +117,12 @@ final class AutoSwitchTests: XCTestCase {
             ("posstgres ", "postgres ", true),
             // chữ gõ đôi thật, không có dấu hiệu đang gõ Telex: giữ như đã gõ
             ("ussd ", "ussd ", false),
+            // chữ chat: viết tắt có đ, teencode có dấu (Resources/autoswitch-vi-chat.tsv)
+            ("bdds gdd sddt vndd ", "bđs gđ sđt vnđ ", true),
+            ("BDDS HDDQT ", "BĐS HĐQT ", true),
+            ("goif gofi zaayj dzoo ", "gòi gòi zậy dzô ", true),
+            ("hiur chowif rufi ", "hỉu chời rùi ", true),
+            ("gets fair zoo ", "gets fair zoo ", false),
             ("Ussd ", "Ussd ", false),
             // chữ đôi thật trước nguyên âm, kể cả từ không có trong danh sách: giữ như đã gõ
             ("correlate assail ", "correlate assail ", false),
@@ -143,6 +149,8 @@ final class AutoSwitchTests: XCTestCase {
             ("tesst1 ", "test1 ", false),
             ("currentState ", "currentState ", false),
             ("boss pass ", "boss pass ", false),
+            ("ok bdds goif ", "ok bđs gòi ", true),
+            ("NAS HDD DDR ", "NAS HDD DDR ", false),
             ("USS USSD ", "USS USSD ", false),
             // chữ đôi thật trước nguyên âm, kể cả từ không có trong danh sách: giữ như đã gõ
             ("correlate assail ", "correlate assail ", false),

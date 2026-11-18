@@ -65,11 +65,34 @@ public final class AutoSwitch {
         return (shown, String(p.keys))
     }
 
-    /// "ddc" → "đc": viết tắt chỉ có đ và phụ âm mà tin nhắn hay dùng (D27).
+    /// "ddc" → "đc": viết tắt chỉ có đ và phụ âm mà tin nhắn hay dùng (D27). Và chữ chat trong
+    /// `autoswitch-vi-chat.tsv` (viết tắt có đ như "bđs", teencode có dấu như "gòi", "zậy"): kiểm tra chính tả
+    /// không coi chúng là tiếng Việt, nên lúc kết thúc từ các phím được đổi thành chữ đó.
     public func shorthand(keys: [Character]) -> String? {
-        guard let raw = Self.letters(keys), raw.hasPrefix("dd"), !raw.contains(where: { "aeiouy".contains($0) }),
-              english(raw) == nil, vietnamese(raw) != nil else { return nil }
+        guard let raw = Self.letters(keys), english(raw) == nil else { return nil }
+        if let form = chatForm(raw) {
+            // giữ kiểu chữ hoa của phím đã gõ: "BDDS" → "BĐS", "Gofi" → "Gòi"
+            if keys.count >= 2, keys.allSatisfy(\.isUppercase) { return form.uppercased() }
+            if keys[0].isUppercase { return form.prefix(1).uppercased() + form.dropFirst() }
+            return form
+        }
+        guard raw.hasPrefix("dd"), !raw.contains(where: { "aeiouy".contains($0) }), vietnamese(raw) != nil else { return nil }
         return TelexEngine.render(keys, modern: false, spellCheck: false)
+    }
+
+    /// Chữ chat có khoá là `raw`: giá trị trong bảng là điểm, cờ, rồi chính chữ đó. Phím thanh gõ ngay sau nguyên âm
+    /// hay cuối từ đều được ("gofi", "goif"): thử đưa từng phím thanh về cuối như khoá chuẩn hoá.
+    private func chatForm(_ raw: String) -> String? {
+        func lookup(_ k: String) -> String? {
+            guard let v = vietnameseTable.value(for: k), v.count > 2 else { return nil }
+            return String(bytes: v.dropFirst(2), encoding: .utf8)
+        }
+        if let form = lookup(raw) { return form }
+        let r = Array(raw)
+        for i in r.indices.dropFirst().dropLast() where "sfrxj".contains(r[i]) {
+            if let form = lookup(String(r[..<i]) + String(r[(i + 1)...]) + String(r[i])) { return form }
+        }
+        return nil
     }
 
     /// Chữ hiện ra của các chữ cái: chính nó, hoặc cách đọc tiếng Việt (phải là từ có thật).
