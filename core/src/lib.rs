@@ -1,9 +1,9 @@
 //! Lõi bộ gõ ViPi, dùng chung cho Android, iOS và macOS: Telex tiếng Việt, Pinyin tiếng Trung,
-//! tự đổi Anh/Việt, gõ tắt, và `Composer` điều phối theo chế độ. Dữ liệu là các bảng nhị phân
+//! tự đổi Anh/Việt, gõ tắt, gợi ý từ và tự sửa lỗi chạm (`suggest`), và `Composer` điều phối theo chế độ. Dữ liệu là các bảng nhị phân
 //! trong Resources/ (docs/data-format.md), đọc bằng mmap.
 //!
 //! Nguồn: luật Telex và bảng nguyên âm theo UniKey (GPL); từ điển Pinyin rime-ice (GPL-3.0); mô hình bigram
-//! từ libpinyin (GPL-3.0); bảng phồn thể OpenCC (Apache-2.0); tự đổi Anh/Việt theo Vikey (GPL-3.0), dạng từ tiếng Anh SCOWL (© Kevin Atkinson), với tần suất
+//! từ libpinyin (GPL-3.0); bảng phồn thể OpenCC (Apache-2.0); tự đổi Anh/Việt, gợi ý từ và mô hình chạm theo Vikey (GPL-3.0), dạng từ tiếng Anh SCOWL (© Kevin Atkinson), với tần suất
 //! từ FrequencyWords (CC BY-SA 4.0); danh sách âm tiết từ danh sách từ của Hồ Ngọc Đức (GPL).
 
 pub mod autoswitch;
@@ -11,6 +11,7 @@ pub mod bigram;
 pub mod composer;
 pub mod convert;
 pub mod pinyin;
+pub mod suggest;
 pub mod table;
 pub mod telex;
 pub mod userdict;
