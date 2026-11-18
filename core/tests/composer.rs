@@ -69,6 +69,9 @@ fn vietnamese_words_and_restore() {
     assert_eq!(type_all(&mut c, "user data class "), "user data class ");
     assert_eq!(type_all(&mut c, "tessting "), "testing ");
     assert_eq!(type_all(&mut c, "vieejt⌫n "), "viện ");
+    // xoá hết phần mã (số dính sau chữ) thì chữ gõ tiếp lại là tiếng Việt
+    assert_eq!(type_all(&mut c, "a1⌫⌫vieejt "), "việt ");
+    assert_eq!(type_all(&mut c, "abc1de⌫f "), "abc1df ");
     c.set_vietnamese_options(true, true, true);
     assert_eq!(type_all(&mut c, "hoaf khoer "), "hoà khoẻ ");
 }

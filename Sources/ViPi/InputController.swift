@@ -47,7 +47,7 @@ final class InputController {
     private var englishWord = ""       // chữ cái của từ đang gõ ở chế độ tiếng Anh
     private var atWordStart = true      // từ đang gõ đứng sau dấu cách/đầu dòng/mở ngoặc (không dính sau số, @, ...)
     private var afterDigit = false      // phím vừa rồi là số: w ngay sau số là đơn vị (65w), không phải ư
-    private var inCode = false          // số dính sau chữ (abc1def, md5sum): các chữ tiếp theo giữ nguyên
+    private var inCode = 0              // số dính sau chữ (abc1def, md5sum): các chữ tiếp theo giữ nguyên; đếm ký tự của phần mã để Backspace xoá hết thì thôi
     var isRecordingShortcut = false     // đang ghi phím tắt trong Settings: để mọi phím đi qua
 
     let telex = TelexEngine()
@@ -187,7 +187,11 @@ final class InputController {
         if keyCode == kVK_Delete {
             // xoá ra ngoài từ đang gõ: từ đã nhớ làm ngữ cảnh không còn chắc đứng ngay trước con trỏ, quên nó đi
             // (không thì sửa ngược "thí makes" sẽ xoá lùi vào chữ khác)
-            if telex.keys.isEmpty { autoSwitch?.remember(nil) }
+            if telex.keys.isEmpty {
+                autoSwitch?.remember(nil)
+                afterDigit = false
+                inCode = max(0, inCode - 1)   // xoá dần phần mã ("a1" ⌫): hết số thì chữ gõ tiếp lại là tiếng Việt
+            }
             telex.backspace()
             return false
         }
@@ -206,7 +210,7 @@ final class InputController {
                 ? autoSwitch : nil
             atWordStart = isSpace || ascii == 0x28 || ascii == 0x22   // ( "
             let digit = ascii.map { (0x30...0x39).contains($0) } ?? false
-            inCode = digit && (inCode || !word.isEmpty)
+            inCode = digit && (inCode > 0 || !word.isEmpty) ? inCode + 1 : 0
             afterDigit = digit
             if let ascii, (0x20...0x7E).contains(ascii) || isSpace {
                 var edit = macro, switchTo: InputMode?, undoable = true
@@ -242,7 +246,7 @@ final class InputController {
             telex.reset()
             return false
         }
-        if inCode { return false }
+        if inCode > 0 { inCode += 1; return false }
         let wasAfterDigit = afterDigit
         afterDigit = false
         if wasAfterDigit, telex.output.isEmpty, ch == "w" || ch == "W" { return false }
@@ -428,7 +432,7 @@ final class InputController {
         undoneKeys = nil
         atWordStart = true
         afterDigit = false
-        inCode = false
+        inCode = 0
         autoSwitch?.remember(nil)
         englishWord = ""
         telex.reset()

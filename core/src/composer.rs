@@ -125,7 +125,7 @@ pub struct Composer {
     undone_keys: Option<Vec<char>>, // từ vừa được trả lại bằng Backspace: kết thúc lại nó thì không tự đổi nữa
     at_word_start: bool,            // từ đang gõ đứng sau dấu cách/đầu dòng/mở ngoặc (không dính sau số, @, ...)
     after_digit: bool,              // phím vừa rồi là số: w ngay sau số là đơn vị (65w), không phải ư
-    in_code: bool,                  // số dính sau chữ (abc1def, md5sum): các chữ tiếp theo giữ nguyên
+    in_code: usize,                 // số dính sau chữ (abc1def, md5sum): các chữ tiếp theo giữ nguyên; đếm ký tự của phần mã để Backspace xoá hết thì thôi
     telex: TelexEngine,
     lexicon: Option<Arc<VietnameseLexicon>>,
     restore_non_vietnamese: bool,
@@ -162,7 +162,7 @@ impl Composer {
             undone_keys: None,
             at_word_start: true,
             after_digit: false,
-            in_code: false,
+            in_code: 0,
             telex: TelexEngine::new(),
             lexicon: None,
             restore_non_vietnamese: true,
@@ -331,7 +331,7 @@ impl Composer {
     pub fn cancel(&mut self) {
         self.at_word_start = true;
         self.after_digit = false;
-        self.in_code = false;
+        self.in_code = 0;
         self.undo = None;
         self.undone_keys = None;
         if let Some(a) = &mut self.auto_switch_tables {
@@ -440,6 +440,9 @@ impl Composer {
             // (không thì sửa ngược "thí makes" sẽ xoá lùi vào chữ khác)
             if self.telex.is_empty() {
                 self.remember(None, false, None);
+                self.after_digit = false;
+                // xoá dần phần mã ("a1" ⌫): hết số thì chữ gõ tiếp lại là tiếng Việt
+                self.in_code = self.in_code.saturating_sub(1);
             }
             self.telex.backspace();
             return KeyResult::pass();
@@ -466,7 +469,7 @@ impl Composer {
                 && ascii.is_some_and(|a| a.is_ascii_digit() || a.is_ascii_punctuation());
             self.at_word_start = is_space || matches!(ascii, Some('(' | '"'));
             let digit = ascii.is_some_and(|a| a.is_ascii_digit());
-            self.in_code = digit && (self.in_code || !word.is_empty());
+            self.in_code = if digit && (self.in_code > 0 || !word.is_empty()) { self.in_code + 1 } else { 0 };
             self.after_digit = digit;
             if let Some(a) = ascii.filter(|&a| (' '..='~').contains(&a) || is_space) {
                 let mut edit = macro_edit;
@@ -506,7 +509,8 @@ impl Composer {
             self.telex.reset();
             return KeyResult::pass();
         };
-        if self.in_code {
+        if self.in_code > 0 {
+            self.in_code += 1;
             return KeyResult::pass();
         }
         let after_digit = std::mem::take(&mut self.after_digit);
