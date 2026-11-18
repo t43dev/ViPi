@@ -2,6 +2,13 @@
 
 What changed in each ViPi release. Download the latest from [Releases](../../releases/latest).
 
+## 0.5.5 · 2026-11-18
+
+macOS 0.5.5. The same fixes reach iPhone, iPad, Android and HarmonyOS with their next store builds.
+
+### Fixed
+- **Doubled letters stay when nothing else looks like Telex** (all platforms): `ussd` and `Ussd` no longer become `usd`, and acronyms typed after VE has switched to English keep both letters (`USS`, `USSD`). A doubled tone key still undoes the mark in words like `tesstflight` → `testflight`.
+
 ## 0.5.4 · 2026-11-18
 
 macOS 0.5.4. The iPhone, iPad, Android and HarmonyOS fixes below reach those apps with their next store builds.
