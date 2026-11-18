@@ -591,6 +591,15 @@ impl Composer {
                 switch_to = Some(Mode::Vietnamese);
             }
         }
+        // gõ đôi phím thanh theo thói quen Telex trong từ tiếng Anh ("tesstflight" → "testflight"): ở lại tiếng Anh
+        if text.is_none()
+            && started
+            && !undone
+            && self.auto_switch_on()
+            && ascii.is_some_and(|a| is_space || a.is_ascii_digit() || a.is_ascii_punctuation())
+        {
+            text = self.auto_switch_tables.as_ref().and_then(|t| t.english_for(&word));
+        }
         let backspaces = word.len();
         self.remember((ascii == Some(' ') && !word.is_empty()).then_some(word.clone()), false, None);
         let undo = (ascii != Some('\r')).then(|| (word_str, word, Mode::English));

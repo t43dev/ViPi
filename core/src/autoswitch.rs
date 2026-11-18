@@ -245,6 +245,20 @@ impl AutoSwitch {
         groups > 1 || !shown.chars().any(|c| decompose(c).is_some_and(|(l, _)| "âêôăơưđ".contains(l)))
     }
 
+    /// Đang gõ tiếng Anh mà vẫn gõ đôi phím thanh theo thói quen Telex ("tesstflight", "posstgres"): bỏ phím đôi
+    /// thì thành chữ tiếng Anh → dùng chữ đó, ở lại tiếng Anh. Tên biến có chữ gõ đôi thật ("currentState") giữ nguyên.
+    pub fn english_for(&self, keys: &[char]) -> Option<String> {
+        let raw = letters_of(keys)?;
+        if keys.len() < 3 || self.english(&raw).is_some() {
+            return None;
+        }
+        let shown = render(keys, false, true);
+        if !shown.is_ascii() || shown.chars().eq(keys.iter().copied()) {
+            return None;
+        }
+        (self.english(&shown.to_lowercase()).is_some() || self.undo_was_meant(keys, &shown)).then_some(shown)
+    }
+
     /// Đang gõ tiếng Anh: chữ tiếng Việt thay cho các phím đã gõ ("treen" → "trên"), None = giữ tiếng Anh.
     pub fn vietnamese_for(&self, keys: &[char], modern: bool) -> Option<String> {
         if keys.len() < 2 {

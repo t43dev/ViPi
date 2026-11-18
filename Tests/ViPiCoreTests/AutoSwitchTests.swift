@@ -54,6 +54,8 @@ final class AutoSwitchTests: XCTestCase {
                 if atWordStart, let v = auto.vietnamese(for: english, modern: true) {
                     apply(TextEdit(backspaces: english.count, insert: v))
                     vi = true
+                } else if atWordStart, let e = auto.english(for: english) {
+                    apply(TextEdit(backspaces: english.count, insert: e))
                 }
                 english = []
             }
@@ -130,6 +132,12 @@ final class AutoSwitchTests: XCTestCase {
             ("truowfng ", "trường ", true),
             ("truongwf ", "trường ", true),
             ("Truowfng Sa ", "Trường Sa ", true),
+            // gõ đôi phím thanh theo thói quen Telex trong từ tiếng Anh: chữ tiếng Anh, ở lại tiếng Anh
+            ("tesstflight ", "testflight ", false),
+            ("posstgres ", "postgres ", false),
+            ("tesst1 ", "test1 ", false),
+            ("currentState ", "currentState ", false),
+            ("boss pass ", "boss pass ", false),
             ("con ban an ", "con ban an ", false),
             ("the theme of rust and axis ", "the theme of rust and axis ", false),
             ("i must trust the rest of the list ", "i must trust the rest of the list ", false),

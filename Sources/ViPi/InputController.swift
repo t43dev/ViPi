@@ -283,6 +283,11 @@ final class InputController {
             text = vietnamese
             switchTo = .vietnamese
         }
+        // gõ đôi phím thanh theo thói quen Telex trong từ tiếng Anh ("tesstflight" → "testflight"): ở lại tiếng Anh
+        if text == nil, started, !undone, let auto = autoSwitch, let ascii,
+           isSpace || (0x21...0x7E).contains(ascii) && !Character(UnicodeScalar(ascii)).isLetter {
+            text = auto.english(for: Array(word))
+        }
         autoSwitch?.remember(ascii == 0x20 && !word.isEmpty ? Array(word) : nil, vietnamese: false)
         guard let text else { return false }
         KeySender.send(TextEdit(backspaces: word.count, insert: text), wholeWord: true,

@@ -152,6 +152,15 @@ public final class AutoSwitch {
         return groups > 1 || !shown.contains { Vietnamese.decompose($0).map { "âêôăơưđ".contains($0.0) } ?? false }
     }
 
+    /// Đang gõ tiếng Anh mà vẫn gõ đôi phím thanh theo thói quen Telex ("tesstflight", "posstgres"): bỏ phím đôi
+    /// thì thành chữ tiếng Anh → dùng chữ đó, ở lại tiếng Anh. Tên biến có chữ gõ đôi thật ("currentState") giữ nguyên.
+    public func english(for keys: [Character]) -> String? {
+        guard keys.count >= 3, let raw = Self.letters(keys), english(raw) == nil else { return nil }
+        let shown = TelexEngine.render(keys, modern: false)
+        guard !shown.unicodeScalars.contains(where: { !$0.isASCII }), shown != String(keys) else { return nil }
+        return english(shown.lowercased()) != nil || undoWasMeant(keys, shown) ? shown : nil
+    }
+
     /// Đang gõ tiếng Anh: chữ tiếng Việt thay cho các phím đã gõ ("treen" → "trên"), nil = giữ tiếng Anh.
     public func vietnamese(for keys: [Character], modern: Bool) -> String? {
         guard keys.count >= 2, let raw = Self.letters(keys) else { return nil }
