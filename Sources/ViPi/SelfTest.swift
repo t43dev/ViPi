@@ -155,10 +155,12 @@ final class SelfTest: NSObject, NSApplicationDelegate {
     private func type(_ keys: [Character]) {
         var timeline: [(t: Double, code: CGKeyCode, down: Bool, shift: Bool, char: Character)] = []
         for (i, k) in keys.enumerated() {
-            guard let code = Self.keyCodes[Character(k.lowercased())] else { continue }
+            let shifted = Self.shiftedKeyCodes[k]
+            guard let code = shifted ?? Self.keyCodes[Character(k.lowercased())] else { continue }
             let t = Double(i) * gap
-            timeline.append((t, code, true, k.isUppercase, k))
-            timeline.append((t + hold, code, false, k.isUppercase, k))
+            let shift = k.isUppercase || shifted != nil
+            timeline.append((t, code, true, shift, k))
+            timeline.append((t + hold, code, false, shift, k))
         }
         timeline.sort { $0.t < $1.t }
         let t0 = Date()
@@ -168,7 +170,7 @@ final class SelfTest: NSObject, NSApplicationDelegate {
             guard let e = CGEvent(keyboardEventSource: source, virtualKey: ev.code, keyDown: ev.down) else { continue }
             e.flags = ev.shift ? .maskShift : []
             // chữ của phím tính theo trạng thái Shift lúc tạo sự kiện, không theo cờ vừa đặt: ghi đúng chữ như bàn phím thật
-            if ev.char.isLetter {
+            if ev.char != " " && ev.char != "\n" {
                 let units = Array(String(ev.char).utf16)
                 e.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
             }
@@ -283,6 +285,11 @@ final class SelfTest: NSObject, NSApplicationDelegate {
     static let keyCodes: [Character: CGKeyCode] = [
         "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6, "x": 7, "c": 8, "v": 9, "b": 11, "q": 12,
         "w": 13, "e": 14, "r": 15, "y": 16, "t": 17, "o": 31, "u": 32, "i": 34, "p": 35, "l": 37, "j": 38,
-        "k": 40, "n": 45, "m": 46, " ": 49, "\n": 36, "1": 18, "2": 19, ".": 47,
+        "k": 40, "n": 45, "m": 46, " ": 49, "\n": 36, ".": 47, ",": 43, "-": 27, "'": 39, "/": 44, ";": 41, "=": 24,
+        "1": 18, "2": 19, "3": 20, "4": 21, "5": 23, "6": 22, "7": 26, "8": 28, "9": 25, "0": 29,
+    ]
+    /// Ký tự cần giữ Shift (bố cục ABC / U.S.)
+    static let shiftedKeyCodes: [Character: CGKeyCode] = [
+        "?": 44, "!": 18, "@": 19, "(": 25, ")": 29, "_": 27, ":": 41, "\"": 39,
     ]
 }
