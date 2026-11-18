@@ -138,6 +138,7 @@ final class AutoSwitchTests: XCTestCase {
             ("tesst1 ", "test1 ", false),
             ("currentState ", "currentState ", false),
             ("boss pass ", "boss pass ", false),
+            ("USS USSD ", "USS USSD ", false),
             ("con ban an ", "con ban an ", false),
             ("the theme of rust and axis ", "the theme of rust and axis ", false),
             ("i must trust the rest of the list ", "i must trust the rest of the list ", false),

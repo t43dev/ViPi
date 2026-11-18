@@ -139,6 +139,7 @@ fn auto_switch_from_vietnamese() {
             // gõ đôi để bỏ dấu trong từ ghép tiếng Anh không có trong danh sách: giữ chữ đang hiện
             ("tesstflight ", "testflight ", true),
             ("posstgres ", "postgres ", true),
+            ("USSD ", "USSD ", false),
             ("mirrorless ", "mirrorless ", false),
             ("terrorizer ", "terrorizer ", false),
             ("cheese, ", "cheese, ", false),
@@ -189,6 +190,7 @@ fn auto_switch_from_english() {
             ("tesst1 ", "test1 ", false),
             ("currentState ", "currentState ", false),
             ("boss pass ", "boss pass ", false),
+            ("USS USSD ", "USS USSD ", false),
             ("con ban an ", "con ban an ", false),
             ("the theme of rust and axis ", "the theme of rust and axis ", false),
             ("i must trust the rest of the list ", "i must trust the rest of the list ", false),

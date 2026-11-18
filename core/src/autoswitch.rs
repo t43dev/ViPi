@@ -249,7 +249,8 @@ impl AutoSwitch {
     /// thì thành chữ tiếng Anh → dùng chữ đó, ở lại tiếng Anh. Tên biến có chữ gõ đôi thật ("currentState") giữ nguyên.
     pub fn english_for(&self, keys: &[char]) -> Option<String> {
         let raw = letters_of(keys)?;
-        if keys.len() < 3 || self.english(&raw).is_some() {
+        // viết tắt (USS, USSD, CSS): giữ như đã gõ
+        if keys.len() < 3 || capitals(keys) >= 2 || self.english(&raw).is_some() {
             return None;
         }
         let shown = render(keys, false, true);
