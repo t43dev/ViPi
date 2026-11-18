@@ -182,4 +182,111 @@ f, m = refresh()
 check("rollover globe+n: switches first", m, "CHINESE")
 check("rollover globe+n: n is pinyin", f, "n|")
 clear(); set_mode("VIETNAMESE")
+
+# --- word suggestions, slip correction, keys that follow the sentence (Vietnamese · English)
+D = int(sh("wm density").split()[-1]) / 160   # px per dp
+
+
+def mid(n):
+    l, t, r, b = RECTS[n]
+    return (l + r) / 2, (t + b) / 2
+
+
+def toward(a, b, frac=0.68):
+    """A touch inside key a, frac of its half-width from its centre toward key b: a slip, but still in the part of
+    the key that always types it (the tap model's sure zone is 0.7), so the letter typed does not depend on the model."""
+    (ax, ay), (bx, _) = mid(a), mid(b)
+    l, _, r, _ = RECTS[a]
+    return ax + (1 if bx > ax else -1) * frac * (r - l) / 2, ay
+
+
+def english():
+    fresh(); typ("server "); clear()
+
+
+def vietnamese():
+    fresh(); typ("vieetj "); clear()
+
+
+def set_pref(key, on):
+    sh(f"am broadcast -a dev.t43.vipi.DUMP -p dev.t43.vipi --es id p{time.time()} --es set {key}={'true' if on else 'false'} >/dev/null")
+    time.sleep(0.5)
+
+
+def restart_keyboard():
+    """Hide and show the keyboard: the suggester forgets the words kept after a Backspace undo."""
+    sh("input keyevent KEYCODE_BACK"); time.sleep(0.5); ensure_shown()
+
+
+def slipped_rhonk():
+    """rhonk with r slipped toward t and o toward i (the other letters on their centres)."""
+    refresh()
+    for c in "rhonk":
+        if c == "r": tap_at(*toward("r", "t"))
+        elif c == "o": tap_at(*toward("o", "i"))
+        else: tap(c)
+
+
+fresh()
+check("suggest: models ready", wait_suggest(), True)
+english(); typ("I want to th")
+check("suggest: completions after 'I want to th'", cells(), [("th", "q"), ("think", ""), ("throw", "")])
+tap("word1"); time.sleep(0.3)
+check("suggest: pick a completion", field(), "I want to think |")
+c = cells()
+check("suggest: next words after the picked word", len(c) > 0 and all(f == "n" for _, f in c), True)
+nxt = c[0][0] if c else "?"
+tap("word0"); time.sleep(0.3)
+check("suggest: pick a next word", field(), f"I want to think {nxt} |")
+vietnamese(); typ("hoom nay ")
+c = cells()
+print("  next words after hôm nay:", c)
+check("suggest: VI next words after hôm nay", len(c) > 0 and all(f == "n" for _, f in c), True)
+english(); typ("I want to rhonk ")
+check("slip: centre taps are not corrected", field(), "I want to rhonk |")
+set_pref("autoCorrect", False)
+english(); typ("I want to "); slipped_rhonk(); tap("space")
+check("slip: auto-correct off keeps rhonk", field(), "I want to rhonk |")
+set_pref("autoCorrect", True)
+english(); typ("I want to "); slipped_rhonk()
+check("slip: bar shows the fix", cells(), [("rhonk", "q"), ("think", "h")])
+tap("space")
+check("slip: rhonk → think at the space", field(), "I want to think |")
+tap("backspace"); time.sleep(0.3)
+check("slip: Backspace puts rhonk back", field(), "I want to rhonk|")
+# a touch in the gap between n and the space bar (3.5 dp below n): a space after a finished word, n otherwise
+english(); typ("I want to thank"); refresh()
+gap = (mid("n")[0], RECTS["n"][3] + 3.5 * D)
+tap_at(*gap)
+check("tap: gap after thank is a space", field(), "I want to thank |")
+english(); typ("I want to tha"); tap_at(*gap)
+check("tap: gap after tha is n", field(), "I want to than|")
+# Vietnamese: a touch 0.4 dp from the u|i border goes to the likelier Telex key; the opposite with auto-correct off
+border = (mid("u")[0] + mid("i")[0]) / 2
+row = mid("u")[1]
+for on in (True, False):
+    set_pref("autoCorrect", on)
+    tag = "" if on else " (auto-correct off)"
+    vietnamese(); typ("kyf th"); tap_at(border - 0.4 * D, row)
+    check("tap: kỳ th + inside u next to i" + tag, field(), "kỳ thi|" if on else "kỳ thu|")
+    vietnamese(); typ("muaf th"); tap_at(border + 0.4 * D, row)
+    check("tap: mùa th + inside i next to u" + tag, field(), "mùa thu|" if on else "mùa thi|")
+set_pref("autoCorrect", True)
+# the cursor moved with the space bar after a slipped word: the space must not replace anything
+restart_keyboard()
+english(); typ("I want to "); slipped_rhonk()
+check("slip: fix pending before the cursor drag", ("think", "h") in cells(), True)
+sp = mid("space")
+drag(sp, (sp[0] - 41 * D, sp[1]), 500)
+f = field()
+tap("space")
+check("slip: space after a cursor drag inserts only a space", field(), f.replace("|", " |"))
+# the two switches in the settings screen
+sh("input keyevent KEYCODE_BACK"); time.sleep(0.5)
+from ui import scroll_to
+for label in ("Word suggestions", "Auto-correct typos"):
+    found = scroll_to(label)
+    x = sh("cat /sdcard/u.xml")
+    m = re.search(r'text="' + re.escape(label) + r'"[^>]*checked="(true|false)"', x)
+    check(f"settings: {label} switch on", bool(found) and m is not None and m[1] == "true", True)
 summary()

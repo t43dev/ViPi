@@ -7,6 +7,9 @@ import time
 SERIAL = None
 NONCE = 0
 RESULTS = []
+CELLS = []     # word suggestion cells of the last dump: (text, flags), flags from "q" quoted, "h" highlighted, "n" next word
+RECTS = {}     # drawn key rectangles of the last dump: name -> (left, top, right, bottom), screen px
+SUGGEST = ""   # "en=true vi=true here=true": models warmed, suggestions on in this field
 
 
 def adb(*args, check=False, capture=True):
@@ -34,14 +37,25 @@ def dump():
         if i >= 0 and re.search(r"ViPiKeys: ?mode [A-Z]+\s*$", out[i:], re.M):
             out = out[i:]
             break
+    global SUGGEST
     keys, field, mode = {}, None, None
+    CELLS.clear()
+    RECTS.clear()
     for line in out.splitlines():
         m = re.search(r"ViPiKeys: ?(.*)$", line)
         if not m:
             continue
         body = m.group(1)
         p = body.rsplit(" ", 2)
-        if body.startswith("field "):
+        if body.startswith("cell "):
+            _, _, flags, text = (body + " ").split(" ", 3)
+            CELLS.append((text[:-1], "" if flags == "-" else flags))
+        elif body.startswith("rect "):
+            name, *box = body[5:].rsplit(" ", 4)
+            RECTS.setdefault(name, tuple(float(v) for v in box))
+        elif body.startswith("suggest "):
+            SUGGEST = body[8:].strip()
+        elif body.startswith("field "):
             field = body[6:]
         elif len(p) == 3 and p[1].lstrip("-").isdigit() and p[2].lstrip("-").isdigit():
             keys.setdefault(p[0], (int(p[1]), int(p[2])))
@@ -85,6 +99,27 @@ def typ(word):
             tap("shift")
             name = ch.lower()
         tap(name)
+
+
+def tap_at(x, y, delay=0.12):
+    """Tap a screen point (sub-pixel: the keyboard reads the touch position as a float)."""
+    sh(f"input tap {x:.2f} {y:.2f}")
+    time.sleep(delay)
+
+
+def cells():
+    """Word suggestion cells now on the bar, as (text, flags)."""
+    refresh()
+    return list(CELLS)
+
+
+def wait_suggest(timeout=20):
+    """Wait until both suggestion models are warm (after the first start the data is copied first)."""
+    for _ in range(int(timeout / 0.8)):
+        refresh()
+        if "en=true vi=true" in SUGGEST:
+            return True
+    return False
 
 
 def hold(name, ms=700):

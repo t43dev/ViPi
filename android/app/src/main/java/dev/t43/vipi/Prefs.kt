@@ -35,6 +35,10 @@ class Prefs(context: Context) {
     val doubleSpacePeriod get() = bool(DOUBLE_SPACE, true)
     val keyPopup get() = bool(KEY_POPUP, true)
     val materialYou get() = bool(MATERIAL_YOU, false)
+    /** Gợi ý từ trên thanh (cách gõ tiếp, từ tiếp theo). */
+    val suggestions get() = bool(SUGGESTIONS, true)
+    /** Tự sửa lỗi chạm lệch phím, và vùng chạm theo câu. */
+    val autoCorrect get() = bool(AUTO_CORRECT, true)
     var largeLayout: KeyboardView.LargeLayout
         get() = runCatching { KeyboardView.LargeLayout.valueOf(sp.getString(LARGE_LAYOUT, null) ?: "") }.getOrDefault(KeyboardView.LargeLayout.SPLIT)
         set(v) = sp.edit().putString(LARGE_LAYOUT, v.name).apply()
@@ -61,5 +65,7 @@ class Prefs(context: Context) {
         const val MATERIAL_YOU = "materialYou"
         const val THEME = "theme"
         const val LARGE_LAYOUT = "largeLayout"
+        const val SUGGESTIONS = "suggestions"
+        const val AUTO_CORRECT = "autoCorrect"
     }
 }

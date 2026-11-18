@@ -31,6 +31,9 @@ import android.view.WindowInsets
 import android.widget.OverScroller
 import dev.t43.vipi.core.InputMode
 import dev.t43.vipi.core.KeyInput
+import dev.t43.vipi.core.SuggestCell
+import dev.t43.vipi.core.TouchKeyRect
+import dev.t43.vipi.core.TouchKind
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.max
@@ -63,6 +66,15 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         fun onVoice()
         /** Bàn phím nổi: nút gắn lại xuống đáy. */
         fun onDock()
+        /** Thanh gợi ý Việt · Anh (khi không có chữ Việt đang gõ): chạm ô thứ `index` của [setWords]. */
+        fun onWord(index: Int)
+        /**
+         * Chạm xuống trên trang chữ của điện thoại (không tiếng Trung, không ô mật khẩu): phím được gõ, theo chỉ số
+         * trong [onTouchKeys]; `index` là phím ở chỗ chạm. Không được tính gì nặng: đang trong lúc chạm.
+         */
+        fun onTouchPick(x: Float, y: Float, index: Int): Int
+        /** Bố cục phím vừa đổi: các phím chữ, cách, xoá, Shift của trang chữ (toạ độ trong view), rỗng ở trang khác. */
+        fun onTouchKeys(keys: List<TouchKeyRect>)
     }
 
     companion object {
@@ -131,6 +143,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     private var candidates: List<String> = emptyList()
     private var suggestKeys = ""
     private var suggestWord = ""
+    /** Gợi ý từ (ViPiSuggest): hiện khi không có chữ Việt đang gõ. */
+    private var words: List<SuggestCell> = emptyList()
 
     fun setCandidates(list: List<String>) {
         if (list == candidates) return
@@ -150,6 +164,19 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         suggestWord = word
         invalidate()
     }
+
+    /** Các ô gợi ý từ: từ đã gõ trong ngoặc kép, chữ dấu cách sẽ đưa vào, cách gõ tiếp, hoặc từ tiếp theo. */
+    fun setWords(list: List<SuggestCell>) {
+        if (list == words) return
+        words = list
+        invalidate()
+    }
+
+    /** Chỗ chạm của phím chữ vừa gửi đi (toạ độ trong view): chỗ chạm xuống, hoặc chỗ nhấc ngón nếu đã trượt sang phím khác. */
+    var lastTapX = Float.NaN
+        private set
+    var lastTapY = Float.NaN
+        private set
 
     // MARK: - Kích thước (dp → px), theo mục 3.3 của spec
 
@@ -463,7 +490,56 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         }
         layoutCandidates()
         layoutClips()
+        reportTouchKeys()
         dirty()
+    }
+
+    /** Mọi phím theo thứ tự các hàng: chỉ số của một phím ở đây là chỉ số trong [onTouchKeys] / [Listener.onTouchPick]. */
+    private var flat: List<Key> = emptyList()
+    private var reportedKeys: List<TouchKeyRect>? = null
+
+    /**
+     * Báo bố cục cho bộ gợi ý: ô vẽ của các phím chữ a…z, cách, xoá, Shift trên trang chữ (mọi kiểu bàn phím: tự sửa
+     * lỗi gõ đọc lại các lần chạm trên chúng; chọn phím theo câu chỉ chạy trên điện thoại, xem [pickKey]).
+     */
+    private fun reportTouchKeys() {
+        flat = rows.flatten()
+        val list = ArrayList<TouchKeyRect>()
+        if (layout == Layout.LETTERS) {
+            var i = 0
+            rows.forEachIndexed { r, row ->
+                for (k in row) {
+                    val kind = when (k.kind) {
+                        Kind.CHAR -> k.label.singleOrNull()?.takeIf { it in 'a'..'z' }?.let { TouchKind.Letter(it.toString()) }
+                        Kind.SPACE -> TouchKind.Space
+                        Kind.BACKSPACE -> TouchKind.Backspace
+                        Kind.SHIFT -> TouchKind.Shift
+                        else -> null
+                    }
+                    if (kind != null) list += TouchKeyRect(i.toUInt(), kind, r.toUInt(), k.rect.left, k.rect.top, k.rect.width(), k.rect.height())
+                    i++
+                }
+            }
+        }
+        if (list == reportedKeys) return
+        reportedKeys = list
+        listener.onTouchKeys(list)
+    }
+
+    /**
+     * Phím mà một lần chạm xuống gõ. Trên trang chữ của điện thoại, khi gõ Việt · Anh: bộ gợi ý có thể chọn phím bên
+     * cạnh (chạm gần ranh giới hai phím theo chữ hay đi tiếp hơn, chạm vào khe trên phím cách sau một từ đã trọn là dấu
+     * cách). Các trường hợp khác (trang số, bàn phím tách đôi / rộng / nổi của màn lớn, tiếng Trung, ô mật khẩu): phím ở
+     * chỗ chạm.
+     */
+    private fun pickKey(k: Key, x: Float, y: Float): Key {
+        // điện thoại xoay ngang là một khối rộng (configure): vẫn là bàn phím điện thoại, như iPhone xoay ngang
+        val phone = form == Form.PHONE || form == Form.WIDE && resources.configuration.screenHeightDp in 1 until 500
+        if (!phone || layout != Layout.LETTERS || chinese() || modeLocked) return k
+        if (k.kind != Kind.CHAR && k.kind != Kind.SPACE && k.kind != Kind.BACKSPACE && k.kind != Kind.SHIFT) return k
+        val i = flat.indexOf(k)
+        if (i < 0) return k
+        return flat.getOrNull(listener.onTouchPick(x, y, i)) ?: k
     }
 
     private fun layoutRows(unit: Float) {
@@ -903,7 +979,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
 
     private fun drawSuggestions(canvas: Canvas, p: Palette) {
         val cells = suggestionCells()
-        if (cells.isEmpty()) return
+        if (cells.isEmpty()) { drawWords(canvas, p); return }
         val w = (sugR - sugL) / 3
         val cy = barTop + barH / 2
         cells.forEachIndexed { i, s ->
@@ -918,6 +994,33 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             val shown = TextUtils.ellipsize(s, text, w - 12 * dp, TextUtils.TruncateAt.START).toString()
             drawText(canvas, shown, l + w / 2, cy, 16f, p.text, if (i == 1) bold else regular)
             if (i == 0) {
+                fill.color = p.divider
+                canvas.drawRect(l + w - 0.5f * dp, cy - 11 * dp, l + w + 0.5f * dp, cy + 11 * dp, fill)
+            }
+        }
+    }
+
+    /**
+     * Gợi ý từ, các ô chia đều (như iOS): từ đã gõ trong ngoặc kép và mờ, chữ dấu cách sẽ đưa vào in đậm, cách gõ tiếp
+     * hay từ tiếp theo.
+     */
+    private fun drawWords(canvas: Canvas, p: Palette) {
+        if (words.isEmpty()) return
+        val w = (sugR - sugL) / words.size
+        val cy = barTop + barH / 2
+        words.forEachIndexed { i, c ->
+            val l = sugL + i * w
+            if (i == pressedSuggestion) {
+                fill.color = p.text; fill.alpha = 0x1F
+                canvas.drawRoundRect(l + 2 * dp, cy - 18 * dp, l + w - 2 * dp, cy + 18 * dp, radius, radius, fill)
+            }
+            val face = if (c.highlighted) bold else regular
+            text.textSize = 16 * sp
+            text.typeface = face
+            val label = if (c.quoted) "\"${c.text}\"" else c.text
+            val shown = TextUtils.ellipsize(label, text, w - 12 * dp, TextUtils.TruncateAt.END).toString()
+            drawText(canvas, shown, l + w / 2, cy, 16f, if (c.quoted) p.hint else p.text, face)
+            if (i < words.size - 1) {
                 fill.color = p.divider
                 canvas.drawRect(l + w - 0.5f * dp, cy - 11 * dp, l + w + 0.5f * dp, cy + 11 * dp, fill)
             }
@@ -1165,18 +1268,20 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                     return true
                 }
                 if (gridOpen || clipOpen) return true
-                val k = hit(x, y) ?: return true
+                val touched = hit(x, y) ?: return true
                 // ngón thứ hai chạm: phím của ngón trước được gõ luôn (gõ nhanh hai tay). Cả phím quả địa cầu:
                 // chạm quả địa cầu rồi gõ ngay "n" thì đổi bộ gõ trước, "n" mới vào bộ gõ mới
                 for (j in pressed.size() - 1 downTo 0) {
                     val t = pressed.valueAt(j)
                     if (t.key.kind == Kind.CHAR || t.key.kind == Kind.SPACE || t.key.kind == Kind.MODE) {
                         t.longPress?.let { handler.removeCallbacks(it) }
-                        if (!t.trackpad && !t.longFired) fire(t.key)
+                        if (!t.trackpad && !t.longFired) { lastTapX = t.startX; lastTapY = t.startY; fire(t.key) }
                         release(t.key)
                         pressed.removeAt(j)
                     }
                 }
+                // chọn phím sau khi phím của ngón trước đã gửi đi (bộ gợi ý biết kết quả của nó đã cũ)
+                val k = pickKey(touched, x, y)
                 feedback()
                 val touch = Touch(k, x, x, y)
                 when (k.kind) {
@@ -1302,7 +1407,11 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                     pressed.remove(id)
                     t.longPress?.let { handler.removeCallbacks(it) }
                     if (t.key.kind == Kind.BACKSPACE) handler.removeCallbacks(repeatBackspace)
-                    else if (!t.trackpad && !t.longFired) fire(t.key)
+                    else if (!t.trackpad && !t.longFired) {
+                        // trượt sang phím khác thì chỗ chạm là chỗ nhấc ngón
+                        if (t.moved) { lastTapX = e.getX(i); lastTapY = e.getY(i) } else { lastTapX = t.startX; lastTapY = t.startY }
+                        fire(t.key)
+                    }
                     if (t.key.kind == Kind.MODE) cancelGlobeHold()
                     release(t.key)
                     invalidate()
@@ -1364,7 +1473,10 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 if (c >= 0 && c == pressedCandidate) { feedback(); listener.onCandidate(c) }
             } else {
                 val s = suggestionAt(x)
-                if (s >= 0 && s == pressedSuggestion) { feedback(); listener.onSuggestion(if (s == 0) 0 else 1) }
+                if (s >= 0 && s == pressedSuggestion) {
+                    feedback()
+                    if (suggestionCells().isEmpty()) listener.onWord(s) else listener.onSuggestion(if (s == 0) 0 else 1)
+                }
             }
             BAR_GRID -> {
                 val c = gridAt(x, y)
@@ -1399,7 +1511,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
 
     private fun suggestionAt(x: Float): Int {
         val cells = suggestionCells()
-        if (cells.isEmpty() || x < sugL || x > sugR) return -1
+        if (x < sugL || x > sugR) return -1
+        if (cells.isEmpty()) return if (words.isEmpty()) -1 else ((x - sugL) / ((sugR - sugL) / words.size)).toInt().coerceIn(0, words.size - 1)
         val i = ((x - sugL) / ((sugR - sugL) / 3)).toInt().coerceIn(0, 2)
         return if (cells[i].isNotEmpty()) i else -1
     }
@@ -1615,6 +1728,12 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         put("right", blockR - sideIcon / 2, cy)
         put("sug0", sugL + (sugR - sugL) / 6, cy)
         put("sug1", sugL + (sugR - sugL) / 2, cy)
+        // gợi ý từ: chỗ chạm, rồi "cell <i> <q|h|n|-> <chữ>"
+        if (suggestionCells().isEmpty()) words.forEachIndexed { i, c ->
+            put("word$i", sugL + (sugR - sugL) / words.size * (i + 0.5f), cy)
+            val flags = (if (c.quoted) "q" else "") + (if (c.highlighted) "h" else "") + (if (c.next) "n" else "")
+            append("cell $i ${flags.ifEmpty { "-" }} ${c.text}\n")
+        }
         if (form == Form.FLOATING) { put("handle", card.centerX(), card.top + handleH / 2); put("dock", card.right - 22 * dp, card.top + handleH / 2) }
         put("form_" + form.name.lowercase(), 0f, 0f)
         candidateRects.forEachIndexed { i, r -> put("cand$i", r.centerX() - stripScroll, cy) }
@@ -1623,5 +1742,18 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             PICK_OTHER_KEYBOARD to "other", PICK_SETTINGS to "settings")
         if (menuOpen) menuRects.forEachIndexed { i, r -> names[menuItems[i].choice]?.let { put("menu_$it", r.centerX(), r.centerY()) } }
         if (clipOpen) clipRects.forEachIndexed { i, r -> put("clip$i", r.centerX(), r.centerY()) }
+    }
+
+    /** Ô vẽ của các phím (cho kiểm thử tự động, toạ độ màn hình): "rect <nhãn> trái trên phải dưới" mỗi phím. */
+    fun describeRects(): String = buildString {
+        if (gridOpen || clipOpen) return@buildString
+        val loc = IntArray(2)
+        getLocationOnScreen(loc)
+        for (row in rows) for (k in row) if (k.isKey) {
+            val r = k.rect
+            // nhãn ngoài chuỗi định dạng: phím "%"
+            append("rect ").append(if (k.kind == Kind.CHAR) k.label else k.kind.name.lowercase()).append(" %.1f %.1f %.1f %.1f\n".format(
+                java.util.Locale.ROOT, loc[0] + r.left, loc[1] + r.top, loc[0] + r.right, loc[1] + r.bottom))
+        }
     }
 }

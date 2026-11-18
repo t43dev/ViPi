@@ -14,8 +14,8 @@ android {
         applicationId = "dev.t43.vipi"
         minSdk = 26
         targetSdk = 36
-        versionCode = 17
-        versionName = "0.3.7"
+        versionCode = 18
+        versionName = "0.4.0"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
     }
 
@@ -113,12 +113,30 @@ val uniffiBindgen = tasks.register<UniffiBindgenTask>("uniffiBindgen") {
     outputDir.set(layout.buildDirectory.dir("generated/uniffi"))
 }
 
+// Mô hình gợi ý từ (65 MB, không lưu trong git): scripts/suggest-models.sh tải về build/suggest, hoặc
+// VIPI_SUGGEST_MODELS chỉ tới thư mục khác. Thiếu thì dừng build: APK không có chúng thì không có gợi ý, tự sửa lỗi gõ.
+val suggestModels = providers.environmentVariable("VIPI_SUGGEST_MODELS").map { File(it) }
+    .orElse(rootProject.layout.projectDirectory.dir("../build/suggest").asFile).get()
+val suggestModelFiles = listOf("SuggestEN.bin", "SuggestNN.bin", "SuggestVI.bin", "SuggestVINN.bin")
+
 val vipiAssets = tasks.register<Sync>("vipiAssets") {
+    val models = suggestModels
+    val names = suggestModelFiles
+    doFirst {
+        val missing = names.filter { !File(models, it).isFile }
+        if (missing.isNotEmpty()) throw GradleException(
+            "Word suggestion models missing in $models: ${missing.joinToString()}. Run scripts/suggest-models.sh " +
+                "from the repository root (or set VIPI_SUGGEST_MODELS to a directory that has them).")
+    }
     from(rootProject.file("../Resources")) {
         include("vietnamese-syllables.txt", "pinyin-words.bin", "pinyin-abbrev.bin", "bigram.bin", "s2t.bin",
             "autoswitch-vi.bin", "autoswitch-en.bin", "autoswitch-pairs.bin")
+        into("vipi")
     }
-    into(layout.buildDirectory.dir("generated/vipiAssets/vipi"))
+    // gợi ý từ: chép ra filesDir ở luồng nền (SuggestData.kt), cùng các danh sách giữ nguyên
+    from(models) { include(names); into("suggest") }
+    from(rootProject.file("../Resources")) { include("keep-words.txt", "keep-words-chat.txt"); into("suggest") }
+    into(layout.buildDirectory.dir("generated/vipiAssets"))
 }
 
 androidComponents {

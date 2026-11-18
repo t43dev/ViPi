@@ -2,6 +2,18 @@
 
 What changed in each ViPi release. Download the latest from [Releases](../../releases/latest).
 
+## Unreleased
+
+Android 0.4.0.
+
+### Changed
+- **Android: word suggestions, slip correction and keys that follow the sentence,** as on iPhone and iPad (from Vikey; Vietnamese · English typing). The logic is the shared Rust core's, checked against the iPhone keyboard's.
+  - The bar offers ways to finish the English word you are typing, ranked by the words before it, and likely next words in English and Vietnamese. Tap one to put it in. While a Vietnamese word is being typed the bar still shows the keys you typed and the word with marks.
+  - An English word typed with slips onto neighbouring keys is fixed at the space or the punctuation mark when it is clearly another word: `rhonk` → `think`. The bar shows what the space will put in; tap the quoted word to keep yours. Backspace right after a fix puts your word back and keeps it. Left alone, as on iPhone: words either language knows, Vietnamese spellings, chat shorthand and brands, abbreviations without a vowel, lengthened words, words under three letters or with two capitals, and words stuck to a digit or symbol.
+  - On the phone's letter keys, while a word is under way, a touch near the border of two keys types the letter that is likelier next, and a touch in the gap above the space bar after a finished word is a space (`thank you`, not `thanknyou`). In Vietnamese the next Telex key is weighed the same way. The split, wide and floating keyboards of large screens keep their key areas.
+  - Two switches in Settings: Word suggestions and Auto-correct typos, both on. Off in web address, email, number and password fields and wherever the app turns suggestions off.
+  - The models make the download 53 MB bigger and take 65 MB on the phone. The first time the keyboard opens they are copied out of the app in the background (0.3 s on the emulator); the keyboard works meanwhile, only without suggestions. They are read only after the keyboard has appeared.
+
 ## 0.5.6 · 2026-11-18
 
 macOS 0.5.6 and Android 0.3.7. The iPhone and iPad changes are in TestFlight; HarmonyOS gets its share with its next store build.

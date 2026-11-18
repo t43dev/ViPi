@@ -8,6 +8,8 @@ import android.content.IntentFilter
 import android.content.Intent
 import android.inputmethodservice.InputMethodService
 import android.inputmethodservice.InputMethodService.Insets
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.text.InputType
 import android.util.Log
@@ -19,7 +21,10 @@ import android.widget.Toast
 import dev.t43.vipi.core.InputMode
 import dev.t43.vipi.core.KeyInput
 import dev.t43.vipi.core.KeyOutcome
+import dev.t43.vipi.core.SuggestCell
+import dev.t43.vipi.core.TouchKeyRect
 import dev.t43.vipi.core.ViPiComposer
+import dev.t43.vipi.core.ViPiSuggest
 
 /**
  * Bàn phím ViPi cho Android. Lõi Rust (Composer) quyết định chữ; ở đây chỉ đổi kết quả thành thao tác trên ô nhập:
@@ -27,6 +32,8 @@ import dev.t43.vipi.core.ViPiComposer
  * - Tiếng Anh: chữ đi thẳng vào ô nhập; gõ tắt / tự đổi thì xoá lùi rồi chèn.
  * - Tiếng Trung: pinyin đang gõ là composing text (gạch chân trong ô nhập), ứng viên ở thanh gợi ý, chọn thì
  *   commit chữ Hán đè lên pinyin.
+ * - Gợi ý từ, tự sửa lỗi gõ, vùng chạm theo câu (Việt · Anh): ViPiSuggest của lõi, như KeyboardViewController.swift.
+ *   Mọi lời gọi ở luồng chính, trừ chép dữ liệu và làm nóng mô hình (SuggestData.worker).
  */
 class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
     private lateinit var prefs: Prefs
@@ -44,9 +51,31 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
     private val clipboard by lazy { getSystemService(CLIPBOARD_SERVICE) as ClipboardManager }
     private val clipListener = ClipboardManager.OnPrimaryClipChangedListener { captureClip() }
     private var debugReceiver: BroadcastReceiver? = null
+    private var debug = false
+    private val main = Handler(Looper.getMainLooper())
+
+    // gợi ý từ, tự sửa lỗi gõ, vùng chạm theo câu: null tới khi dữ liệu đã chép xong (SuggestData)
+    private var suggest: ViPiSuggest? = null
+    private var suggestRequested = false
+    private var suggestOn = true
+    private var autoCorrectOn = true
+    /** Ô nhập này có nhận gợi ý và tự sửa không (như bàn phím hệ thống: không ở ô địa chỉ, email, số, ô tắt gợi ý). */
+    private var suggestsHere = false
+    /** Các ô đang hiện, và cờ "đã hẹn tính lại" (gộp các phím gõ nhanh hơn một vòng của luồng chính). */
+    private var words: List<SuggestCell> = emptyList()
+    private var wordsDirty = false
+    private var touchKeys: List<TouchKeyRect> = emptyList()
+    private var windowShown = false
+    private var hasSelection = false
+    /** Chữ vừa chèn bởi lần tự sửa gần nhất (từ sửa + dấu cách / dấu câu): Backspace ngay sau đó trả lại từ đã gõ. */
+    private var correctedText: String? = null
     // cài đặt đổi khi bàn phím đang mở (màn hình cài đặt cùng tiến trình): áp ngay
     private val prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key != "mode" && key != "latin" && key?.startsWith("float_") != true) { applyPrefs(); applyKeyboardPrefs(); refreshUi() }
+        if (key != "mode" && key != "latin" && key?.startsWith("float_") != true) {
+            applyPrefs(); applyKeyboardPrefs(); refreshUi()
+            if (windowShown) warmSuggest()
+            scheduleSuggestions()
+        }
     }
 
     override fun onCreate() {
@@ -56,11 +85,14 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         prefs.sp.registerOnSharedPreferenceChangeListener(prefsListener)
         clipHistory = ClipHistory(this)
         clipboard.addPrimaryClipChangedListener(clipListener)
-        if (BuildConfigCompat.debuggable(this)) registerDebugDump()
+        debug = BuildConfigCompat.debuggable(this)
+        if (debug) registerDebugDump()
     }
 
     override fun onDestroy() {
         prefs.sp.unregisterOnSharedPreferenceChangeListener(prefsListener)
+        main.removeCallbacksAndMessages(null)
+        suggest = null   // không destroy(): một lượt làm nóng ở luồng nền có thể còn đang dùng nó
         clipboard.removePrimaryClipChangedListener(clipListener)
         debugReceiver?.let { unregisterReceiver(it) }
         super.onDestroy()
@@ -132,7 +164,15 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         enterAction = if (multiLine || info.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION != 0) EditorInfo.IME_ACTION_NONE else action
         enterSubmitsSearch = enterAction == EditorInfo.IME_ACTION_GO || enterAction == EditorInfo.IME_ACTION_SEARCH ||
             cls == InputType.TYPE_CLASS_TEXT && variation == InputType.TYPE_TEXT_VARIATION_URI
-        if (!restarting) composer?.cancel()
+        // như bàn phím hệ thống: không gợi ý, không tự sửa ở ô địa chỉ, email, ô app tắt gợi ý (và ô mật khẩu / số)
+        suggestsHere = !passthrough && cls == InputType.TYPE_CLASS_TEXT &&
+            info.inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS == 0 && variation !in setOf(
+                InputType.TYPE_TEXT_VARIATION_URI, InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
+                InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS,
+            )
+        hasSelection = info.initialSelStart != info.initialSelEnd
+        if (!restarting) { composer?.cancel(); dropSuggestions() }
+        scheduleSuggestions()
     }
 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
@@ -157,6 +197,7 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         refreshUi()
         updateShift()
         hideImeNavigationBar()
+        scheduleSuggestions()
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
@@ -180,6 +221,9 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         // Android: Việt và Anh là một bộ gõ, luôn tự nhận diện; phím quả địa cầu chỉ đổi giữa Việt·Anh và Trung
         c.setAutoSwitch(true)
         if (c.mode() != prefs.mode) c.setMode(prefs.mode)
+        suggestOn = prefs.suggestions
+        autoCorrectOn = prefs.autoCorrect
+        suggest?.setOptions(suggestOn, autoCorrectOn)
     }
 
     // MARK: - Phím
@@ -194,10 +238,17 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         if (passthrough || (c.currentWord().isEmpty() && !c.isComposingChinese())) return
         if (ic.getTextBeforeCursor(1, 0)?.isEmpty() != true || ic.getTextAfterCursor(1, 0)?.isEmpty() != true) return
         c.cancel()
+        dropSuggestions()
         refreshUi()
     }
 
     override fun onKey(key: KeyInput) {
+        val kb = keyboard
+        handleKey(key, kb?.lastTapX ?: Float.NaN, kb?.lastTapY ?: Float.NaN)
+    }
+
+    /** `x`, `y`: chỗ chạm của phím chữ trên bàn phím ảo (NaN với bàn phím thật), cho tự sửa lỗi gõ. */
+    private fun handleKey(key: KeyInput, x: Float, y: Float) {
         val ic = currentInputConnection ?: return
         syncWithField(ic)
         val c = composer
@@ -206,6 +257,26 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
             deliver(ic, key)
             updateShift()
             return
+        }
+        val s = suggest
+        // Backspace ngay sau một lần tự sửa lỗi gõ: trả lại từ đã gõ và giữ nó (trước cả lõi: lõi không biết lần sửa này)
+        val corrected = correctedText
+        correctedText = null
+        if (s != null && corrected != null) {
+            if (key is KeyInput.Backspace) {
+                val undo = s.undoCorrection(readContext(ic))
+                if (undo != null) {
+                    ic.beginBatchEdit()
+                    ic.deleteSurroundingText(corrected.length, 0)
+                    ic.commitText(undo.insert, 1)
+                    ic.endBatchEdit()
+                    c.cancel()
+                    refreshUi()
+                    updateShift()
+                    scheduleSuggestions()
+                    return
+                }
+            } else s.forgetCorrection()
         }
         // mỗi lần hỏi lõi là vài lượt gọi qua JNA: đọc một lần rồi dùng lại. Chữ Telex chỉ có ở chế độ tiếng Việt,
         // pinyin chỉ có ở tiếng Trung (đổi chế độ là bỏ phần đang gõ)
@@ -220,19 +291,37 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
             updateShift()
             return
         }
+        // tiếng Anh, phím kết thúc từ: chữ sẽ thay cho từ gõ lệch phím, quyết định trên cả từ. Thanh gợi ý tính sau mỗi
+        // phím; gõ nhanh hơn thế, hay chữ trước con trỏ không còn là chữ bộ gợi ý đã thấy (con trỏ vừa dời), thì tính ngay
+        var fix: Pair<String, String>? = null
+        val end = breakText(key)
+        if (s != null && end != null && before == InputMode.ENGLISH && suggestsHere) {
+            if (wordsDirty) updateSuggestions()
+            else if (s.correction() != null) readContext(ic).let { if (!s.isCurrent(it)) updateSuggestions(it) }
+            s.correction()?.let { fix = s.shownWord() to it }
+        }
         val wordLength = if (before == InputMode.VIETNAMESE) c.currentWord().length else 0
         val hadWord = wordLength > 0
         val wasComposingChinese = before == InputMode.CHINESE && c.isComposingChinese()
         val r = c.handleKey(key)
+        trackWord(key, x, y)
         val mode = r.switchedTo ?: before
         val word = if (mode == InputMode.VIETNAMESE) c.currentWord() else ""
         ic.beginBatchEdit()
         val undo = r.edit
+        val f = fix
         if (key is KeyInput.Backspace && undo != null) {
             // Backspace ngay sau một lần tự đổi: trả lại chữ trước đó (lõi đã về chế độ cũ)
             ic.finishComposingText()
             ic.deleteSurroundingText(undo.backspaces.toInt(), 0)
             ic.commitText(undo.insert, 1)
+        } else if (before == InputMode.ENGLISH && f != null && r.edit == null && s != null && end != null) {
+            // lõi có sửa gì (tự đổi sang tiếng Việt, gõ tắt) thì lõi thắng; không thì mới tới lượt sửa lỗi gõ
+            ic.deleteSurroundingText(f.first.length, 0)
+            ic.commitText(f.second, 1)
+            deliver(ic, key)
+            s.didCorrect(f.first, f.second + end)
+            correctedText = f.second + end
         } else when (before) {
             InputMode.VIETNAMESE -> applyVietnamese(ic, key, r, hadWord, wordLength, word)
             InputMode.ENGLISH -> applyEnglish(ic, key, r)
@@ -242,6 +331,24 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         r.switchedTo?.let { prefs.mode = it }
         refreshUi(mode, word)
         updateShift(mode, word)
+        scheduleSuggestions()
+    }
+
+    /** Chữ của một phím kết thúc từ mà tự sửa lỗi gõ nhận (dấu cách và dấu câu), null nếu không phải. */
+    private fun breakText(key: KeyInput): String? = when {
+        key is KeyInput.Space -> " "
+        key is KeyInput.Text && key.text in setOf(".", ",", "?", "!", ";", ":") -> key.text
+        else -> null
+    }
+
+    /** Báo cho bộ gợi ý phím vừa gõ: chữ cái (kèm chỗ chạm) vào từ đang gõ, Backspace bỏ chữ cuối, phím khác kết thúc từ. */
+    private fun trackWord(key: KeyInput, x: Float, y: Float) {
+        val s = suggest ?: return
+        when {
+            key is KeyInput.Text && key.text.length == 1 && key.text[0].let { it in 'a'..'z' || it in 'A'..'Z' } -> s.letter(key.text, x, y)
+            key is KeyInput.Backspace -> s.backspace()
+            else -> s.endWord()
+        }
     }
 
     /** `word`: chữ đang soạn sau phím này. */
@@ -360,8 +467,166 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         ic.commitText(" ", 1)
         ic.endBatchEdit()
         c.cancel()
+        dropSuggestions()
         refreshUi()
         updateShift()
+        scheduleSuggestions()
+    }
+
+    // MARK: - Gợi ý từ (ViPiSuggest)
+
+    /**
+     * Chạm một ô gợi ý từ. Các ô đang hiện phải đúng với chữ trước con trỏ lúc này; không thì tính lại và bỏ lần chạm
+     * (ô đã đổi). Từ tiếp theo: chèn nó và một dấu cách; từ trong ngoặc kép: giữ nguyên từ đã gõ rồi gõ dấu cách như
+     * thường; còn lại: thay từ đang gõ.
+     */
+    override fun onWord(index: Int) {
+        val c = composer ?: return
+        val s = suggest ?: return
+        val ic = currentInputConnection ?: return
+        if (index >= words.size) return
+        val ctx = readContext(ic)
+        if (wordsDirty || !s.isCurrent(ctx)) {
+            updateSuggestions(ctx)
+            refreshUi()
+            return
+        }
+        val cell = words[index]
+        lastOwnEdit = SystemClock.uptimeMillis()
+        if (correctedText != null) { s.forgetCorrection(); correctedText = null }
+        if (cell.quoted) {
+            s.keepShown()
+            handleKey(KeyInput.Space, Float.NaN, Float.NaN)
+            return
+        }
+        ic.beginBatchEdit()
+        ic.finishComposingText()
+        if (!cell.next) ic.deleteSurroundingText(s.shownWord().length, 0)
+        ic.commitText(cell.text + " ", 1)
+        ic.endBatchEdit()
+        lastSpaceAt = SystemClock.uptimeMillis()
+        c.cancel()
+        dropSuggestions()
+        refreshUi()
+        updateShift()
+        scheduleSuggestions()
+    }
+
+    /** Lúc chạm xuống (KeyboardView.pickKey): chỉ so điểm với xác suất đã tính sau phím trước, vài µs. */
+    override fun onTouchPick(x: Float, y: Float, index: Int): Int {
+        val s = suggest ?: return index
+        if (wordsDirty || !suggestsHere || passthrough) return index
+        val t = System.nanoTime()
+        val picked = s.touchPick(x, y, index.toUInt()).toInt()
+        if (debug) Log.d(TIMING, "touch_pick ${(System.nanoTime() - t) / 1000} us")
+        return picked
+    }
+
+    override fun onTouchKeys(keys: List<TouchKeyRect>) {
+        touchKeys = keys
+        suggest?.setKeys(keys)
+    }
+
+    /**
+     * Thanh gợi ý được tính sau khi chữ của phím đã vào ô nhập (đăng lên luồng chính), nên không làm chậm phím; gõ
+     * nhanh hơn thế thì bỏ qua các bước ở giữa.
+     */
+    private fun scheduleSuggestions() {
+        if (wordsDirty) return
+        wordsDirty = true
+        suggest?.invalidate()
+        main.post {
+            if (!wordsDirty) return@post
+            updateSuggestions()
+            refreshUi()
+        }
+    }
+
+    /** `known`: chữ trước con trỏ nếu nơi gọi vừa đọc (mỗi lần tính chỉ một lượt hỏi ô nhập). */
+    private fun updateSuggestions(known: String? = null) {
+        wordsDirty = false
+        val s = suggest ?: return
+        val c = composer
+        val ic = currentInputConnection
+        val mode = c?.mode()
+        if (c == null || ic == null || passthrough || !suggestsHere || hasSelection || !suggestOn && !autoCorrectOn ||
+            mode == InputMode.CHINESE) {
+            words = emptyList()
+            s.endWord()
+            return
+        }
+        val ctx = known ?: readContext(ic)
+        val english = mode == InputMode.ENGLISH
+        val t = System.nanoTime()
+        words = s.update(ctx, english, if (english) "" else c.currentKeys(), keyboard?.shift != KeyboardView.Shift.OFF)
+        if (debug) Log.d(TIMING, "update ${(System.nanoTime() - t) / 1000} us, ${ctx.length} chars")
+    }
+
+    /**
+     * Chữ trước con trỏ cho ViPiSuggest: một lượt getTextBeforeCursor (gọi sang app). Từ đang gõ tiếng Việt nằm trong
+     * vùng soạn, cũng là chữ trước con trỏ, nên từ lõi thấy là đúng chữ ô đang hiện.
+     *
+     * Mạng trong lõi chỉ đọc tiếp phần mới khi chữ lần này nối dài chữ lần trước; khác đi thì nó đọc lại cả đoạn (vài
+     * ms). Một cửa sổ trượt (N ký tự cuối) mất đầu sau mỗi phím, nên ở ô dài lần nào cũng phải đọc lại. Vì vậy: ô ngắn
+     * hơn [CONTEXT_CHARS] thì lấy cả, đầu là đầu ô, không đổi; ô dài hơn thì bắt đầu ở đầu câu (sau . ! ? hay xuống
+     * dòng) đầu tiên trong [CONTEXT_KEEP] ký tự cuối, chỗ đó chỉ dời khi gõ qua hết một câu nữa (không có thì ở đầu từ).
+     */
+    private fun readContext(ic: InputConnection): String {
+        val t = ic.getTextBeforeCursor(CONTEXT_CHARS, 0)?.toString() ?: return ""
+        if (t.length < CONTEXT_CHARS) return t
+        val from = t.length - CONTEXT_KEEP
+        for (i in from until t.length) if (t[i - 1] == '\n' || t[i - 1] == ' ' && t[i - 2] in ".!?") return t.substring(i)
+        for (i in from until t.length) if (t[i - 1] == ' ') return t.substring(i)
+        return t.substring(from)
+    }
+
+    /** Từ đang theo dõi không còn đúng nữa (con trỏ dời, ô bị xoá, đổi chế độ): bỏ các ô, chữ định sửa, xác suất phím. */
+    private fun dropSuggestions() {
+        suggest?.endWord()
+        words = emptyList()
+    }
+
+    /** Bắt đầu chép dữ liệu (lần đầu) rồi dựng ViPiSuggest, ở luồng nền; bàn phím chạy bình thường trong lúc đó. */
+    private fun startSuggest() {
+        val c = composer ?: return
+        if (suggestRequested) return
+        suggestRequested = true
+        val app = applicationContext
+        SuggestData.worker.execute {
+            val dir = runCatching { SuggestData.prepare(app) }.getOrNull()
+            val s = dir?.let { runCatching { ViPiSuggest(it.absolutePath, c) }.getOrNull() }
+            main.post {
+                if (s == null) { suggestRequested = false; return@post }   // thử lại lần hiện sau
+                suggest = s
+                s.setOptions(suggestOn, autoCorrectOn)
+                s.setKeys(touchKeys)
+                if (windowShown) warmSuggest()
+                scheduleSuggestions()
+            }
+        }
+    }
+
+    /**
+     * Mô hình (65 MB, ánh xạ vào bộ nhớ) chỉ được đọc sau khi bàn phím đã hiện, ở luồng nền (Vikey D64); chưa sẵn thì
+     * thanh để trống. Thứ tiếng đang gõ trước, mỗi thứ tiếng xong thì tính lại thanh.
+     */
+    private fun warmSuggest() {
+        val s = suggest ?: return
+        if (!suggestOn && !autoCorrectOn) return
+        val viFirst = composer?.mode() == InputMode.VIETNAMESE
+        SuggestData.worker.execute {
+            // lỗi ở luồng nền làm chết cả tiến trình bàn phím: thà không có gợi ý
+            runCatching {
+                for (vi in listOf(viFirst, !viFirst)) {
+                    val t = System.nanoTime()
+                    val wasReady = if (vi) s.readyVi() else s.readyEn()
+                    if (s.warmOne(vi)) {
+                        if (debug && !wasReady) Log.d(TIMING, "warm ${if (vi) "vi" else "en"} ${(System.nanoTime() - t) / 1_000_000} ms")
+                        main.post { scheduleSuggestions() }
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Bảng tạm (beta): 6 mục chép gần nhất, mỗi mục giữ 1 giờ, chỉ trên máy
@@ -396,6 +661,7 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         lastOwnEdit = SystemClock.uptimeMillis()
         ic.commitText(text, 1)
         updateShift()
+        scheduleSuggestions()
     }
 
     override fun onClipDelete(text: String) {
@@ -415,6 +681,7 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
     override fun onCursor(delta: Int) {
         endComposition()
         sendDownUpKeyEvents(if (delta > 0) KeyEvent.KEYCODE_DPAD_RIGHT else KeyEvent.KEYCODE_DPAD_LEFT)
+        scheduleSuggestions()
     }
 
     private fun openSettings() {
@@ -452,6 +719,7 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         prefs.mode = mode
         refreshUi()
         updateShift()
+        scheduleSuggestions()
     }
 
     /** Bỏ phần đang gõ: chữ Việt đang gõ giữ lại, pinyin chưa chọn thì xoá. */
@@ -461,6 +729,7 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         if (c.isComposingChinese() && !passthrough) ic?.setComposingText("", 1)
         ic?.finishComposingText()
         c.cancel()
+        dropSuggestions()
         refreshUi()
     }
 
@@ -472,6 +741,7 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
             kb.mode = InputMode.ENGLISH
             kb.setCandidates(emptyList())
             kb.setSuggestions("", "")
+            kb.setWords(emptyList())
             return
         }
         val mode = knownMode ?: c.mode()
@@ -479,6 +749,8 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         kb.setCandidates(if (mode == InputMode.CHINESE && c.isComposingChinese()) c.candidates().map { it.text } else emptyList())
         val word = if (mode == InputMode.VIETNAMESE) knownWord ?: c.currentWord() else ""
         kb.setSuggestions(if (word.isEmpty()) "" else c.currentKeys(), word)
+        // chữ Việt đang gõ thì thanh là hai lựa chọn phím đã gõ / chữ có dấu (KeyboardView), không thì các ô gợi ý từ
+        kb.setWords(if (mode == InputMode.CHINESE || !suggestsHere) emptyList() else words)
     }
 
     private fun updateShift(knownMode: InputMode? = null, knownWord: String? = null) {
@@ -504,6 +776,8 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
                                    candidatesStart: Int, candidatesEnd: Int) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
         if (composer == null) return
+        val selected = newSelStart != newSelEnd
+        if (selected != hasSelection) { hasSelection = selected; scheduleSuggestions() }
         val ours = SystemClock.uptimeMillis() - lastOwnEdit < 300
         // con trỏ rời khỏi chữ đang gõ, hoặc người dùng tự chạm chỗ khác trong ô nhập
         val leftComposing = candidatesStart >= 0 && (newSelStart != candidatesEnd || newSelEnd != candidatesEnd)
@@ -514,6 +788,7 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         if (leftComposing || movedByUser || emptied) {
             endComposition()
             updateShift()
+            scheduleSuggestions()
         }
     }
 
@@ -546,7 +821,7 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
             }
         }
         hardwareConsumed.add(keyCode)
-        onKey(key)
+        handleKey(key, Float.NaN, Float.NaN)
         return true
     }
 
@@ -566,6 +841,8 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
     private fun registerDebugDump() {
         val r = object : BroadcastReceiver() {
             override fun onReceive(c: Context, i: Intent) {
+                // "--es set <khoá>=true|false": đổi một cài đặt bật/tắt (kiểm thử gợi ý từ, tự sửa)
+                i.getStringExtra("set")?.split("=")?.takeIf { it.size == 2 }?.let { (k, v) -> prefs.set(k, v == "true") }
                 val ic = currentInputConnection
                 val text = (ic?.getTextBeforeCursor(2000, 0)?.toString() ?: "") + "|" + (ic?.getTextAfterCursor(2000, 0)?.toString() ?: "")
                 val wi = keyboard?.rootWindowInsets
@@ -574,7 +851,11 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
                     "gest=" + wi.getInsets(android.view.WindowInsets.Type.mandatorySystemGestures()),
                     "tap=" + wi.getInsets(android.view.WindowInsets.Type.tappableElement()),
                 ).joinToString(" ") else ""
-                Log.i("ViPiKeys", "begin " + i.getStringExtra("id") + "\ninsets " + ins + "\n" + (keyboard?.describeKeys() ?: "") + "field " + text.replace("\n", "⏎") + "\nmode " + composer?.mode())
+                // ba mục logcat (mỗi mục tối đa ~4 KB), dòng "mode" luôn cuối cùng
+                Log.i("ViPiKeys", "begin " + i.getStringExtra("id") + "\ninsets " + ins + "\n" + (keyboard?.describeKeys() ?: ""))
+                keyboard?.describeRects()?.takeIf { it.isNotEmpty() }?.let { Log.i("ViPiKeys", it) }
+                Log.i("ViPiKeys", "field " + text.replace("\n", "⏎") +
+                    "\nsuggest en=${suggest?.readyEn()} vi=${suggest?.readyVi()} here=$suggestsHere" + "\nmode " + composer?.mode())
             }
         }
         val filter = IntentFilter("dev.t43.vipi.DUMP")
@@ -584,7 +865,26 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
 
     override fun onWindowShown() {
         super.onWindowShown()
-        if (BuildConfigCompat.debuggable(this)) keyboard?.post { Log.i("ViPiKeys", keyboard?.describeKeys() ?: "") }
+        windowShown = true
+        if (suggest == null) startSuggest() else warmSuggest()
+        if (debug) keyboard?.post { Log.i("ViPiKeys", keyboard?.describeKeys() ?: "") }
+    }
+
+    /** Bàn phím ẩn đi: hệ điều hành có thể bỏ các trang của mô hình, lần hiện sau làm nóng lại. */
+    override fun onWindowHidden() {
+        windowShown = false
+        suggest?.let { it.coolDown(); it.reset() }
+        words = emptyList()
+        wordsDirty = false
+        correctedText = null
+        super.onWindowHidden()
+    }
+
+    private companion object {
+        const val TIMING = "ViPiSuggest"
+        /** Chữ trước con trỏ đọc mỗi lần tính gợi ý, và phần cuối của nó mà đầu ngữ cảnh phải nằm trong (readContext). */
+        const val CONTEXT_CHARS = 600
+        const val CONTEXT_KEEP = 400
     }
 }
 

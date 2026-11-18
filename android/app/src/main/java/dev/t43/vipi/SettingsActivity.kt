@@ -63,6 +63,10 @@ class SettingsActivity : Activity() {
         root.addView(toggle("Restore non-Vietnamese words", Prefs.RESTORE, true,
             "When a word ends and is not Vietnamese, put back the keys you typed: user, data, more."))
         root.addView(toggle("Modern tone placement", Prefs.MODERN_TONE, false, "hoà, khoẻ, thuý instead of hòa, khỏe, thúy."))
+        root.addView(toggle("Word suggestions", Prefs.SUGGESTIONS, true,
+            "Show ways to finish the word and likely next words on the bar."))
+        root.addView(toggle("Auto-correct typos", Prefs.AUTO_CORRECT, true,
+            "Fix an English word typed with a slip onto a neighbouring key when you press space, and let the keys follow the sentence: a touch between two keys types the likelier letter. Backspace right after a fix puts your word back."))
 
         section(root, "Chinese")
         root.addView(toggle("Traditional characters", Prefs.TRADITIONAL, false, "头发 becomes 頭髮."))
