@@ -99,6 +99,8 @@ targets:
       # mô hình gợi ý từ (scripts/ios-suggest-models.sh tải về ios/Suggest/, không lưu trong git); cũng đọc bằng mmap
       - path: ViPiKeyboard/Suggest/keep-words.txt
         buildPhase: resources
+      - path: ViPiKeyboard/Suggest/keep-words-chat.txt
+        buildPhase: resources
       - path: Suggest/SuggestEN.bin
         buildPhase: resources
       - path: Suggest/SuggestNN.bin

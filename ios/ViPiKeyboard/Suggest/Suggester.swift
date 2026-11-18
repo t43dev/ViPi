@@ -80,6 +80,10 @@ final class Suggester {
     /// Từ đang gõ như hiện trong ô (lúc tính gần nhất).
     var shownWord: String { state.shown }
 
+    /// Kết quả đang giữ có được tính cho đúng chữ trước con trỏ này không. Phải hỏi trước khi xoá hay thay chữ trong ô:
+    /// con trỏ có thể đã dời (kéo trên phím cách, app sửa ô) mà bộ gợi ý chưa kịp tính lại.
+    func isCurrent(_ context: String) -> Bool { state.context == context }
+
     /// Tính lại sau một phím (chữ của phím đã vào ô): xác suất phím kế tiếp cho lần chạm sau, chữ dấu cách sẽ đưa
     /// vào, và các ô của thanh gợi ý. `capitalize`: Shift đang bật cho chữ đầu câu.
     func update(context: String, english: Bool, telexKeys: String, keys: [KeyRect], capitalize: Bool) -> [Suggestion] {
@@ -152,20 +156,15 @@ final class Suggester {
         return (odds.values, odds.vietnamese)
     }
 
-    /// Chạm vào khe giữa hàng chữ dưới cùng và phím cách: là dấu cách khi từ đang gõ đã là một từ và không từ nào
-    /// gõ tiếp bằng `letter` ("thank" rồi chạm dưới n). Không áp cho x và z ở trạng thái Việt (phím thanh).
+    /// Chạm vào khe giữa hàng chữ dưới cùng và phím cách khi chưa có xác suất phím kế tiếp (mô hình chưa nạp xong):
+    /// là dấu cách khi từ tiếng Anh đang gõ đã là một từ và không từ nào gõ tiếp bằng `letter` ("thank" rồi chạm dưới
+    /// n). Có xác suất thì TapModel tự cân phím cách với các chữ, ở cả hai thứ tiếng.
     func wordEnds(before letter: String) -> Bool {
-        guard autoCorrectOn, let l = letter.lowercased().unicodeScalars.first, (97...122).contains(l.value) else { return false }
-        if state.english {
-            let w = state.shown.lowercased()
-            guard w.count >= 2, w.allSatisfy({ $0.isASCII && $0.isLetter }), SuggestLM.readyEN, !SuggestLM.shared.isEmpty else { return false }
-            guard knows(w) || SuggestLM.shared.id(w) != nil else { return false }
-            return !SuggestLM.shared.startsWord(w + letter.lowercased())
-        }
-        let w = state.telexKeys.lowercased()
-        guard w.count >= 2, letter.lowercased() != "x", letter.lowercased() != "z", knows(w),
-              let odds, odds.vietnamese else { return false }
-        return odds.values[Int(l.value) - 97] < 1e-4
+        guard autoCorrectOn, state.english, let l = letter.lowercased().unicodeScalars.first, (97...122).contains(l.value) else { return false }
+        let w = state.shown.lowercased()
+        guard w.count >= 2, w.allSatisfy({ $0.isASCII && $0.isLetter }), SuggestLM.readyEN, !SuggestLM.shared.isEmpty else { return false }
+        guard knows(w) || SuggestLM.shared.id(w) != nil else { return false }
+        return !SuggestLM.shared.startsWord(w + letter.lowercased())
     }
 
     private func nextKeyOdds() -> (values: [Double], vietnamese: Bool)? {
@@ -184,20 +183,37 @@ final class Suggester {
     // MARK: tự sửa lỗi chạm lệch phím (D63, theo các giới hạn của D26)
 
     private static let slipMargin = 3.0
+    /// Từ thay vào phải đủ hợp với câu: log P(từ | các từ trước) trên mức này. Vikey không có ngưỡng này; với nó,
+    /// trong mô phỏng chạm lệch (8 pt) chữ chat gõ đúng mà bị đổi giảm từ 4,6% xuống 0,16%, còn từ tiếng Anh gõ lệch
+    /// được sửa đúng 61 trên 70 (không ngưỡng: 66).
+    private static let slipLikelihoodFloor = -9.0
+
+    /// Dạng chữ không phải lỗi gõ: không có nguyên âm (viết tắt), ba chữ giống nhau liền nhau hoặc nguyên âm cuối gõ
+    /// đôi (kéo dài chữ: "oiii", "nhaa").
+    private static func looksTyped(_ low: String) -> Bool {
+        let c = Array(low)
+        guard c.contains(where: { "aeiouy".contains($0) }) else { return false }
+        if c.count >= 3, (2..<c.count).contains(where: { c[$0] == c[$0 - 1] && c[$0] == c[$0 - 2] }) { return false }
+        if c.count >= 2, c[c.count - 1] == c[c.count - 2], "aeiouy".contains(c[c.count - 1]) { return false }
+        return true
+    }
 
     /// Từ mà các lần chạm nhiều khả năng định gõ, khi rõ ràng không phải chính các chữ đã gõ. Không bao giờ sửa: từ
     /// đã biết (cả hai thứ tiếng), chữ gõ ra âm tiết tiếng Việt, từ trong danh sách giữ nguyên, từ dưới 3 chữ, từ có
     /// từ 2 chữ hoa, từ vừa được trả lại, và các chữ đang trên đường tới một từ hay gặp hơn ("peop" → people).
     private func slipFix(_ lm: SuggestLM, keys: [KeyRect]) -> String? {
         let shown = state.shown, low = shown.lowercased()
+        // chỉ từ đứng riêng: sau dấu cách, đầu ô hoặc dấu mở ngoặc. Chữ dính sau số, dấu chấm, gạch dưới ("report.docx",
+        // "abc1xyz", "user_nmae") là tên file, mã, tên biến
+        guard before.last.map({ $0.isWhitespace || "\"'(“‘[".contains($0) }) ?? true else { return nil }
         guard low.count >= 3, typed.lowercased() == low, !xs.contains(where: { $0.isNaN }), !keys.isEmpty,
               shown.filter({ $0.isUppercase }).count < 2, keepWord != low,
-              lm.id(low) == nil, !knows(low), !KeepWords.shared.contains(low) else { return nil }
+              Self.looksTyped(low), lm.id(low) == nil, !knows(low), !KeepWords.shared.contains(low) else { return nil }
         let reads = lm.readTaps(zip(xs, ys).map { (x: $0, y: $1) }, keys: keys, before: before)
         guard let best = reads.first, best.word.lowercased() != low else { return nil }
         // các chữ đã gõ không phải một từ: điểm của chính chúng là độ gần ~0 cộng một xác suất rất nhỏ
         let typedScore = reads.first { $0.word.lowercased() == low }?.score ?? -40
-        guard best.score - typedScore > Self.slipMargin else { return nil }
+        guard best.score - typedScore > Self.slipMargin, best.likelihood > Self.slipLikelihoodFloor else { return nil }
         return lm.prefersFinishing(low, over: best.word, before: before) ? nil : best.word
     }
 

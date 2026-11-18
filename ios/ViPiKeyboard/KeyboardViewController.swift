@@ -256,6 +256,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
         endComposition()
         markOwnEdit()
         textDocumentProxy.adjustTextPosition(byCharacterOffset: delta)
+        scheduleSuggestions()
     }
 
     /// App xoá ô nhập (nút gửi của Telegram) mà thông báo tới lúc bàn phím còn bỏ qua (0,3 s sau phím vừa gõ, xem
@@ -266,6 +267,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
         guard !textDocumentProxy.hasText, composer?.isComposingChinese() != true else { return }
         shown = ""
         composer?.cancel()
+        dropSuggestions()
         refreshUI()
     }
 
@@ -306,7 +308,8 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
         // mỗi phím, gõ nhanh hơn thế thì tính ngay bây giờ)
         var correction: (typed: String, word: String, end: String)?
         if before == .english, suggestsHere, let end = Self.breakText(key) {
-            if suggestionsDirty { updateSuggestions() }
+            // tính lại nếu chữ trước con trỏ không còn là chữ bộ gợi ý đã thấy (gõ nhanh, con trỏ vừa dời)
+            if suggestionsDirty || !suggester.isCurrent(textDocumentProxy.documentContextBeforeInput ?? "") { updateSuggestions() }
             if let word = suggester.correction() { correction = (suggester.shownWord, word, end) }
         }
         let wordLength = c.currentWord().count
@@ -397,6 +400,12 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
     /// Chạm một ô trên thanh gợi ý Việt · Anh.
     func keyboardPickWord(_ index: Int) {
         guard let c = composer, index < suggestions.count else { return }
+        // các ô đang hiện phải đúng với chữ trước con trỏ lúc này; không thì tính lại và bỏ lần chạm (ô đã đổi)
+        guard !suggestionsDirty, suggester.isCurrent(textDocumentProxy.documentContextBeforeInput ?? "") else {
+            updateSuggestions()
+            refreshUI()
+            return
+        }
         let cell = suggestions[index]
         keyboardWillPress()
         markOwnEdit()
@@ -449,8 +458,10 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
         finishComposing()
         commit(" ")
         c.cancel()
+        dropSuggestions()
         refreshUI()
         updateShift()
+        scheduleSuggestions()
     }
 
     // MARK: - Áp kết quả của lõi (giống Android)
@@ -511,7 +522,15 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
     private func endComposition() {
         finishComposing()
         composer?.cancel()
+        dropSuggestions()
         refreshUI()
+    }
+
+    /// Từ đang theo dõi không còn đúng nữa (con trỏ dời, ô bị xoá, đổi chế độ): bỏ các ô gợi ý, chữ định sửa và xác
+    /// suất phím kế tiếp; lần tính sau đọc lại ô nhập.
+    private func dropSuggestions() {
+        suggester.endWord()
+        suggestions = []
     }
 
     // MARK: - Thao tác trên ô nhập
