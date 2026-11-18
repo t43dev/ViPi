@@ -120,6 +120,21 @@ type('ddungs');
 c.text = ''; c.cursor = 0; // app xoá ô ngay sau phím (nút gửi của Telegram), thông báo bị bỏ qua
 type('ddungs');
 expect('field cleared by the app mid-word', c.text, 'đúng');
+c = start({});
+toVietnamese();
+type('vie');
+handlers['kd:editorAttributeChanged']({ inputPattern: 0, enterKeyType: 6, isTextPreviewSupported: false });
+type('ejt');
+expect('the app changing the Enter key mid-word keeps the word', c.text, 'việt');
+handlers['kd:editorAttributeChanged']({ inputPattern: 7, enterKeyType: 0, isTextPreviewSupported: false });
+type('vieejt');
+expect('a change of field type starts over (password)', c.text, 'việtvieejt');
+c = start({});
+type('server hello');   // tiếng Anh: lõi nhớ "hello"
+c.text = ''; c.cursor = 0;
+handlers['kd:selectionChange'](12, 12, 0, 0);   // app xoá ô ngay sau phím
+type('treen ');
+expect('English word dropped when the app empties the field', c.text, 'trên ');
 
 toChinese();
 c = start({ isTextPreviewSupported: true });

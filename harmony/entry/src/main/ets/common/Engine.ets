@@ -94,6 +94,22 @@ function prepareData(ctx: common.Context): string {
   return dir;
 }
 
+/**
+ * App cài đặt không dùng dữ liệu của lõi (bàn phím chạy trong sandbox riêng và tự chép phần của nó): bỏ bản
+ * chép ~23 MB mà các bản trước để lại trong sandbox của app.
+ */
+export function dropCopiedData(ctx: common.Context): void {
+  try {
+    for (const name of fs.listFileSync(ctx.filesDir)) {
+      if (name.startsWith('res-')) {
+        fs.rmdirSync(`${ctx.filesDir}/${name}`);
+      }
+    }
+  } catch (e) {
+    logError(`cannot remove copied data: ${JSON.stringify(e)}`);
+  }
+}
+
 /** Nạp lõi một lần cho tiến trình; false nếu không nạp được (khi đó bàn phím gõ như bàn phím thường). */
 export function openEngine(ctx: common.Context): boolean {
   if (vipi.isOpen()) {

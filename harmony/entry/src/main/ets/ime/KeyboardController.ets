@@ -44,6 +44,10 @@ class KeyboardController implements BoardListener {
   private previewActive: boolean = false;
   private last: Outcome = vipi.state();
   private lastOwnEdit: number = 0;
+  /** Loại ô nhập đang gõ (inputPattern), để biết thuộc tính đổi giữa chừng có phải là đổi sang ô khác không. */
+  private pattern: number = -1;
+  /** Con trỏ về đầu ô ngay sau phím vừa gõ: có thể app đã xoá ô, phím sau kiểm tra lại (syncWithField). */
+  private maybeEmptied: boolean = false;
   private hapticFailed: boolean = false;   // tiến trình bàn phím không gọi được dịch vụ rung: thôi hỏi mỗi phím
   private settingsReadAt: number = 0;
   private fieldReadable: boolean = false;  // ô nhập này đã từng trả lại chữ quanh con trỏ
@@ -154,6 +158,7 @@ class KeyboardController implements BoardListener {
   // ô nhập rời bộ gõ: giữ bàn phím và lõi (nạp lại tốn thời gian), chỉ bỏ phần đang gõ dở
   private readonly onInputStop = (): void => {
     this.previewActive = false;
+    this.pattern = -1;
     vipi.cancel();
     this.client = undefined;
     this.board.reset();
@@ -188,6 +193,10 @@ class KeyboardController implements BoardListener {
     delegate.on('selectionChange', (oldBegin: number, oldEnd: number, newBegin: number, newEnd: number) => {
       // con trỏ bị dời ngoài bàn phím (chạm chỗ khác trong ô nhập): bỏ phần đang gõ
       if (Date.now() - this.lastOwnEdit < 300) {
+        // không bỏ từ ngay: sửa chữ Việt là xoá rồi chèn, con trỏ cũng lướt qua đầu ô. Phím sau sẽ đọc lại ô
+        if (newBegin === 0 && newEnd === 0) {
+          this.maybeEmptied = true;
+        }
         return;
       }
       if (oldBegin === newBegin && oldEnd === newEnd) {
@@ -196,7 +205,20 @@ class KeyboardController implements BoardListener {
       this.endComposition();
       this.updateShift();
     });
-    delegate.on('editorAttributeChanged', (attr: inputMethodEngine.EditorAttribute) => this.startInput(attr));
+    delegate.on('editorAttributeChanged', (attr: inputMethodEngine.EditorAttribute) => {
+      if (attr.inputPattern !== this.pattern) {
+        this.startInput(attr);
+        return;
+      }
+      // vẫn ô đó, app chỉ đổi nút Enter (ô chat bật nút gửi khi có chữ): giữ từ đang gõ và trang phím,
+      // không thì dấu gõ tiếp không còn bỏ được vào chữ ("vie" rồi "ejt")
+      this.enterType = attr.enterKeyType;
+      const action = this.actionFor(attr.enterKeyType);
+      if (this.board.action !== action) {
+        this.board.action = action;
+        this.redraw(true);
+      }
+    });
     delegate.on('keyEvent', (e: KeyEvent): boolean => this.onHardwareKey(e));
 
     // xoay màn, gập/mở máy (Pura X Max: màn ngoài ~389 vp ↔ màn trong ~795 vp): đổi cỡ bảng bàn phím, trang
@@ -226,7 +248,9 @@ class KeyboardController implements BoardListener {
 
   private startInput(attr: inputMethodEngine.EditorAttribute): void {
     this.fieldReadable = false;
+    this.maybeEmptied = false;
     const p = attr.inputPattern;
+    this.pattern = p;
     const password = p === inputMethodEngine.PATTERN_PASSWORD || p === inputMethodEngine.PATTERN_PASSWORD_NUMBER ||
       p === inputMethodEngine.PATTERN_PASSWORD_SCREEN_LOCK || p === inputMethodEngine.PATTERN_NEW_PASSWORD;
     const numeric = p === inputMethodEngine.PATTERN_NUMBER || p === inputMethodEngine.PATTERN_PHONE ||
@@ -330,7 +354,10 @@ class KeyboardController implements BoardListener {
    * Ô nào chưa từng trả lại chữ quanh con trỏ (ô tự vẽ không cho đọc) thì không coi "rỗng" là đã bị xoá.
    */
   private syncWithField(client: inputMethodEngine.InputClient): void {
-    if (!this.engineOk || this.passthrough || this.last.word.length === 0 || this.last.composingChinese) {
+    // từ tiếng Anh đang gõ lõi cũng nhớ nhưng không hiện trong `last.word`: chỉ đọc ô khi vừa thấy con trỏ về đầu ô
+    const check = this.last.word.length > 0 || this.maybeEmptied;
+    this.maybeEmptied = false;
+    if (!this.engineOk || this.passthrough || !check || this.last.composingChinese) {
       return;
     }
     try {

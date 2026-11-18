@@ -2,7 +2,7 @@ import { common, Want } from '@kit.AbilityKit';
 import { inputMethod } from '@kit.IMEKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { FuzzyOption } from 'libvipi.so';
-import { vipi, openEngine, logError } from '../common/Engine';
+import { vipi, dropCopiedData, logError } from '../common/Engine';
 import {
   Settings, loadSettings, saveBool, saveString, saveStrings, saveNumber, MODERN_TONE, SPELL_CHECK, RESTORE,
   TRADITIONAL, LEARN, FULL_WIDTH, HAPTICS, AUTO_CAP, DOUBLE_SPACE, KEY_POPUP, THEME, FUZZY, LEARNED_CLEARED_AT,
@@ -75,9 +75,13 @@ struct SettingsPage {
 
   aboutToAppear(): void {
     this.settings = loadSettings(this.ctx, true);
-    if (openEngine(this.ctx)) {
+    // danh sách quy tắc là dữ liệu tĩnh của thư viện: không cần nạp lõi (nạp là chép 23 MB từ điển vào sandbox của app)
+    try {
       this.fuzzyOptions = vipi.fuzzyOptions();
+    } catch (e) {
+      logError(`fuzzy options: ${JSON.stringify(e)}`);
     }
+    dropCopiedData(this.ctx);
     this.refresh();
   }
 
