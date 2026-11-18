@@ -168,8 +168,10 @@ final class SelfTest: NSObject, NSApplicationDelegate {
             guard let e = CGEvent(keyboardEventSource: source, virtualKey: ev.code, keyDown: ev.down) else { continue }
             e.flags = ev.shift ? .maskShift : []
             // chữ của phím tính theo trạng thái Shift lúc tạo sự kiện, không theo cờ vừa đặt: ghi đúng chữ như bàn phím thật
-            let units = Array(String(ev.char).utf16)
-            e.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
+            if ev.char.isLetter {
+                let units = Array(String(ev.char).utf16)
+                e.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
+            }
             e.post(tap: .cghidEventTap)
         }
     }
