@@ -97,6 +97,9 @@ final class KeyboardView: UIView {
     private let popup = PopupView()
 
     var layout: Layout = .letters { didSet { if layout != oldValue { rebuild() } } }
+    /// Trang phím của ô nhập. Ô thường (`.letters`): sau dấu cách hoặc dấu ' ở trang số / ký hiệu thì về trang chữ,
+    /// như bàn phím Apple. Ô số (`.numbers`): ở yên trang đang dùng.
+    var baseLayout: Layout = .letters
     var shift: Shift = .off { didSet { if shift != oldValue { setNeedsDisplay() } } }
     var mode: InputMode = .english { didSet { if mode != oldValue { setNeedsDisplay() } } }
     var modeLocked = false { didSet { if modeLocked != oldValue { setNeedsDisplay() } } }
@@ -177,7 +180,6 @@ final class KeyboardView: UIView {
         super.layoutSubviews()
         let m = metrics(traitCollection)
         bar.frame = CGRect(x: 0, y: 0, width: bounds.width, height: barHeight(m))
-        popup.frame = bounds
         rebuild()
     }
 
@@ -200,6 +202,7 @@ final class KeyboardView: UIView {
         pressed.removeAll()
         touchStates.removeAll()
         popup.hide()
+        baseLayout = .letters
         layout = .letters
         shift = .off
         setNeedsDisplay()
@@ -424,7 +427,8 @@ final class KeyboardView: UIView {
         let m = metrics(traitCollection)
         let p = palette
         let pad = padSpec != nil
-        for (i, k) in keys.enumerated() where k.kind != .spacer && k.kind != .gap {
+        // `rect` là vùng cần vẽ lại: một lần bấm chỉ vẽ lại phím đó (setPressed), không vẽ cả bàn phím
+        for (i, k) in keys.enumerated() where k.kind != .spacer && k.kind != .gap && k.frame.intersects(rect) {
             var r = k.frame.insetBy(dx: m.gapX / 2, dy: m.gapY / 2)
             if !pad && k.row == 2 && !isSplit && [.shift, .backspace, .numbers, .symbols].contains(k.kind) {
                 // như Apple: Shift / xoá hẹp hơn ô của chúng (50 pt trên máy 440 pt), sát mép ngoài, chạm vẫn nhận cả ô
@@ -535,8 +539,8 @@ final class KeyboardView: UIView {
         where !s.done && !s.longFired && !s.trackpad && (keys[s.key].kind == .char || keys[s.key].kind == .space) {
             s.timer?.invalidate()
             s.done = true
-            pressed.remove(s.key)
-            fire(keys[s.key])
+            setPressed(s.key, false)
+            fire(keys[s.key], rollover: true)
         }
         for t in touches {
             guard let i = keyIndex(at: t.location(in: self)) else { continue }
@@ -548,8 +552,14 @@ final class KeyboardView: UIView {
         }
     }
 
+    /// Đổi trạng thái bấm của một phím, chỉ vẽ lại ô của phím đó.
+    private func setPressed(_ i: Int, _ down: Bool) {
+        guard (down ? pressed.insert(i).inserted : pressed.remove(i) != nil), keys.indices.contains(i) else { return }
+        setNeedsDisplay(keys[i].frame)
+    }
+
     private func press(_ i: Int, _ state: TouchState) {
-        pressed.insert(i)
+        setPressed(i, true)
         let k = keys[i]
         switch k.kind {
         case .backspace:
@@ -577,7 +587,6 @@ final class KeyboardView: UIView {
             }
         default: break
         }
-        setNeedsDisplay()
     }
 
     private var popupPalette: PopupView.Palette {
@@ -605,7 +614,7 @@ final class KeyboardView: UIView {
                 // kể cả khi quay lại gần chỗ chạm đầu
                 s.moved = true
                 s.timer?.invalidate()
-                pressed.remove(s.key)
+                setPressed(s.key, false)
                 s.key = i
                 press(i, s)
             }
@@ -622,26 +631,24 @@ final class KeyboardView: UIView {
             guard let s = touchStates.removeValue(forKey: ObjectIdentifier(t)) else { continue }
             s.timer?.invalidate()
             let k = keys[s.key]
-            pressed.remove(s.key)
+            setPressed(s.key, false)
             if s.done { continue }
             if k.kind == .backspace { repeatTimer?.invalidate(); repeatTimer = nil }
             if (s.longFired || isFlick(k, s, t.location(in: self))), let h = k.hint { delegate?.keyboardDidType(.text(text: h)) }
             else if !s.trackpad { fire(k) }
         }
         if touchStates.isEmpty { popup.hide() }
-        setNeedsDisplay()
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         for t in touches {
             guard let s = touchStates.removeValue(forKey: ObjectIdentifier(t)) else { continue }
             s.timer?.invalidate()
-            pressed.remove(s.key)
+            setPressed(s.key, false)
         }
         repeatTimer?.invalidate()
         repeatTimer = nil
         popup.hide()
-        setNeedsDisplay()
     }
 
     private func cancelTimers() {
@@ -650,7 +657,9 @@ final class KeyboardView: UIView {
         repeatTimer = nil
     }
 
-    private func fire(_ k: Key) {
+    /// `rollover`: ngón khác vừa chạm xuống khi phím này chưa nhấc. Lúc đó không đổi trang phím: ngón mới nhắm vào
+    /// phím của trang đang hiện.
+    private func fire(_ k: Key, rollover: Bool = false) {
         if k.kind != .shift { lastShiftTap = 0 }   // phím khác chen giữa hai lần chạm Shift: không phải chạm đúp
         switch k.kind {
         case .char:
@@ -659,7 +668,10 @@ final class KeyboardView: UIView {
                 : layout == .letters && shift != .off ? k.label.uppercased() : k.label
             if shift == .once { shift = .off }
             delegate?.keyboardDidType(.text(text: text))
-        case .space: delegate?.keyboardDidType(.space)
+            if text == "'" && !rollover && baseLayout == .letters { layout = .letters }
+        case .space:
+            delegate?.keyboardDidType(.space)
+            if !rollover && baseLayout == .letters { layout = .letters }
         case .ret: delegate?.keyboardDidType(.enter)
         case .numbers: layout = .numbers
         case .letters: layout = .letters
@@ -678,7 +690,6 @@ final class PopupView: UIView {
     struct Palette { let fill: UIColor; let text: UIColor }
 
     private var text = ""
-    private var keyFrame = CGRect.zero
     private var colors = Palette(fill: .white, text: .black)
 
     override init(frame: CGRect) {
@@ -690,10 +701,23 @@ final class PopupView: UIView {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
+    /// Lề quanh ô cho bóng đổ.
+    private static let margin: CGFloat = 14
+    private var box = CGRect.zero
+
+    /// `keyFrame` theo toạ độ của view cha. View chỉ lớn bằng ô phóng to cộng lề bóng đổ (không bằng cả bàn phím),
+    /// nên vùng ảnh của nó nhỏ và mỗi lần vẽ lại rẻ.
     func show(_ text: String, over keyFrame: CGRect, palette: Palette) {
         self.text = text
-        self.keyFrame = keyFrame
         colors = palette
+        let parent = superview?.bounds ?? .zero
+        let w = max(keyFrame.width + 14, 46)
+        // phía trên hàng đầu không còn chỗ khi ẩn thanh gợi ý (iOS không cho vẽ ra ngoài bàn phím): đè lên chính phím
+        let room = keyFrame.minY - 6
+        let h = room >= 30 ? min(keyFrame.height * 1.15, room) : keyFrame.height
+        let y = room >= 30 ? keyFrame.minY - h - 4 : 2
+        box = CGRect(x: min(max(keyFrame.midX - w / 2, 2), parent.width - w - 2), y: y, width: w, height: h)
+        frame = box.insetBy(dx: -Self.margin, dy: -Self.margin)
         isHidden = false
         setNeedsDisplay()
     }
@@ -701,12 +725,8 @@ final class PopupView: UIView {
     func hide() { isHidden = true }
 
     override func draw(_ rect: CGRect) {
-        let w = max(keyFrame.width + 14, 46)
-        // phía trên hàng đầu không còn chỗ khi ẩn thanh gợi ý (iOS không cho vẽ ra ngoài bàn phím): đè lên chính phím
-        let room = keyFrame.minY - 6
-        let h = room >= 30 ? min(keyFrame.height * 1.15, room) : keyFrame.height
-        let y = room >= 30 ? keyFrame.minY - h - 4 : 2
-        let box = CGRect(x: min(max(keyFrame.midX - w / 2, 2), bounds.width - w - 2), y: y, width: w, height: h)
+        let box = CGRect(x: Self.margin, y: Self.margin, width: self.box.width, height: self.box.height)
+        let h = box.height
         guard let ctx = UIGraphicsGetCurrentContext() else { return }
         ctx.setShadow(offset: CGSize(width: 0, height: 2), blur: 10, color: UIColor(white: 0, alpha: 0.25).cgColor)
         colors.fill.setFill()

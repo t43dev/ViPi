@@ -142,9 +142,9 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
         // mỗi ô, không thì người dùng vừa về bàn chữ gõ một phím là bị đẩy lại bàn số
         if type != fieldType {
             fieldType = type
-            if numeric.contains(type) || type == .numbersAndPunctuation {
-                if keyboard.layout == .letters { keyboard.layout = .numbers }
-            }
+            let numbers = numeric.contains(type) || type == .numbersAndPunctuation
+            keyboard.baseLayout = numbers ? .numbers : .letters
+            if numbers, keyboard.layout == .letters { keyboard.layout = .numbers }
         }
         keyboard.returnKey = KeyboardView.ReturnKey(proxy.returnKeyType ?? .default)
         let appearance: UIUserInterfaceStyle

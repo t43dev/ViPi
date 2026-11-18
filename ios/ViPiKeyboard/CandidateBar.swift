@@ -19,6 +19,11 @@ final class CandidateBar: UIView {
     private let preedit = UILabel()
     private let scroll = UIScrollView()
     private let stack = UIStackView()
+    /// Nút ứng viên chữ Hán, dùng lại qua từng phím gõ (mỗi phím pinyin đổi tới 60 ứng viên: tạo lại nút là việc nặng nhất)
+    private var candidateButtons: [UIButton] = []
+    private var candidateTitles: [String] = []
+    private var showsCandidates = false
+    private var shownCandidates = 0
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -57,17 +62,38 @@ final class CandidateBar: UIView {
     }
 
     private func reload() {
-        stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         scroll.contentOffset = .zero
-        switch content {
-        case .empty:
-            preedit.text = nil
-        case .chinese(let p, let candidates):
+        if case .chinese(let p, let candidates) = content {
             preedit.text = p
-            stack.distribution = .fill
-            for (i, c) in candidates.enumerated() {
-                stack.addArrangedSubview(button(c, size: 21, weight: i == 0 ? .semibold : .regular) { [weak self] in self?.onPick?(i) })
+            if !showsCandidates {
+                stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+                stack.distribution = .fill
+                shownCandidates = 0
+                showsCandidates = true
             }
+            for (i, c) in candidates.enumerated() {
+                if i == candidateButtons.count {
+                    candidateButtons.append(button(c, size: 21, weight: i == 0 ? .semibold : .regular) { [weak self] in self?.onPick?(i) })
+                    candidateTitles.append(c)
+                } else if candidateTitles[i] != c {
+                    candidateTitles[i] = c
+                    candidateButtons[i].configuration?.attributedTitle = Self.title(c, size: 21, weight: i == 0 ? .semibold : .regular)
+                }
+                // nút thừa luôn nằm cuối hàng: thêm vào / gỡ ra ở cuối (ẩn hiện nút trong UIStackView để lại ràng buộc cũ)
+                if i >= shownCandidates { stack.addArrangedSubview(candidateButtons[i]) }
+            }
+            if candidates.count < shownCandidates {
+                for b in candidateButtons[candidates.count..<shownCandidates] { b.removeFromSuperview() }
+            }
+            shownCandidates = candidates.count
+            setNeedsLayout()
+            return
+        }
+        showsCandidates = false
+        stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        switch content {
+        case .empty, .chinese:
+            preedit.text = nil
         case .vietnamese(let keys, let word):
             preedit.text = nil
             stack.distribution = .fillEqually
@@ -87,10 +113,16 @@ final class CandidateBar: UIView {
 
     private func button(_ title: String, size: CGFloat, weight: UIFont.Weight, action: @escaping () -> Void) -> UIButton {
         var config = UIButton.Configuration.plain()
-        config.attributedTitle = AttributedString(title, attributes: AttributeContainer([.font: UIFont.systemFont(ofSize: size, weight: weight)]))
+        config.attributedTitle = Self.title(title, size: size, weight: weight)
         config.baseForegroundColor = .label
         config.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 10, bottom: 0, trailing: 10)
         return UIButton(configuration: config, primaryAction: UIAction { _ in action() })
+    }
+}
+
+private extension CandidateBar {
+    static func title(_ text: String, size: CGFloat, weight: UIFont.Weight) -> AttributedString {
+        AttributedString(text, attributes: AttributeContainer([.font: UIFont.systemFont(ofSize: size, weight: weight)]))
     }
 }
 
