@@ -2,7 +2,9 @@
 
 What changed in each ViPi release. Download the latest from [Releases](../../releases/latest).
 
-## Unreleased
+## 0.5.6 · 2026-11-18
+
+macOS 0.5.6 and Android 0.3.7. The iPhone and iPad changes are in TestFlight; HarmonyOS gets its share with its next store build.
 
 ### Changed
 - **iPhone and iPad: the 123 and #+= pages go back to letters after a space or an apostrophe,** like the Apple keyboard. Number fields stay on the page you chose.
