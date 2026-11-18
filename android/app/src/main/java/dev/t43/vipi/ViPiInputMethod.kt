@@ -494,7 +494,10 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         // con trỏ rời khỏi chữ đang gõ, hoặc người dùng tự chạm chỗ khác trong ô nhập
         val leftComposing = candidatesStart >= 0 && (newSelStart != candidatesEnd || newSelEnd != candidatesEnd)
         val movedByUser = !ours && candidatesStart < 0 && (newSelStart != oldSelStart || newSelEnd != oldSelEnd)
-        if (leftComposing || movedByUser) {
+        // con trỏ về đầu ô ngay sau phím vừa gõ: app đã xoá ô (nút gửi của Telegram). Từ tiếng Anh đang gõ lõi còn
+        // nhớ cũng phải bỏ, không thì từ sau bị tính dính vào nó. Tự xoá lùi về đầu ô thì lõi đã trống sẵn, bỏ cũng vậy.
+        val emptied = ours && candidatesStart < 0 && oldSelStart > 0 && newSelStart == 0 && newSelEnd == 0
+        if (leftComposing || movedByUser || emptied) {
             endComposition()
             updateShift()
         }
