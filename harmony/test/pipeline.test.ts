@@ -104,6 +104,20 @@ c = start({ enterKeyType: 3 });
 type('a⏎');
 expect('enter on search field sends the action', c.actions.join(','), 'fn3');
 c = start({});
+type('server ');   // tiếng Anh
+c = start({ enterKeyType: 3 });
+type('ver⏎');
+expect('Enter on a search field sends what is on screen', c.text + '|' + c.actions.join(','), 'ver|fn3');
+c = start({});
+type('ver⏎');
+expect('Enter in a normal field still fixes the word', c.text, 'vẻ\n');
+c = start({ enterKeyType: 3 });
+toVietnamese();
+type('push⏎');
+expect('a word already changed on screen is still put back at a search Enter', c.text, 'push');
+c = start({});
+type('vieejt ');   // về lại tiếng Việt cho các ca sau
+c = start({});
 toVietnamese();
 type('dduowngf');
 keyboardController.onSuggestion(0);

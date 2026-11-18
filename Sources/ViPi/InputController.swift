@@ -173,6 +173,14 @@ final class InputController {
         } else if let u = pending, u.breakGone, typed.count == 1, let ch = typed.first, ch.isASCII, ch.isLetter {
             reopen(u)
         }
+        // Enter ở thanh địa chỉ trình duyệt gửi đúng chữ đang thấy (Vikey D62): chữ trên màn hình còn y như phím đã gõ
+        // thì không đổi nó nữa. Đổi lúc này làm mất phần trình duyệt đang gợi ý ("ver" + Enter mở vercel.com, không
+        // phải đi tìm "vẻ"). Chữ đã thành tiếng Việt trên màn hình thì vẫn xử lý như mọi lần kết thúc từ.
+        if keyCode == kVK_Return || keyCode == kVK_ANSI_KeypadEnter, pinyin?.isComposing != true,
+           mode == .english || telex.output == String(telex.keys), KeySender.focus == .addressBar {
+            cancelComposition()
+            return false
+        }
         let handled: Bool
         switch mode {
         case .english: handled = handleEnglish(keyCode, typed, event)

@@ -39,7 +39,9 @@ struct SettingsView: View {
                 }
                 // chỉ cho UI test (-clearButton): xoá ô bằng code như nút gửi của app chat
                 if ProcessInfo.processInfo.arguments.contains("-clearButton") { Button("Clear") { trial = "" } }
-                TextField("Try it here", text: $trial, axis: .vertical)
+                // chỉ cho UI test (-searchField): ô một dòng với nút Search, như ô tìm kiếm / thanh địa chỉ
+                TextField("Try it here", text: $trial, axis: ProcessInfo.processInfo.arguments.contains("-searchField") ? .horizontal : .vertical)
+                    .submitLabel(ProcessInfo.processInfo.arguments.contains("-searchField") ? .search : .return)
                     .lineLimit(2...6)
                     .accessibilityIdentifier("trial")
             }

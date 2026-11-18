@@ -10,6 +10,7 @@ import XCTest
 ///   VIPI_SYSTEM có thì giữ bàn phím của Apple (để đo, so sánh)
 ///   VIPI_SET   "<nhãn công tắc trong app>=0|1", đặt trước khi gõ
 ///   VIPI_HOLD  số giây giữ màn hình cuối cùng (để chụp ảnh từ ngoài)
+///   VIPI_FIELD "search": ô thử là ô một dòng có nút Search (Enter gửi, bàn phím đóng lại)
 /// In ra VIPI_TEXT=<chữ trong ô "Try it here">.
 final class TypingTests: XCTestCase {
     /// Bật ViPi trong Settings như người dùng làm (một lần cho mỗi simulator).
@@ -42,7 +43,7 @@ final class TypingTests: XCTestCase {
         let env = ProcessInfo.processInfo.environment
         let app = XCUIApplication()
         XCUIDevice.shared.orientation = env["VIPI_LANDSCAPE"] == nil ? .portrait : .landscapeLeft
-        app.launchArguments = ["-clearButton"]
+        app.launchArguments = ["-clearButton"] + (env["VIPI_FIELD"] == "search" ? ["-searchField"] : [])
         app.launch()
         if let set = env["VIPI_SET"], let eq = set.lastIndex(of: "=") {
             // đặt một công tắc trong app (ghi vào App Group), để kiểm tra bàn phím đọc được cài đặt

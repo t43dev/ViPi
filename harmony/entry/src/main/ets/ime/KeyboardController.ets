@@ -392,6 +392,16 @@ class KeyboardController implements BoardListener {
       }
       const before = this.last.mode;
       const wasComposing = this.last.composingChinese;
+      // Enter mở địa chỉ / tìm kiếm gửi đúng chữ đang thấy (Vikey D62): chữ trên màn hình còn y như phím đã gõ thì
+      // không đổi nó nữa ("ver" + Enter mở trang đang được gợi ý, không đi tìm "vẻ"). Chữ đã thành tiếng Việt trên
+      // màn hình thì vẫn xử lý như mọi lần kết thúc từ.
+      if (key.kind === KeyKind.ENTER && this.enterSubmitsSearch() && !wasComposing &&
+        (before === Mode.ENGLISH || this.last.word === this.last.keys)) {
+        this.endComposition();
+        this.deliver(client, key);
+        this.updateShift(key);
+        return;
+      }
       const r = vipi.handleKey(key.kind, key.text);
       if (key.kind === KeyKind.BACKSPACE && r.hasEdit) {
         // Backspace ngay sau một lần tự đổi: trả lại chữ trước đó (lõi đã về chế độ cũ)
@@ -409,6 +419,12 @@ class KeyboardController implements BoardListener {
       logError(`key: ${JSON.stringify(e)}`);
     }
     this.updateShift(key);
+  }
+
+  /** Enter của ô này mở địa chỉ hoặc tìm kiếm (nút Go / Search, ô URL). */
+  private enterSubmitsSearch(): boolean {
+    return this.enterType === inputMethodEngine.ENTER_KEY_TYPE_GO || this.enterType === inputMethodEngine.ENTER_KEY_TYPE_SEARCH ||
+      this.pattern === inputMethodEngine.PATTERN_URI;
   }
 
   /** Việt / Anh: phím đi qua, hoặc xoá lùi rồi chèn chữ của lõi, rồi gửi lại phím gốc nếu cần. */

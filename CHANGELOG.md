@@ -10,12 +10,15 @@ What changed in each ViPi release. Download the latest from [Releases](../../rel
 
 - **Chat abbreviations and teencode stay as you mean them** (all platforms). Abbreviations with đ come out with the đ wherever it stands: `bdds` → `bđs`, `sddt` → `sđt`, `vndd` → `vnđ`, `BDDS` → `BĐS` (before, only `đc`, `đt`, `đk`). Toned chat spellings are no longer put back to their keys at the space: `gòi`, `hỉu`, `chời`, `zậy`, `dzô` and about 290 more, in `Resources/autoswitch-vi-chat.tsv`. English words typed with the same keys stay English (`gets`, `fair`, `zoo`), and so do `HDD` and `DDR`.
 
+- **Enter in a search or address field sends what you see** (all platforms; the Go and Search keys and web address fields on phones, the browser's address bar on the Mac). A word that still shows exactly the keys you typed is not changed at that Enter, so `ver` + Enter opens the page the browser was offering instead of searching for `vẻ`. Type a space first to have the word fixed. Enter in other fields (a new line, Send) still fixes the word, and a word that already changed on screen (`púh`) is still put back.
+
 ### Fixed
 - **Deleting the digits of a code brings Vietnamese back** (all platforms): after `a1` and two Backspaces, `vieejt` gives `việt` again.
 - **Android and HarmonyOS:** an English word in progress is forgotten when the app empties the text box right after a key (Send in chat apps), so the next word is not judged together with it.
 - **HarmonyOS:** the second letter of a sentence is no longer capitalised too (`HEllo`); a word in progress survives the app changing its Enter key while you type (chat boxes that enable Send once there is text); the settings app no longer copies 23 MB of dictionaries into its own storage and removes the copy earlier versions left there.
 
 ### Faster
+- **iPhone and iPad:** each closed keyboard gives its views back. Measured in the simulator after 26 openings: 26 sets of keyboard views alive before, 1 now.
 - **iPhone and iPad:** a key press redraws only that key, the key callout is a small view, and pinyin candidates reuse their buttons from one key to the next. Not measured on a device.
 
 ## 0.5.5 · 2026-11-18

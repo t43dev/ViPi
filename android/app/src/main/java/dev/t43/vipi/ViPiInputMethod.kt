@@ -34,6 +34,8 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
     private var keyboard: KeyboardView? = null
     private var passthrough = false        // ô mật khẩu / số: không qua bộ gõ
     private var enterAction = EditorInfo.IME_ACTION_NONE
+    /** Enter của ô này mở địa chỉ hoặc tìm kiếm (hành động Go / Search, ô URL): xem onKey */
+    private var enterSubmitsSearch = false
     private var lastOwnEdit = 0L
     private var lastSpaceAt = 0L
     private val hardwareConsumed = HashSet<Int>()
@@ -128,6 +130,8 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         val multiLine = info.inputType and InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0
         val action = info.imeOptions and EditorInfo.IME_MASK_ACTION
         enterAction = if (multiLine || info.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION != 0) EditorInfo.IME_ACTION_NONE else action
+        enterSubmitsSearch = enterAction == EditorInfo.IME_ACTION_GO || enterAction == EditorInfo.IME_ACTION_SEARCH ||
+            cls == InputType.TYPE_CLASS_TEXT && variation == InputType.TYPE_TEXT_VARIATION_URI
         if (!restarting) composer?.cancel()
     }
 
@@ -206,6 +210,16 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         // mỗi lần hỏi lõi là vài lượt gọi qua JNA: đọc một lần rồi dùng lại. Chữ Telex chỉ có ở chế độ tiếng Việt,
         // pinyin chỉ có ở tiếng Trung (đổi chế độ là bỏ phần đang gõ)
         val before = c.mode()
+        // Enter mở địa chỉ / tìm kiếm gửi đúng chữ đang thấy (Vikey D62): chữ trên màn hình còn y như phím đã gõ thì
+        // không đổi nó nữa ("ver" + Enter mở trang đang được gợi ý, không đi tìm "vẻ"). Chữ đã thành tiếng Việt trên
+        // màn hình thì vẫn xử lý như mọi lần kết thúc từ.
+        if (key is KeyInput.Enter && enterSubmitsSearch && !c.isComposingChinese() &&
+            (before == InputMode.ENGLISH || c.currentWord() == c.currentKeys())) {
+            endComposition()
+            deliver(ic, key)
+            updateShift()
+            return
+        }
         val wordLength = if (before == InputMode.VIETNAMESE) c.currentWord().length else 0
         val hadWord = wordLength > 0
         val wasComposingChinese = before == InputMode.CHINESE && c.isComposingChinese()

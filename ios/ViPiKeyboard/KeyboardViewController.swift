@@ -50,6 +50,8 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
 
     private var shown = ""
     private var fieldType: UIKeyboardType?
+    /// Enter của ô này mở địa chỉ hoặc tìm kiếm (nút Go / Search, ô URL): xem keyboardDidType
+    private var enterSubmitsSearch = false
     private var passthrough = false
     private var lastSpaceAt: TimeInterval = 0
     private var lastOwnEdit: TimeInterval = 0
@@ -156,6 +158,8 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
             if numbers, keyboard.layout == .letters { keyboard.layout = .numbers }
         }
         keyboard.returnKey = KeyboardView.ReturnKey(proxy.returnKeyType ?? .default)
+        enterSubmitsSearch = [.go, .search, .google, .yahoo].contains(proxy.returnKeyType ?? .default)
+            || type == .URL || type == .webSearch
         let appearance: UIUserInterfaceStyle
         switch Prefs.string(Prefs.theme) {
         case "light": appearance = .light
@@ -247,6 +251,16 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
             return
         }
         let before = c.mode()
+        // Enter mở địa chỉ / tìm kiếm gửi đúng chữ đang thấy (Vikey D62): chữ trên màn hình còn y như phím đã gõ thì
+        // không đổi nó nữa. Đổi lúc này làm mất phần trình duyệt đang gợi ý ("ver" + Enter mở vercel.com, không
+        // phải đi tìm "vẻ"). Chữ đã thành tiếng Việt trên màn hình thì vẫn xử lý như mọi lần kết thúc từ.
+        if case .enter = key, enterSubmitsSearch, !c.isComposingChinese(),
+           before == .english || c.currentWord() == c.currentKeys() {
+            endComposition()
+            deliver(key)
+            updateShift()
+            return
+        }
         let wordLength = c.currentWord().count
         let hadWord = wordLength > 0
         let r = c.handleKey(key: key)
