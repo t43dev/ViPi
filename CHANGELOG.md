@@ -17,8 +17,14 @@ Android 0.4.0.
 - **Android: the app shows its version and build number** next to its name at the top of the settings screen.
 
 ### Fixed
-- **A tone key pressed twice to take the mark off stays off** (all platforms, Vietnamese · English typing). Typing `USD` shows `Ú` after the S; pressing S again to get `US` and going on to `USD` no longer turns into `USSD` at the space. The same for `ESP`, `ASP`, `ISP`, `IRS`, which could not be typed at all while typing Vietnamese (`ESP` gave `ÉP`, `ESSP` stayed `ESSP`). The rule: a doubled s, f, r, x or j right before a consonant, with no vowel after it, in a word the English list does not know. Known words keep both letters (`USSR`, `pass`, `class`), so do lowercase plurals (`quaffs`) and everything typed after the keyboard has switched to English. For a real doubled letter in such a word press the key three times, as Telex always worked: `USSSD` → `USSD`, `ISSSN` → `ISSN`. This takes back the `ussd` change of 0.5.5.
 - **iPhone and iPad: the keyboard no longer stays on the 123 page after a number field.** Moving from a number field to a text field without closing the keyboard brings the letters back.
+
+## 0.5.7 · 2026-11-19
+
+macOS 0.5.7. The other platforms get this fix with their next build.
+
+### Fixed
+- **A tone key pressed twice to take the mark off stays off** (all platforms, Vietnamese · English typing). Typing `USD` shows `Ú` after the S; pressing S again to get `US` and going on to `USD` no longer turns into `USSD` at the space. The same for `ESP`, `ASP`, `ISP`, `IRS`, which could not be typed at all while typing Vietnamese (`ESP` gave `ÉP`, `ESSP` stayed `ESSP`). The rule: a doubled s, f, r, x or j right before a consonant, with no vowel after it, in a word the English list does not know. Known words keep both letters (`USSR`, `pass`, `class`), so do lowercase plurals (`quaffs`) and everything typed after the keyboard has switched to English. For a real doubled letter in such a word press the key three times, as Telex always worked: `USSSD` → `USSD`, `ISSSN` → `ISSN`. This takes back the `ussd` change of 0.5.5.
 
 ## 0.5.6 · 2026-11-18
 
