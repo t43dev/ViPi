@@ -153,16 +153,20 @@ fn auto_switch_from_vietnamese() {
             // gõ đôi để bỏ dấu trong từ ghép tiếng Anh không có trong danh sách: giữ chữ đang hiện
             ("tesstflight ", "testflight ", true),
             ("posstgres ", "postgres ", true),
-            ("USSD ", "USSD ", false),
             // chữ chat: viết tắt có đ, teencode có dấu (Resources/autoswitch-vi-chat.tsv)
             ("bdds gdd sddt vndd ", "bđs gđ sđt vnđ ", true),
             ("BDDS HDDQT ", "BĐS HĐQT ", true),
             ("goif gofi zaayj dzoo ", "gòi gòi zậy dzô ", true),
             ("hiur chowif rufi ", "hỉu chời rùi ", true),
             ("gets fair zoo ", "gets fair zoo ", false),
-            // chữ gõ đôi thật, không có dấu hiệu đang gõ Telex: giữ như đã gõ
-            ("ussd ", "ussd ", false),
-            ("Ussd ", "Ussd ", false),
+            // phím thanh gõ đôi để bỏ dấu ở âm tiết cuối: giữ chữ đang hiện (gõ USD, ESP mà không ra Ú, ÉP)
+            ("ussd ", "usd ", true),
+            ("Ussd ", "Usd ", true),
+            ("USSD ESSP IRRS ", "USD ESP IRS ", true),
+            ("USSR lessons ", "USSR lessons ", false),
+            ("quaffs chirrs ", "quaffs chirrs ", false),
+            // muốn chữ đôi thật thì gõ ba lần, như Telex vẫn thế
+            ("USSSD ISSSN ", "USSD ISSN ", true),
             // chữ đôi thật trước nguyên âm, kể cả từ không có trong danh sách: giữ như đã gõ
             ("correlate assail ", "correlate assail ", false),
             ("mirrorless ", "mirrorless ", false),

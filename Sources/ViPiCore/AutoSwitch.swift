@@ -127,6 +127,9 @@ public final class AutoSwitch {
             // Telex đã nuốt một phím ("less" → "les", "currentState" → "curentState"): trả lại từ tiếng Anh, viết tắt
             // ("ASUS") hay từ không thể là một âm tiết, trừ khi chữ còn lại đã là tiếng Anh ("tessting" → "testing")
             if shown != String(keys) {
+                // một âm tiết, phím thanh gõ đôi ngay trước phụ âm ("USSD" → "USD", "ESSP" → "ESP"): người gõ thấy dấu
+                // hiện ra ("Ú") rồi gõ lại phím đó để bỏ, chữ đang hiện là chữ họ muốn
+                if en == nil, Self.undoneInLastSyllable(keys, raw, shown.lowercased()) { return false }
                 return en != nil || Self.capitals(keys) >= 2
                     || (english(shown.lowercased()) == nil
                         && (Self.literalShape(keys, zIsTone: false) || !Self.typingTelex(keys))
@@ -260,8 +263,18 @@ public final class AutoSwitch {
         return !"aeiouylr".utf8.contains(k[i + 1])
     }
 
+    /// Phím thanh gõ đôi ngay trước phụ âm, sau nó không còn nguyên âm nào ("ussd", "essp"): bỏ dấu của âm tiết cuối.
+    /// Chữ thường chỉ còn một chữ s phía sau là số nhiều của từ có chữ đôi thật ("quaffs", "chirrs"); viết tắt thì không ("IRRS").
+    static func undoneInLastSyllable(_ keys: [Character], _ raw: String, _ shown: String) -> Bool {
+        let k = Array(raw.utf8)
+        let i = zip(k, shown.utf8).enumerated().first { $0.element.0 != $0.element.1 }?.offset ?? 0
+        let tail = k[(i + 1)...]
+        return doubledBeforeConsonant(raw, shown) && !tail.contains { "aeiouy".utf8.contains($0) }
+            && (!tail.elementsEqual("s".utf8) || keys.allSatisfy(\.isUppercase))
+    }
+
     /// Có aa/ee/oo/dd hay w: người gõ đang gõ Telex ("aaaaa", "choooong"), phím gõ đôi là để bỏ dấu.
-    /// Không có ("ussd", "USSD") thì đó là chữ gõ đôi thật.
+    /// Không có ("correlate", "riffle") thì đó là chữ gõ đôi thật.
     static func typingTelex(_ keys: [Character]) -> Bool {
         let low = keys.map { Character($0.lowercased()) }
         return zip(low, low.dropFirst()).contains { $1 == "w" || ($0 == $1 && "aeod".contains($0)) }

@@ -197,6 +197,11 @@ impl AutoSwitch {
             // Telex đã nuốt một phím ("less" → "les", "currentState" → "curentState"): trả lại từ tiếng Anh, viết tắt
             // ("ASUS") hay từ không thể là một âm tiết, trừ khi chữ còn lại đã là tiếng Anh ("tessting" → "testing")
             if shown.chars().ne(keys.iter().copied()) {
+                // một âm tiết, phím thanh gõ đôi ngay trước phụ âm ("USSD" → "USD", "ESSP" → "ESP"): người gõ thấy dấu
+                // hiện ra ("Ú") rồi gõ lại phím đó để bỏ, chữ đang hiện là chữ họ muốn
+                if en.is_none() && undone_in_last_syllable(keys, &raw, &shown.to_lowercase()) {
+                    return false;
+                }
                 return en.is_some()
                     || capitals(keys) >= 2
                     || (self.english(&shown.to_lowercase()).is_none()
@@ -375,8 +380,18 @@ fn doubled_before_consonant(keys: &str, shown: &str) -> bool {
     i > 0 && k[i] == k[i - 1] && b"sfrxj".contains(&k[i]) && k.get(i + 1).is_some_and(|c| !b"aeiouylr".contains(c))
 }
 
+/// Phím thanh gõ đôi ngay trước phụ âm, sau nó không còn nguyên âm nào ("ussd", "essp"): bỏ dấu của âm tiết cuối.
+/// Chữ thường chỉ còn một chữ s phía sau là số nhiều của từ có chữ đôi thật ("quaffs", "chirrs"); viết tắt thì không ("IRRS").
+fn undone_in_last_syllable(keys: &[char], raw: &str, shown: &str) -> bool {
+    let i = raw.bytes().zip(shown.bytes()).position(|(a, b)| a != b).unwrap_or(0);
+    let tail = &raw[i + 1..];
+    doubled_before_consonant(raw, shown)
+        && !tail.bytes().any(|c| b"aeiouy".contains(&c))
+        && (tail != "s" || keys.iter().all(|c| c.is_uppercase()))
+}
+
 /// Có aa/ee/oo/dd hay w: người gõ đang gõ Telex ("aaaaa", "choooong"), phím gõ đôi là để bỏ dấu.
-/// Không có ("ussd", "USSD") thì đó là chữ gõ đôi thật.
+/// Không có ("correlate", "riffle") thì đó là chữ gõ đôi thật.
 fn typing_telex(keys: &[char]) -> bool {
     let low: Vec<char> = keys.iter().map(|&c| lower(c)).collect();
     low.windows(2).any(|w| w[1] == 'w' || (w[0] == w[1] && "aeod".contains(w[0])))
