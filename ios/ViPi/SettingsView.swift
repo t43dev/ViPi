@@ -28,10 +28,10 @@ struct SettingsView: View {
     private let fuzzyChoices = fuzzyOptions()
     private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
-    /// Chỉ cho UI test: loại bàn phím của ô thử (-numberField, -decimalField, -asciiNumberField, -phoneField, -namePhoneField).
+    /// Chỉ cho UI test: loại bàn phím của ô thử (-numberField, -decimalField, -asciiNumberField, -phoneField, -namePhoneField, -numbersPunctField).
     private static let trialKeyboard: UIKeyboardType = {
         let types: [String: UIKeyboardType] = ["-numberField": .numberPad, "-decimalField": .decimalPad, "-asciiNumberField": .asciiCapableNumberPad,
-                                               "-phoneField": .phonePad, "-namePhoneField": .namePhonePad]
+                                               "-phoneField": .phonePad, "-namePhoneField": .namePhonePad, "-numbersPunctField": .numbersAndPunctuation]
         return ProcessInfo.processInfo.arguments.lazy.compactMap { types[$0] }.first ?? .default
     }()
 

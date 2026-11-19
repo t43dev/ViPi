@@ -16,6 +16,9 @@ Android 0.4.0.
 - **Android: a pad of big digit keys in number, phone and date fields,** instead of the 123 page. Four columns: the digits, Backspace and the field's action key, plus the marks that field needs (`-` `,` `.` for numbers, `*` `#` `+` for phone numbers, `/` `:` `-` for dates and times). `!?#` opens the 123 page for anything else; a space typed there, or `?123` on the letters page, comes back to the pad. Phones only, upright and turned: the split, wide and floating keyboards of large screens keep the 123 page. Nothing changes on iPhone: in the simulator iOS showed Apple's own number pad in these fields, not a keyboard from an app (not yet checked on a device).
 - **Android: the app shows its version and build number** next to its name at the top of the settings screen.
 
+### Fixed
+- **iPhone and iPad: the keyboard no longer stays on the 123 page after a number field.** Moving from a number field to a text field without closing the keyboard brings the letters back.
+
 ## 0.5.6 · 2026-11-18
 
 macOS 0.5.6 and Android 0.3.7. The iPhone and iPad changes are in TestFlight; HarmonyOS gets its share with its next store build.

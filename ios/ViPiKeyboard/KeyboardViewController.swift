@@ -174,8 +174,11 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
         if type != fieldType {
             fieldType = type
             let numbers = numeric.contains(type) || type == .numbersAndPunctuation
+            // rời ô số sang ô chữ (bàn phím không đóng giữa hai ô): về trang chữ, không kẹt ở trang 123
+            let leftNumbers = !numbers && keyboard.baseLayout == .numbers
             keyboard.baseLayout = numbers ? .numbers : .letters
             if numbers, keyboard.layout == .letters { keyboard.layout = .numbers }
+            if leftNumbers { keyboard.layout = .letters }
         }
         keyboard.returnKey = KeyboardView.ReturnKey(proxy.returnKeyType ?? .default)
         enterSubmitsSearch = [.go, .search, .google, .yahoo].contains(proxy.returnKeyType ?? .default)

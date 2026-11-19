@@ -6,7 +6,7 @@
 # Lần đầu với mỗi simulator: bật ViPi trong Settings. iPad lần đầu còn hiện màn "Quickly Change Keyboards":
 # truyền toạ độ nút Continue trong danh sách chạm của lần chạy đó.
 # Biến tuỳ chọn: SYSTEM=1 giữ bàn phím của Apple (không bật ViPi); SET="<nhãn>=0|1" đặt một công tắc trong app trước khi gõ; LAND=1 xoay ngang; GLOBE="x,y" quả địa cầu (iPhone); PICK="x,y" mục ViPi khi giữ quả địa cầu (iPad); INTRO=1 qua màn "Quickly Change Keyboards"; FIELD=search ô thử một dòng có nút Search;
-# FIELD=number|decimal|asciiNumber|phone|namePhone ô thử có bàn phím số; SECOND=1 thêm ô chữ thứ hai (chạm bằng "f:trial2", in TEXT2).
+# FIELD=number|decimal|asciiNumber|phone|namePhone|numbersPunct ô thử có bàn phím số; SECOND=1 thêm ô chữ thứ hai (chạm bằng "f:trial2", in TEXT2).
 set -uo pipefail
 cd "$(dirname "$0")/../ios"
 export PATH="/opt/homebrew/bin:$PATH"
