@@ -37,7 +37,14 @@ class SettingsActivity : Activity() {
             setPadding(px(20), px(28), px(20), px(28))
         }
         root.addView(TextView(this).apply {
-            text = "ViPi"
+            // tên kèm phiên bản và số build (chữ nhỏ, nhạt), để biết máy đang cài bản nào
+            val info = packageManager.getPackageInfo(packageName, 0)
+            val build = if (android.os.Build.VERSION.SDK_INT >= 28) info.longVersionCode else @Suppress("DEPRECATION") info.versionCode.toLong()
+            text = android.text.SpannableString("ViPi  ${info.versionName} ($build)").apply {
+                setSpan(android.text.style.RelativeSizeSpan(0.5f), 4, length, 0)
+                setSpan(android.text.style.StyleSpan(Typeface.NORMAL), 4, length, 0)
+                setSpan(android.text.style.ForegroundColorSpan(0xFF808080.toInt()), 4, length, 0)
+            }
             textSize = 30f
             typeface = Typeface.DEFAULT_BOLD
         })
