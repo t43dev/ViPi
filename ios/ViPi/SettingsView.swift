@@ -21,11 +21,19 @@ struct SettingsView: View {
 
     @State private var fuzzy = Set(Prefs.fuzzyRules)
     @State private var trial = ""
+    @State private var second = ""
     @State private var clearRequested = false
     @Environment(\.openURL) private var openURL
 
     private let fuzzyChoices = fuzzyOptions()
     private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
+
+    /// Chỉ cho UI test: loại bàn phím của ô thử (-numberField, -decimalField, -asciiNumberField, -phoneField, -namePhoneField).
+    private static let trialKeyboard: UIKeyboardType = {
+        let types: [String: UIKeyboardType] = ["-numberField": .numberPad, "-decimalField": .decimalPad, "-asciiNumberField": .asciiCapableNumberPad,
+                                               "-phoneField": .phonePad, "-namePhoneField": .namePhonePad]
+        return ProcessInfo.processInfo.arguments.lazy.compactMap { types[$0] }.first ?? .default
+    }()
 
     var body: some View {
         Form {
@@ -41,9 +49,14 @@ struct SettingsView: View {
                 }
                 // chỉ cho UI test (-clearButton): xoá ô bằng code như nút gửi của app chat
                 if ProcessInfo.processInfo.arguments.contains("-clearButton") { Button("Clear") { trial = "" } }
+                // chỉ cho UI test (-secondField): ô chữ thứ hai, để thử đổi ô trong cùng một lần mở bàn phím
+                if ProcessInfo.processInfo.arguments.contains("-secondField") {
+                    TextField("Second field", text: $second).accessibilityIdentifier("trial2")
+                }
                 // chỉ cho UI test (-searchField): ô một dòng với nút Search, như ô tìm kiếm / thanh địa chỉ
                 TextField("Try it here", text: $trial, axis: ProcessInfo.processInfo.arguments.contains("-searchField") ? .horizontal : .vertical)
                     .submitLabel(ProcessInfo.processInfo.arguments.contains("-searchField") ? .search : .return)
+                    .keyboardType(Self.trialKeyboard)
                     .lineLimit(2...6)
                     .accessibilityIdentifier("trial")
             }

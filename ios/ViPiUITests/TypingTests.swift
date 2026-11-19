@@ -10,8 +10,10 @@ import XCTest
 ///   VIPI_SYSTEM có thì giữ bàn phím của Apple (để đo, so sánh)
 ///   VIPI_SET   "<nhãn công tắc trong app>=0|1", đặt trước khi gõ
 ///   VIPI_HOLD  số giây giữ màn hình cuối cùng (để chụp ảnh từ ngoài)
-///   VIPI_FIELD "search": ô thử là ô một dòng có nút Search (Enter gửi, bàn phím đóng lại)
-/// In ra VIPI_TEXT=<chữ trong ô "Try it here">.
+///   VIPI_FIELD "search": ô thử là ô một dòng có nút Search (Enter gửi, bàn phím đóng lại); "number", "decimal",
+///              "asciiNumber", "phone", "namePhone": ô thử có bàn phím số / thập phân / điện thoại (app nhận -<tên>Field)
+///   VIPI_SECOND có thì thêm ô chữ "trial2" phía trên ô thử; trong VIPI_TAPS "f:<id>" chạm một ô theo accessibility id
+/// In ra VIPI_TEXT=<chữ trong ô "Try it here"> (VIPI_TEXT2= ô thứ hai), VIPI_APPLEKB=1 nếu bàn phím Apple còn hiện.
 final class TypingTests: XCTestCase {
     /// Bật ViPi trong Settings như người dùng làm (một lần cho mỗi simulator).
     func testEnableKeyboard() throws {
@@ -43,7 +45,7 @@ final class TypingTests: XCTestCase {
         let env = ProcessInfo.processInfo.environment
         let app = XCUIApplication()
         XCUIDevice.shared.orientation = env["VIPI_LANDSCAPE"] == nil ? .portrait : .landscapeLeft
-        app.launchArguments = ["-clearButton"] + (env["VIPI_FIELD"] == "search" ? ["-searchField"] : [])
+        app.launchArguments = ["-clearButton"] + (env["VIPI_FIELD"].map { ["-\($0)Field"] } ?? []) + (env["VIPI_SECOND"] != nil ? ["-secondField"] : [])
         app.launch()
         if let set = env["VIPI_SET"], let eq = set.lastIndex(of: "=") {
             // đặt một công tắc trong app (ghi vào App Group), để kiểm tra bàn phím đọc được cài đặt
@@ -83,10 +85,12 @@ final class TypingTests: XCTestCase {
             }
             sleep(2)
         }
+        if app.keyboards.firstMatch.exists { print("VIPI_APPLEKB=1 (before taps)") }
         let origin = app.coordinate(withNormalizedOffset: .zero)
         for step in (env["VIPI_TAPS"] ?? "").split(separator: " ") {
             if step == "w" { sleep(1); continue }
             if step == "clear" { app.buttons["Clear"].tap(); sleep(1); continue }
+            if step.hasPrefix("f:") { app.descendants(matching: .any)[String(step.dropFirst(2))].firstMatch.tap(); sleep(2); continue }
             let point = { (x: Double, y: Double) in origin.withOffset(CGVector(dx: x, dy: y)) }
             if step.hasPrefix("p:") || step.hasPrefix("d:") || step.hasPrefix("2:") {
                 let v = step.dropFirst(2).split(separator: ",").compactMap { Double($0) }
@@ -102,6 +106,9 @@ final class TypingTests: XCTestCase {
             usleep(150_000)
         }
         sleep(1)
+        if app.keyboards.firstMatch.exists { print("VIPI_APPLEKB=1") }
+        let second = app.descendants(matching: .any)["trial2"]
+        if second.exists { print("VIPI_TEXT2=\(second.value as? String ?? "")") }
         print("VIPI_TEXT=\(field.value as? String ?? "")")
         if let hold = UInt32(env["VIPI_HOLD"] ?? "") { sleep(hold) }
     }
