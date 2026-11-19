@@ -26,6 +26,7 @@ class SettingsActivity : Activity() {
     private lateinit var prefs: Prefs
     private lateinit var status: TextView
     private lateinit var learned: TextView
+    private lateinit var tryField: EditText
     private val dp by lazy { resources.displayMetrics.density }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,10 +50,11 @@ class SettingsActivity : Activity() {
         root.addView(button("Switch to ViPi") {
             (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).showInputMethodPicker()
         })
-        root.addView(EditText(this).apply {
+        tryField = EditText(this).apply {
             hint = "Try it here"
             minLines = 2
-        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+        }
+        root.addView(tryField, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
             topMargin = px(8)
         })
 
@@ -135,6 +137,29 @@ class SettingsActivity : Activity() {
         root.addView(button("Source code on GitHub") { openLink("https://github.com/t43dev/ViPi") })
 
         setContentView(ScrollView(this).apply { fitsSystemWindows = true; addView(root) })
+        debugField(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)   // xoay màn hình dựng lại activity: giữ kiểu ô
+        debugField(intent)
+    }
+
+    /**
+     * Chỉ bản debug (kiểm thử bàn số): `--ei inputType <n> [--ei imeOptions <n>]` đặt kiểu ô "Try it here".
+     * Mở lại bằng `am start -f 0x20000000` (SINGLE_TOP) thì ô đang gõ đổi kiểu ngay (onNewIntent).
+     * `--ez raw true`: chỉ báo kiểu cho bàn phím, ô không lọc chữ (ô số nhận cả "," để kiểm phím).
+     */
+    private fun debugField(i: Intent) {
+        if (!BuildConfigCompat.debuggable(this) || !i.hasExtra("inputType")) return
+        tryField.imeOptions = i.getIntExtra("imeOptions", 0)
+        val type = i.getIntExtra("inputType", 0)
+        val raw = i.getBooleanExtra("raw", false)
+        // raw: bộ lọc chữ của ô chữ thường, kiểu báo cho bàn phím là `type`
+        tryField.inputType = if (raw) android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE else type
+        if (raw) tryField.setRawInputType(type)
+        (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).restartInput(tryField)
     }
 
     override fun onResume() {

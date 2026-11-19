@@ -87,7 +87,10 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         const val PICK_TRADITIONAL = 5
     }
 
-    enum class Layout { LETTERS, NUMBERS, SYMBOLS }
+    /** DIGITS: bàn số lớn của ô số (chỉ điện thoại; màn lớn vẽ trang 123 thay nó, xem [buildRows]). */
+    enum class Layout { LETTERS, NUMBERS, SYMBOLS, DIGITS }
+    /** Kiểu bàn số theo loại ô: khác nhau ở cột phải và phím giữa hàng dưới. */
+    enum class Pad { NUMBER, PHONE, DATETIME }
     enum class Shift { OFF, ONCE, LOCK }
     enum class Action { RETURN, SEND, SEARCH, GO, NEXT, DONE }
     enum class Theme { SYSTEM, LIGHT, DARK }
@@ -108,6 +111,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         set(v) { if (field != v) { field = v; buildRows(); dirty() } }
     /** Lớp phím của ô nhập này (ô số: bàn số): phím cách ở lớp khác quay về đây, không phải luôn về bàn chữ. */
     var baseLayout = Layout.LETTERS
+    var pad = Pad.NUMBER
+        set(v) { if (field != v) { field = v; if (layout == Layout.DIGITS) { buildRows(); dirty() } } }
     var shift = Shift.OFF
         set(v) { if (field != v) { field = v; dirty() } }
     var mode = InputMode.VIETNAMESE
@@ -217,6 +222,10 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     private var form = Form.PHONE
     /** Hàng số 1–5 | 6–0 khi tách đôi trên màn cao ≥ 760 dp (Find N6 mở, Fold8 Ultra). */
     private var numberRow = false
+    /** Bàn phím điện thoại (dọc, hay xoay ngang thành một khối rộng): có bàn số lớn và chọn phím theo câu. */
+    private var phoneForm = true
+    /** Đang vẽ bàn số lớn. */
+    private val padShown get() = layout == Layout.DIGITS && phoneForm
     private val handleH = 20 * dp
     /** Bàn phím nổi: thẻ 390 dp, kéo bằng thanh trên cùng. */
     private val card = RectF()
@@ -241,9 +250,12 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             else -> Form.WIDE
         }
         val nr = f == Form.SPLIT && resources.configuration.screenHeightDp >= 760
-        if (f != form || nr != numberRow) {
+        // điện thoại xoay ngang là một khối rộng: vẫn là bàn phím điện thoại, như iPhone xoay ngang
+        val ph = f == Form.PHONE || f == Form.WIDE && resources.configuration.screenHeightDp in 1 until 500
+        if (f != form || nr != numberRow || ph != phoneForm) {
             form = f
             numberRow = nr
+            phoneForm = ph
             buildRows()
         }
     }
@@ -397,6 +409,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             Key(Kind.RETURN, units = 1.5f),
         )
         val third = { left: Key -> listOf(left) + chars(".,?!'", 1.4f) + Key(Kind.BACKSPACE, units = 1.5f) }
+        val numbers = { listOf(chars("1234567890"), chars("-/:;()$&@\""), third(Key(Kind.SYMBOLS, "#+=", 1.5f)), bottom) }
         rows = when (layout) {
             Layout.LETTERS -> listOf(
                 "qwertyuiop".mapIndexed { i, c -> Key(Kind.CHAR, c.toString(), hint = (i + 1).mod(10).toString()) },
@@ -404,10 +417,23 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 listOf(Key(Kind.SHIFT, units = 1.5f)) + chars("zxcvbnm") + Key(Kind.BACKSPACE, units = 1.5f),
                 bottom,
             )
-            Layout.NUMBERS -> listOf(chars("1234567890"), chars("-/:;()$&@\""), third(Key(Kind.SYMBOLS, "#+=", 1.5f)), bottom)
+            Layout.NUMBERS -> numbers()
             Layout.SYMBOLS -> listOf(chars("[]{}#%^*+="), chars("_\\|~<>€£¥•"), third(Key(Kind.NUMBERS, "123", 1.5f)), bottom)
+            // bàn phím rộng / nổi của màn lớn giữ trang 123
+            Layout.DIGITS -> if (phoneForm) padRows() else numbers()
         }
         layoutKeys()
+    }
+
+    /** Bàn số lớn 4 × 4: cột phải và phím giữa hàng dưới theo [pad]; `!?#` mở trang 123 (mọi ký tự khác ở đó). */
+    private fun padRows(): List<List<Key>> {
+        val extra = when (pad) { Pad.NUMBER -> "-,."; Pad.PHONE -> "*#+"; Pad.DATETIME -> "/:-" }
+        return listOf(
+            chars("123" + extra[0], 2.5f),
+            chars("456" + extra[1], 2.5f),
+            chars("789", 2.5f) + Key(Kind.BACKSPACE, units = 2.5f),
+            listOf(Key(Kind.NUMBERS, "!?#", 2.5f)) + chars("0" + extra[2], 2.5f) + Key(Kind.RETURN, units = 2.5f),
+        )
     }
 
     /**
@@ -436,7 +462,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 bottom,
             )
             // cùng số hàng với lớp chữ để chiều cao bàn phím không đổi khi chuyển lớp
-            Layout.NUMBERS -> if (numberRow) listOf(digits, sym1, brackets, third(Key(Kind.SYMBOLS, "#+=", 1.4f)), bottom)
+            Layout.NUMBERS, Layout.DIGITS -> if (numberRow) listOf(digits, sym1, brackets, third(Key(Kind.SYMBOLS, "#+=", 1.4f)), bottom)
                 else listOf(digits, sym1, third(Key(Kind.SYMBOLS, "#+=", 1.4f)), bottom)
             Layout.SYMBOLS -> if (numberRow) listOf(digits, brackets, sym2, third(Key(Kind.NUMBERS, "123", 1.4f)), bottom)
                 else listOf(brackets, sym2, third(Key(Kind.NUMBERS, "123", 1.4f)), bottom)
@@ -533,9 +559,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
      * chỗ chạm.
      */
     private fun pickKey(k: Key, x: Float, y: Float): Key {
-        // điện thoại xoay ngang là một khối rộng (configure): vẫn là bàn phím điện thoại, như iPhone xoay ngang
-        val phone = form == Form.PHONE || form == Form.WIDE && resources.configuration.screenHeightDp in 1 until 500
-        if (!phone || layout != Layout.LETTERS || chinese() || modeLocked) return k
+        if (!phoneForm || layout != Layout.LETTERS || chinese() || modeLocked) return k
         if (k.kind != Kind.CHAR && k.kind != Kind.SPACE && k.kind != Kind.BACKSPACE && k.kind != Kind.SHIFT) return k
         val i = flat.indexOf(k)
         if (i < 0) return k
@@ -727,7 +751,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             if (menuOpen) rows.last().firstOrNull { it.kind == Kind.MODE }?.let { drawKey(canvas, it, p, 1f) }
             if (keyPopup) for (i in 0 until pressed.size()) {
                 val t = pressed.valueAt(i)
-                if (t.key.kind == Kind.CHAR && !t.trackpad) drawPopup(canvas, t, p)
+                if (t.key.kind == Kind.CHAR && !t.trackpad && !padShown) drawPopup(canvas, t, p)
             }
             if (fading) postInvalidateOnAnimation()
         }
@@ -768,7 +792,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         val cy = r.centerY()
         when (k.kind) {
             Kind.CHAR -> {
-                drawText(canvas, keyLabel(k), cx, cy, 22f, fg, regular)
+                drawText(canvas, keyLabel(k), cx, cy, if (padShown) 30f else 22f, fg, regular)
                 val hint = keyHint(k)
                 if (hint != null) {
                     text.textAlign = Paint.Align.RIGHT
@@ -1547,7 +1571,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 if (layout != baseLayout) layout = baseLayout
             }
             Kind.RETURN -> listener.onKey(KeyInput.Enter)
-            Kind.NUMBERS -> layout = Layout.NUMBERS
+            // ô số: ?123 ở trang chữ về bàn số lớn; !?# của bàn số và 123 của trang #+= mở trang 123
+            Kind.NUMBERS -> layout = if (layout == Layout.LETTERS && baseLayout == Layout.DIGITS) Layout.DIGITS else Layout.NUMBERS
             Kind.SYMBOLS -> layout = Layout.SYMBOLS
             Kind.LETTERS -> layout = Layout.LETTERS
             Kind.MODE -> { cancelGlobeHold(); listener.onPickInput(PICK_TOGGLE) }
@@ -1736,6 +1761,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         }
         if (form == Form.FLOATING) { put("handle", card.centerX(), card.top + handleH / 2); put("dock", card.right - 22 * dp, card.top + handleH / 2) }
         put("form_" + form.name.lowercase(), 0f, 0f)
+        put("layout_" + (if (padShown) "pad_" + pad.name else if (layout == Layout.DIGITS) "numbers" else layout.name).lowercase(), 0f, 0f)
         candidateRects.forEachIndexed { i, r -> put("cand$i", r.centerX() - stripScroll, cy) }
         if (gridOpen) gridRects.forEachIndexed { i, r -> put("grid$i", r.centerX(), r.centerY() - gridScroll) }
         val names = mapOf(PICK_VIEN to "vien", PICK_CHINESE to "chinese", PICK_TRADITIONAL to "traditional",

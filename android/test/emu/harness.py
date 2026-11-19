@@ -174,6 +174,34 @@ def field_center():
     return 540, 760
 
 
+def shown():
+    return "mInputShown=true" in sh("dumpsys input_method | grep mInputShown")
+
+
+TEXT = 0x20001   # the field's own type: text, multi-line
+
+
+def set_field(input_type, ime=0, raw=False):
+    """Debug build: give the "Try it here" field another inputType / imeOptions (SettingsActivity hook) and show the
+    keyboard on it. raw: only the keyboard sees the type, the field takes any text (a number field drops "," "-")."""
+    sh(f"am start -f 0x20000000 -n dev.t43.vipi/.SettingsActivity --ei inputType {input_type} --ei imeOptions {ime}"
+       + (" --ez raw true" if raw else "") + " >/dev/null")
+    time.sleep(1.0)
+    if not shown():
+        for _ in range(2):   # back to the top of the settings screen, below the field (a drag over it selects text)
+            sh("input swipe 540 1100 540 2200 200")
+            time.sleep(0.4)
+        x, y = field_center()
+        sh(f"input tap {x} {y}")
+        time.sleep(1.2)
+    refresh()
+
+
+def page():
+    """Page the last dump shows: letters, numbers, symbols, pad_number, pad_phone, pad_datetime."""
+    return next((k[7:] for k in K if k.startswith("layout_")), None)
+
+
 def ensure_shown():
     """Make sure ViPi is the IME and its keyboard is showing over the settings test field."""
     if "dev.t43.vipi" not in sh("settings get secure default_input_method"):

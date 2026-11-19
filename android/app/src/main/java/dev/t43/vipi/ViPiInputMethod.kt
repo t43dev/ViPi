@@ -180,8 +180,14 @@ class ViPiInputMethod : InputMethodService(), KeyboardView.Listener {
         applyPrefs()
         val kb = keyboard ?: return
         val cls = info.inputType and InputType.TYPE_MASK_CLASS
+        // ô số / điện thoại / ngày giờ: bàn số lớn, kiểu theo loại ô (đặt trước layout: cùng DIGITS thì vẫn dựng lại)
+        kb.pad = when (cls) {
+            InputType.TYPE_CLASS_PHONE -> KeyboardView.Pad.PHONE
+            InputType.TYPE_CLASS_DATETIME -> KeyboardView.Pad.DATETIME
+            else -> KeyboardView.Pad.NUMBER
+        }
         kb.baseLayout = if (cls == InputType.TYPE_CLASS_NUMBER || cls == InputType.TYPE_CLASS_PHONE || cls == InputType.TYPE_CLASS_DATETIME)
-            KeyboardView.Layout.NUMBERS else KeyboardView.Layout.LETTERS
+            KeyboardView.Layout.DIGITS else KeyboardView.Layout.LETTERS
         kb.layout = kb.baseLayout
         kb.action = when (enterAction) {
             EditorInfo.IME_ACTION_GO -> KeyboardView.Action.GO

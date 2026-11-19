@@ -13,6 +13,7 @@ Android 0.4.0.
   - On the phone's letter keys, while a word is under way, a touch near the border of two keys types the letter that is likelier next, and a touch in the gap above the space bar after a finished word is a space (`thank you`, not `thanknyou`). In Vietnamese the next Telex key is weighed the same way. The split, wide and floating keyboards of large screens keep their key areas.
   - Two switches in Settings: Word suggestions and Auto-correct typos, both on. Off in web address, email, number and password fields and wherever the app turns suggestions off.
   - The models make the download 53 MB bigger and take 65 MB on the phone. The first time the keyboard opens they are copied out of the app in the background (0.3 s on the emulator); the keyboard works meanwhile, only without suggestions. They are read only after the keyboard has appeared.
+- **Android: a pad of big digit keys in number, phone and date fields,** instead of the 123 page. Four columns: the digits, Backspace and the field's action key, plus the marks that field needs (`-` `,` `.` for numbers, `*` `#` `+` for phone numbers, `/` `:` `-` for dates and times). `!?#` opens the 123 page for anything else; a space typed there, or `?123` on the letters page, comes back to the pad. Phones only, upright and turned: the split, wide and floating keyboards of large screens keep the 123 page. Nothing changes on iPhone: in the simulator iOS showed Apple's own number pad in these fields, not a keyboard from an app (not yet checked on a device).
 
 ## 0.5.6 · 2026-11-18
 
