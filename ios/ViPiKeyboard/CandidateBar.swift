@@ -25,6 +25,8 @@ final class CandidateBar: UIView {
     /// Nút ứng viên chữ Hán, dùng lại qua từng phím gõ (mỗi phím pinyin đổi tới 60 ứng viên: tạo lại nút là việc nặng nhất)
     private var candidateButtons: [UIButton] = []
     private var candidateTitles: [String] = []
+    /// bề rộng nút theo chữ: nút dùng lại không tự tính lại kích thước khi đổi chữ (那 → 你好 vẫn rộng như một chữ)
+    private var candidateWidths: [NSLayoutConstraint] = []
     private var showsCandidates = false
     private var shownCandidates = 0
 
@@ -59,7 +61,11 @@ final class CandidateBar: UIView {
             preedit.frame = .zero
             scroll.frame = bounds
         }
-        let size = stack.systemLayoutSizeFitting(CGSize(width: UIView.layoutFittingCompressedSize.width, height: h))
+        // cộng bề rộng từng nút: systemLayoutSizeFitting của cả hàng ra gần 0 sau khi gỡ nút thừa ở cuối
+        // (pinyin "ni" 60 ứng viên → "nih" 40: mọi nút rộng 0, chữ chồng lên nhau trên máy thật)
+        let views = stack.arrangedSubviews
+        let size = CGSize(width: views.reduce(0) { $0 + $1.systemLayoutSizeFitting(CGSize(width: 0, height: h)).width }
+                              + stack.spacing * CGFloat(max(views.count - 1, 0)), height: h)
         stack.frame = CGRect(x: 0, y: 0, width: max(size.width, content.fillsBar ? scroll.bounds.width : 0), height: h)
         scroll.contentSize = stack.frame.size
     }
@@ -76,11 +82,16 @@ final class CandidateBar: UIView {
             }
             for (i, c) in candidates.enumerated() {
                 if i == candidateButtons.count {
-                    candidateButtons.append(button(c, size: 21, weight: i == 0 ? .semibold : .regular) { [weak self] in self?.onPick?(i) })
+                    let b = button(c, size: 21, weight: i == 0 ? .semibold : .regular) { [weak self] in self?.onPick?(i) }
+                    let w = b.widthAnchor.constraint(equalToConstant: Self.width(c, size: 21, weight: i == 0 ? .semibold : .regular))
+                    w.isActive = true
+                    candidateButtons.append(b)
                     candidateTitles.append(c)
+                    candidateWidths.append(w)
                 } else if candidateTitles[i] != c {
                     candidateTitles[i] = c
                     candidateButtons[i].configuration?.attributedTitle = Self.title(c, size: 21, weight: i == 0 ? .semibold : .regular)
+                    candidateWidths[i].constant = Self.width(c, size: 21, weight: i == 0 ? .semibold : .regular)
                 }
                 // nút thừa luôn nằm cuối hàng: thêm vào / gỡ ra ở cuối (ẩn hiện nút trong UIStackView để lại ràng buộc cũ)
                 if i >= shownCandidates { stack.addArrangedSubview(candidateButtons[i]) }
@@ -133,6 +144,11 @@ final class CandidateBar: UIView {
 }
 
 private extension CandidateBar {
+    /// bề rộng nút ứng viên: chữ + lề 10 mỗi bên (contentInsets của button(_:size:weight:action:))
+    static func width(_ text: String, size: CGFloat, weight: UIFont.Weight) -> CGFloat {
+        ceil((text as NSString).size(withAttributes: [.font: UIFont.systemFont(ofSize: size, weight: weight)]).width) + 20
+    }
+
     static func title(_ text: String, size: CGFloat, weight: UIFont.Weight) -> AttributedString {
         AttributedString(text, attributes: AttributeContainer([.font: UIFont.systemFont(ofSize: size, weight: weight)]))
     }
