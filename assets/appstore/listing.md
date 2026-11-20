@@ -130,7 +130,7 @@ Answers the six questions App Review asks of a new app (purpose, setup, external
 
 ```
 1. SCREEN RECORDING
-A screen recording made on an iPhone running the latest iOS is attached to this submission. It starts by launching ViPi, adds the keyboard in Settings, and then types Vietnamese, English and Chinese with it in Notes and Messages.
+A screen recording made on an iPhone 16 running iOS 27.2.1 is attached to this submission. It starts by launching ViPi from the Home Screen, taps "Open Settings" and turns on the keyboard under Keyboards, comes back to the app, holds the globe key and chooses ViPi, and types Vietnamese, English and Chinese in the app's "Try it here" field and then in a new note in Notes.
 
 2. PURPOSE AND AUDIENCE
 ViPi is a custom keyboard for people who write Vietnamese, Chinese and English every day, such as Vietnamese students and workers who use Chinese, and Vietnamese speakers abroad. With the system keyboards they have to switch keyboards for every English word or Chinese phrase. ViPi types Vietnamese with Telex and recognizes English words on its own ("treen" becomes "trên", "server" stays "server"), and one tap switches to Chinese Pinyin. It is free, with no ads, accounts or in-app purchases.
