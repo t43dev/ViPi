@@ -68,7 +68,7 @@ xcrun devicectl device install app --device "$DEV" $P/ViPi.app | tail -2
 echo BUILD_OK
 MAC
   ;;
-Demo|Reset|Dump|Setup|Globe)
+Demo|Reset|Dump|Setup|Globe|DndOff)
   $SSH "DEV=$DEVICE T=$1 REC=${2:-} bash -s" <<'MAC'
 export PATH=/opt/homebrew/bin:$PATH
 cd ~/vipi-ios/ios

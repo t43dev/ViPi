@@ -186,6 +186,21 @@ final class DemoTests: XCTestCase {
         pause(4)
     }
 
+    /// Tắt Do Not Disturb mà testSetup đã bật.
+    func testDndOff() throws {
+        unlock()
+        openControlCenter()
+        let focus = springboard.buttons["Focus"].firstMatch
+        XCTAssertTrue(focus.waitForExistence(timeout: 5))
+        focus.press(forDuration: 1.0)
+        pause(1.5)
+        let dnd = springboard.buttons["mode-Do Not Disturb"].firstMatch
+        XCTAssertTrue(dnd.waitForExistence(timeout: 5))
+        print("VIPI_DND=\(dnd.isSelected) \(dnd.label)")
+        if dnd.isSelected || dnd.label.contains("On") { dnd.tap(); pause(1) }
+        XCUIDevice.shared.press(.home)
+    }
+
     func testDump() throws {
         unlock()
         print("VIPI_DUMP home\n\(springboard.debugDescription)")
