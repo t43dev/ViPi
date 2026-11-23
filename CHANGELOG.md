@@ -19,6 +19,7 @@ Android 0.4.0.
 ### Fixed
 - **iPhone and iPad: the keyboard no longer stays on the 123 page after a number field.** Moving from a number field to a text field without closing the keyboard brings the letters back.
 - **iPhone and iPad: Chinese candidates no longer pile on top of each other.** On a device, typing Pinyin past the first syllable (`nih`, `nihao`) drew all candidates in one black smudge at the start of the bar; candidates of two or more characters also kept the width of a single one.
+- **iPhone and iPad: Chinese candidates of two or more characters stay on one line.** Now and then, typing Pinyin, a candidate like `你好` was squeezed to the width of one character and drawn as `你` above `好`, cut off by the bar. It happened when the candidates changed from one key to the next and a button was reused for a longer word.
 
 ## 0.5.7 · 2026-11-19
 

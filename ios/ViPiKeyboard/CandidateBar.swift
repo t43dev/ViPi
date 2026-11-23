@@ -61,11 +61,12 @@ final class CandidateBar: UIView {
             preedit.frame = .zero
             scroll.frame = bounds
         }
-        // cộng bề rộng từng nút: systemLayoutSizeFitting của cả hàng ra gần 0 sau khi gỡ nút thừa ở cuối
-        // (pinyin "ni" 60 ứng viên → "nih" 40: mọi nút rộng 0, chữ chồng lên nhau trên máy thật)
+        // bề rộng hàng = tổng bề rộng từng nút; ứng viên chữ Hán lấy đúng bề rộng đã đặt: systemLayoutSizeFitting của nút
+        // dùng lại còn trả bề rộng chữ cũ, hàng hẹp hơn tổng ràng buộc, nút bị ép và 你好 xuống hai dòng (máy thật)
         let views = stack.arrangedSubviews
-        let size = CGSize(width: views.reduce(0) { $0 + $1.systemLayoutSizeFitting(CGSize(width: 0, height: h)).width }
-                              + stack.spacing * CGFloat(max(views.count - 1, 0)), height: h)
+        let widths = showsCandidates ? candidateWidths.prefix(shownCandidates).map(\.constant)
+                                     : views.map { $0.systemLayoutSizeFitting(CGSize(width: 0, height: h)).width }
+        let size = CGSize(width: widths.reduce(0, +) + stack.spacing * CGFloat(max(views.count - 1, 0)), height: h)
         stack.frame = CGRect(x: 0, y: 0, width: max(size.width, content.fillsBar ? scroll.bounds.width : 0), height: h)
         scroll.contentSize = stack.frame.size
     }

@@ -2,6 +2,7 @@
 # Quay video cho App Review trên iPhone thật cắm vào Mac (xem ios/ViPiUITests/DemoTests.swift). Chạy trên HQ-01.
 #   scripts/ios-demo.sh build                 chép mã sang Mac, build bản Release ký development, cài lên máy
 #   scripts/ios-demo.sh <Demo|Reset|Dump> [record]   chạy một bài test (record: bật Screen Recording)
+#   scripts/ios-demo.sh Chinese               gõ Pinyin trong ô thử, chụp thanh ứng viên (TEST_RUNNER_VIPI_WORDS, ảnh trong build/chinese.xcresult khi chạy với -resultBundlePath)
 #   scripts/ios-demo.sh pull <file.mp4>       lấy video mới nhất trong DCIM về HQ-01
 # Cần: .env có MAC, SSH_KEY, APPLE_ENV, DEVICE (UDID máy thật); máy bật Developer Mode, mở khoá.
 set -euo pipefail
@@ -68,7 +69,7 @@ xcrun devicectl device install app --device "$DEV" $P/ViPi.app | tail -2
 echo BUILD_OK
 MAC
   ;;
-Demo|Reset|Dump|Setup|Globe|DndOff)
+Demo|Reset|Dump|Setup|Globe|DndOff|Chinese)
   $SSH "DEV=$DEVICE T=$1 REC=${2:-} bash -s" <<'MAC'
 export PATH=/opt/homebrew/bin:$PATH
 cd ~/vipi-ios/ios

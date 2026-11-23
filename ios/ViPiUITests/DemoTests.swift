@@ -306,4 +306,59 @@ final class DemoTests: XCTestCase {
 
         if record { screenRecording() }
     }
+
+    func testChinese() throws {
+        for app in [vipi, settings] { app.terminate() }
+        unlock()
+        vipi.launch()
+        pause(2.5)
+        vipi.buttons["Open Settings"].tap()
+        XCTAssertTrue(settings.wait(for: .runningForeground, timeout: 10))
+        pause(2)
+        let keyboards = settings.descendants(matching: .any)["Keyboards"].firstMatch
+        XCTAssertTrue(keyboards.waitForExistence(timeout: 10), settings.debugDescription)
+        keyboards.tap()
+        pause(1.5)
+        let toggle = settings.switches["ViPi"].firstMatch
+        XCTAssertTrue(toggle.waitForExistence(timeout: 10), settings.debugDescription)
+        if toggle.value as? String != "1" { toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap() }
+        pause(1.5)
+        vipi.activate()
+        pause(1.5)
+        let field = vipi.descendants(matching: .any)["trial"].firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 10))
+        field.tap()
+        pause(1.5)
+        if vipi.keyboards.firstMatch.exists { chooseViPi(in: vipi) }
+        XCTAssertFalse(vipi.keyboards.firstMatch.exists, "ViPi is not the current keyboard")
+        modeKey(vipi)
+        pause(1)
+        let words = (env["VIPI_WORDS"] ?? "nihao women zhongguo xiexie pengyou shijie dianhua jintian mingtian zaijian duibuqi meiguanxi keyi xihuan shurufa nh zg wo ai ni").split(separator: " ").map(String.init)
+        let backspace = 393 - 3.7 - unit * 0.75
+        for (n, w) in words.enumerated() {
+            for (k, ch) in w.enumerated() {
+                type(String(ch), in: vipi)
+                if env["VIPI_SHOTS"] == "all" || k == w.count - 1 {
+                    let a = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+                    a.name = String(format: "%02d-%@-%02d", n, w, k)
+                    a.lifetime = .keepAlways
+                    add(a)
+                }
+            }
+            pause(0.6)
+            if n % 3 == 2 {
+                tap(backspace, rowY[2], in: vipi); pause(0.6)
+                let a = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+                a.name = String(format: "%02d-%@-bs", n, w)
+                a.lifetime = .keepAlways
+                add(a)
+                for _ in 1..<w.count { tap(backspace, rowY[2], in: vipi); pause(0.35) }
+            } else {
+                tap(3.7 + unit * 5, rowY[3], in: vipi)
+            }
+            pause(0.8)
+        }
+        print("VIPI_TEXT=\(field.value as? String ?? "")")
+        modeKey(vipi)
+    }
 }
