@@ -84,6 +84,8 @@ if ! xcodebuild -exportArchive -archivePath $W/ViPi.xcarchive -exportOptionsPlis
   echo UPLOAD_FAIL; grep -iE 'error' $W/export.log | sort -u | head -20; exit 1
 fi
 echo UPLOAD_OK
+# dSYM của từng build: đọc crash log (.ips) của build đó, lần chạy sau xoá $W
+mkdir -p ~/vipi-dsym/build$BUILD && cp -R $W/ViPi.xcarchive/dSYMs/*.dSYM ~/vipi-dsym/build$BUILD/
 MAC
 $SCP "$TMP" "$MAC:$W/release.sh"; rm -f "$TMP"
 $SSH "TEAM=$APPLE_TEAM_ID BUILD=$BUILD ASC_KEY_ID=$ASC_KEY_ID ASC_ISSUER_ID=$ASC_ISSUER_ID bash ~/$W/release.sh"
